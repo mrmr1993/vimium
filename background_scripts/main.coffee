@@ -70,14 +70,27 @@ getCurrentTabUrl = (request, sender) -> sender.tab.url
 # Checks the user's preferences in local storage to determine if Vimium is enabled for the given URL.
 #
 isEnabledForUrl = (request) ->
-  # excludedUrls are stored as a series of URL expressions separated by newlines.
+  # excludedUrls are stored as a series of URL expressions (and passkeys) separated by newlines.
   excludedUrls = Settings.get("excludedUrls").split("\n")
-  isEnabled = true
   for url in excludedUrls
+    parse = url.trim().split(/\s+/)
+    url = parse[0]
+    passkeys = parse[1..].join("")
     # The user can add "*" to the URL which means ".*"
     regexp = new RegExp("^" + url.replace(/\*/g, ".*") + "$")
-    isEnabled = false if request.url.match(regexp)
-  { isEnabledForUrl: isEnabled }
+    if request.url.match(regexp)
+      # exclusion or passkeys is decided on the first pattern matching request.url
+      if passkeys
+        # if passkeys are defined, then vimium is enabled, but the indicated keys are passed through to the undelying page
+        console.log "isEnabledForUrl: true #{passkeys} #{request.url}"
+        return { isEnabledForUrl: true, passkeys: passkeys }
+      else
+        # otherwise, vimium is disabled
+        console.log "isEnabledForUrl: false #{request.url}"
+        return { isEnabledForUrl: false }
+  # default to "enabled"
+  console.log "isEnabledForUrl: true #{request.url}"
+  { isEnabledForUrl: true }
 
 # Called by the popup UI. Strips leading/trailing whitespace and ignores empty strings.
 root.addExcludedUrl = (url) ->
