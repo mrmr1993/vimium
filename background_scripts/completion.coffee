@@ -313,18 +313,19 @@ RankingUtils =
   #          The relative contribution of relevancy is reduced for partial matches.
   #          The relative contribution of relevancy is increased for whole-word matches.
   #
-  #   3. `wordRelevancy()` now does not allow a poor `urlScore` to pull down a good `titleScore`
+  #   3. Normalisation takes account of the number of times each term matched (previously, normalisation
+  #      accounted only for the total length of the query terms).
+  #
+  #   4. `wordRelevancy()` now does not allow a poor `urlScore` to pull down a good `titleScore`
   #      (But see, also, the comments regarding three possible endings, below.)
 
   # Weights used for scoring matches.
-  # TODO: These are fudge factors, they can be tuned.
   matchWeights:
     {
       matchAnywhere:     1
       matchStartOfWord:  1
       matchWholeWord:    1
       # The following must be the sum of the weights above; it is used for normalization.
-      # TODO: This can be calculated at runtime.
       maximumScore:      3
       #
       # Calibration factor for balancing word relevancy and recency.
@@ -337,54 +338,46 @@ RankingUtils =
 
   # Calculate a score for matching `term` against `string`.
   # The score is in the range [0, `matchWeights.maximumScore`], see above.
+  # Returns: [ score, count ], where count is the number of matched characters in `string`
   scoreTerm: (term, string) ->
     score = 0
-    if RegexpCache.get(term).test string
+    count = 0
+    nonMatching = string.split(RegexpCache.get term)
+    if nonMatching.length > 1
       # Have match.
-      score += RankingUtils.matchWeights.matchAnywhere
+      score = RankingUtils.matchWeights.matchAnywhere
+      count = nonMatching.reduce(((p,c) -> p - c.length), string.length)
       if RegexpCache.get(term, "\\b").test string
         # Have match at start of word.
         score += RankingUtils.matchWeights.matchStartOfWord
         if RegexpCache.get(term, "\\b", "\\b").test string
           # Have match of whole word.
           score += RankingUtils.matchWeights.matchWholeWord
-    score
+    [ score, if count < string.length then count else string.length ]
 
   # Returns a number between [0, 1] indicating how often the query terms appear in the url and title.
   wordRelevancy: (queryTerms, url, title) ->
-    queryLength = 0
-    urlScore = 0.0
-    titleScore = 0.0
-
+    urlScore = titleScore = 0.0
+    urlCount = titleCount = 0
     # Calculate initial scores.
     for term in queryTerms
-      queryLength += term.length
-      urlScore += RankingUtils.scoreTerm term, url
-      titleScore += RankingUtils.scoreTerm term, title if title
+      [ s, c ] = RankingUtils.scoreTerm term, url
+      urlScore += s
+      urlCount += c
+      if title
+        [ s, c ] = RankingUtils.scoreTerm term, title
+        titleScore += s
+        titleCount += c
 
     maximumPossibleScore = RankingUtils.matchWeights.maximumScore * queryTerms.length
 
-    # Normalize urlScore.
+    # Normalize scores.
     urlScore /= maximumPossibleScore
-    urlScore *= RankingUtils.normalizeDifference queryLength, url.length
+    urlScore *= RankingUtils.normalizeDifference urlCount, url.length
 
     if title
-      # Normalize titleScore (same as for urlScore, above).
-      # TODO: (smblott)
-      #       The code here is basically the same as that just above. Refactor?
       titleScore /= maximumPossibleScore
-      # TODO: (smblott)
-      #     - The intuition behind the following is (I think) to award higher
-      #       scores when there's good coverage of the title by the query
-      #       terms.  So matches against longer titles are pushed down the
-      #       ranking.
-      #     - Suggest:  A query term may match in multiple places. So the
-      #       calculation should account for the *number of characters
-      #       matched*, not just the `queryLength`.
-      #     - Example: Query is "BBC", title of a bookmark is "BBC (BBCr4)".
-      #       The coverage of the match should be 6/11, rather than 3/11.
-      #     - Obviously, the same applies to urlScore, above.
-      titleScore *= RankingUtils.normalizeDifference queryLength, title.length
+      titleScore *= RankingUtils.normalizeDifference titleCount, title.length
     else
       titleScore = urlScore
 
