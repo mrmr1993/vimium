@@ -112,9 +112,9 @@ class VomnibarUI
       # google.
       if (@selection == -1)
         query = @input.value.trim()
+        @hide()
         # <Enter> on an empty vomnibar is a no-op.
         return unless 0 < query.length
-        @hide()
         chrome.runtime.sendMessage({
           handler: if openInNewTab then "openUrlInNewTab" else "openUrlInCurrentTab"
           url: query })
