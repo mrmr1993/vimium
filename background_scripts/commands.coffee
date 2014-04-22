@@ -129,6 +129,8 @@ Commands =
       "LinkHints.activateModeWithQueue",
       "LinkHints.activateModeToDownloadLink",
       "LinkHints.activateModeToOpenIncognito",
+      "LinkHints.activateModeToHover",
+      "LinkHints.unhoverLast",
       "goPrevious",
       "goNext",
       "nextFrame",
@@ -180,6 +182,8 @@ Commands =
     "Vomnibar.activateEditUrl",
     "Vomnibar.activateEditUrlInNewTab",
     "LinkHints.activateModeToOpenIncognito",
+    "LinkHints.activateModeToHover",
+    "LinkHints.unhoverLast",
     "goNext",
     "goPrevious",
     "Marks.activateCreateMode",
@@ -315,6 +319,8 @@ commandDescriptions =
   "LinkHints.activateModeWithQueue": ["Open multiple links in a new tab", { noRepeat: true }]
   "LinkHints.activateModeToOpenIncognito": ["Open a link in incognito window", { passCountToFunction: true }]
   "LinkHints.activateModeToDownloadLink": ["Download link url", { passCountToFunction: true }]
+  "LinkHints.activateModeToHover": ["Hover over a link", { passCountToFunction: true }]
+  "LinkHints.unhoverLast": ["Stop hovering at last location", { noRepeat: true }]
 
   enterFindMode: ["Enter find mode", { noRepeat: true }]
   performFind: ["Cycle forward to the next find match"]

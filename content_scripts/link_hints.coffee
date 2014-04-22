@@ -17,6 +17,7 @@ OPEN_WITH_QUEUE = name: "queue"
 COPY_LINK_URL = name: "link"
 OPEN_INCOGNITO = name: "incognito"
 DOWNLOAD_LINK_URL = name: "download"
+HOVER = name: "hover"
 
 LinkHints =
   activateMode: (count = 1, mode = OPEN_IN_CURRENT_TAB) ->
@@ -34,6 +35,8 @@ LinkHints =
   activateModeWithQueue: -> @activateMode 1, OPEN_WITH_QUEUE
   activateModeToOpenIncognito: (count) -> @activateMode count, OPEN_INCOGNITO
   activateModeToDownloadLink: (count) -> @activateMode count, DOWNLOAD_LINK_URL
+  activateModeToHover: (count) -> @activateMode count, HOVER
+  unhoverLast: -> DomUtils.simulateUnhover()
 
 class LinkHintsMode
   hintMarkerContainingDiv: null
@@ -130,6 +133,10 @@ class LinkHintsMode
       @hintMode.setIndicator "Download link URL."
       @linkActivator = (link) ->
         DomUtils.simulateClick link, altKey: true, ctrlKey: false, metaKey: false
+    else if @mode is HOVER
+      @hintMode.setIndicator "Hover over a link."
+      @linkActivator = (link) ->
+        DomUtils.simulateHover link
     else # OPEN_IN_CURRENT_TAB
       @hintMode.setIndicator "Open link in current tab."
       @linkActivator = DomUtils.simulateClick.bind DomUtils
