@@ -64,6 +64,12 @@
       "css": ["content_scripts/file_urls.css"],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_scripts/inject_script.js"],
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "browser_action": {
@@ -74,6 +80,7 @@
     "pages/vomnibar.html",
     "content_scripts/vimium.css",
     "pages/hud.html",
-    "pages/completion_engines.html"
+    "pages/completion_engines.html",
+    "pages/addEventListener_hook.js"
   ]
 }
