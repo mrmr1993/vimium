@@ -181,6 +181,7 @@ document.addEventListener "DOMContentLoaded", ->
     linkHintNumbers: NonEmptyTextOption
     nextPatterns: NonEmptyTextOption
     previousPatterns: NonEmptyTextOption
+    enableBlurEmbeds: CheckBoxOption
     regexFindMode: CheckBoxOption
     scrollStepSize: NumberOption
     searchEngines: TextOption
