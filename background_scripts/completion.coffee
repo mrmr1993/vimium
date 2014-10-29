@@ -26,7 +26,7 @@ class Suggestion
 
   generateHtml: ->
     return @html if @html
-    favIconUrl = @tabFavIconUrl or "#{@getUrlRoot(@url)}/favicon.ico"
+    favIconUrl = @tabFavIconUrl or @getFaviconURL @url
     relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@computeRelevancy()}</span>" else ""
     # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
     @html =
@@ -42,11 +42,11 @@ class Suggestion
       </div>
       """
 
-  # Use neat trick to snatch a domain (http://stackoverflow.com/a/8498668).
-  getUrlRoot: (url) ->
-    a = document.createElement 'a'
-    a.href = url
-    a.protocol + "//" + a.hostname
+  # https://groups.google.com/a/chromium.org/forum/#!topic/chromium-extensions/DONzstBAJeo
+  # An alternative would be to guess: "http://#{domain}/favicon.ico".
+  getFaviconURL: (url) ->
+    domain = if 0 <= url.indexOf(":") then Utils.parseDomain(url) else url
+    "https://www.google.com/profiles/c/favicons?domain=#{domain}"
 
   shortenUrl: (url) -> @stripTrailingSlash(url).replace(/^https?:\/\//, "")
 
@@ -238,7 +238,7 @@ class DomainCompleter
       onComplete()
 
   onPageVisited: (newPage) ->
-    domain = @parseDomain(newPage.url)
+    domain = Utils.parseDomain newPage.url
     if domain
       slot = @domains[domain] ||= { entry: newPage, referenceCount: 0 }
       # We want each entry in our domains hash to point to the most recent History entry for that domain.
@@ -250,11 +250,9 @@ class DomainCompleter
       @domains = {}
     else
       toRemove.urls.forEach (url) =>
-        domain = @parseDomain(url)
+        domain = Utils.parseDomain(url)
         if domain and @domains[domain] and ( @domains[domain].referenceCount -= 1 ) == 0
           delete @domains[domain]
-
-  parseDomain: (url) -> url.split("/")[2] || ""
 
   # Suggestions from the Domain completer have the maximum relevancy. They should be shown first in the list.
   computeRelevancy: -> 1

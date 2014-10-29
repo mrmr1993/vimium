@@ -85,6 +85,8 @@ Utils =
     # Fallback: no URL
     return false
 
+  parseDomain: (url) -> url.split("/")[2] || ""
+
   # Creates a search URL from the given :query.
   createSearchUrl: (query) ->
     # it would be better to pull the default search engine from chrome itself,
