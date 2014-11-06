@@ -262,7 +262,7 @@ context "suggestions",
 
   should "shorten urls", ->
     suggestion = new Suggestion(["queryterm"], "tab", "http://ninjawords.com/blah", "ninjawords", returns(1))
-    assert.equal -1, suggestion.generateHtml().indexOf("http://ninjawords.com/blah")
+    assert.equal -1, suggestion.generateHtml().indexOf('vomnibarUrl">http://ninjawords.com/blah')
 
 context "RankingUtils.wordRelevancy",
   should "score higher in shorter URLs", ->
