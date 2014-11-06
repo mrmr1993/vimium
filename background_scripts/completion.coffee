@@ -235,8 +235,8 @@ class DomainCompleter
       onComplete()
 
   onPageVisited: (newPage) ->
-    domain = Suggestion.parseDomain(newPage.url)
-    if domain
+    domain = @parseDomain(newPage.url)
+    if domain and not Utils.hasChromePrefix newPage.url
       slot = @domains[domain] ||= { entry: newPage, referenceCount: 0 }
       # We want each entry in our domains hash to point to the most recent History entry for that domain.
       slot.entry = newPage if slot.entry.lastVisitTime < newPage.lastVisitTime
