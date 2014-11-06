@@ -31,17 +31,18 @@ Utils =
       for prefix in chromePrefixes
         return true if url.startsWith prefix
 
+  hasFullUrlPrefix: do ->
+    urlPrefix = new RegExp "^[a-z]{3,}://."
+    (url) -> urlPrefix.test url
+
   # Completes a partial URL (without scheme)
   createFullUrl: (partialUrl) ->
-    unless /^[a-z]{3,}:\/\//.test partialUrl
-      "http://" + partialUrl
-    else
-      partialUrl
+    if @hasFullUrlPrefix(partialUrl) then partialUrl else ("http://" + partialUrl)
 
   # Tries to detect if :str is a valid URL.
   isUrl: (str) ->
     # Starts with a scheme: URL
-    return true if /^[a-z]{3,}:\/\//.test str
+    return true if @hasFullUrlPrefix str
 
     # Must not contain spaces
     return false if ' ' in str
