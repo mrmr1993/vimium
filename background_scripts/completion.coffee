@@ -24,22 +24,25 @@ class Suggestion
 
   computeRelevancy: -> @relevancy = @computeRelevancyFunction(this)
 
-  generateHtml: ->
-    return @html if @html
-    relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@computeRelevancy()}</span>" else ""
-    # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
-    @html =
-      """
-      <div class="vimiumReset vomnibarTopHalf">
-         <span class="vimiumReset vomnibarSource">#{@type}</span>
-         <span class="vimiumReset vomnibarTitle">#{@highlightTerms(Utils.escapeHtml(@title))}</span>
-      </div>
-      <div class="vimiumReset vomnibarBottomHalf">
-         <img class="vimiumReset vomnibarIcon" url="#{@url}" src=""/><nobr>
-         <span class="vimiumReset vomnibarUrl">#{@shortenUrl(@highlightTerms(Utils.escapeHtml(@url)))}</span>
-         #{relevancyHtml}
-      </div>
-      """
+  generateHtml: do ->
+    faviconId = 0
+    ->
+      return @html if @html
+      relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@computeRelevancy()}</span>" else ""
+      @faviconId = "vimium-favicon-id-#{++faviconId}"
+      # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
+      @html =
+        """
+        <div class="vimiumReset vomnibarTopHalf">
+           <span class="vimiumReset vomnibarSource">#{@type}</span>
+           <span class="vimiumReset vomnibarTitle">#{@highlightTerms(Utils.escapeHtml(@title))}</span>
+        </div>
+        <div class="vimiumReset vomnibarBottomHalf">
+           <img class="vimiumReset vomnibarIcon" id="#{@faviconId}" src=""/><nobr>
+           <span class="vimiumReset vomnibarUrl">#{@shortenUrl(@highlightTerms(Utils.escapeHtml(@url)))}</span>
+           #{relevancyHtml}
+        </div>
+        """
 
   # Static method.
   @parseDomain: (url) -> url.split("/")[2] || ""
