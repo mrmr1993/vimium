@@ -33,9 +33,11 @@ getDimension = (el, direction, amount) ->
 isScrollAllowed = (element, direction) ->
   computedStyle = window.getComputedStyle(element)
   # Elements with `overflow: hidden` should not be scrolled.
-  return computedStyle.getPropertyValue("overflow-#{direction}") != "hidden" and
-         ["hidden", "collapse"].indexOf(computedStyle.getPropertyValue("visibility")) == -1 and
-         computedStyle.getPropertyValue("display") != "none"
+  return false if computedStyle.getPropertyValue("overflow-#{direction}") == "hidden"
+  # Do not scroll elements which are not visible.
+  return false if ["hidden", "collapse"].indexOf(computedStyle.getPropertyValue("visibility")) != -1
+  return false if computedStyle.getPropertyValue("display") == "none"
+  true
 
 # Test whether element actually scrolls in the direction required when asked to do so.
 # Due to chrome bug 110149, scrollHeight and clientHeight cannot be used to reliably determine whether an
@@ -126,7 +128,12 @@ Scroller =
   # :factor is needed because :amount can take on string values, which scrollBy converts to element dimensions.
   scrollBy: (direction, amount, factor = 1) ->
     # if this is called before domReady, just use the window scroll function
-    return unless document.body
+    unless document.body
+      if amount instanceof Number
+        if direction == "x" then window.scrollBy(amount, 0) else window.scrollBy(0, amount)
+      return
+
+    activatedElement ||= document.body
 
     element = findScrollableElement activatedElement, direction, amount, factor
     elementAmount = factor * getDimension element, direction, amount
