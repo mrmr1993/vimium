@@ -103,14 +103,19 @@ DomUtils =
     # When focusing a textbox, put the selection caret at the end of the textbox's contents.
     element.setSelectionRange(element.value.length, element.value.length)
 
-  simulateClick: (element, modifiers) ->
+  simulateContextMenuEvent: (element) ->
+    htmlEvent = document.createEvent("HTMLEvents")
+    htmlEvent.initEvent("contextmenu", true, false)
+    element.dispatchEvent(htmlEvent)
+
+  simulateClick: (element, modifiers, button = 0) ->
     modifiers ||= {}
 
     eventSequence = ["mouseover", "mousedown", "mouseup", "click"]
     for event in eventSequence
       mouseEvent = document.createEvent("MouseEvents")
       mouseEvent.initMouseEvent(event, true, true, window, 1, 0, 0, 0, 0, modifiers.ctrlKey, modifiers.altKey,
-      modifiers.shiftKey, modifiers.metaKey, 0, null)
+      modifiers.shiftKey, modifiers.metaKey, button, null)
       # Debugging note: Firefox will not execute the element's default action if we dispatch this click event,
       # but Webkit will. Dispatching a click on an input box does not seem to focus it; we do that separately
       element.dispatchEvent(mouseEvent)

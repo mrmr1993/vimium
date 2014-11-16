@@ -15,6 +15,7 @@ OPEN_WITH_QUEUE = {}
 COPY_LINK_URL = {}
 OPEN_INCOGNITO = {}
 DOWNLOAD_LINK_URL = {}
+RIGHT_CLICK = {}
 
 LinkHints =
   hintMarkerContainingDiv: null
@@ -54,6 +55,7 @@ LinkHints =
   activateModeWithQueue: -> @activateMode(OPEN_WITH_QUEUE)
   activateModeToOpenIncognito: -> @activateMode(OPEN_INCOGNITO)
   activateModeToDownloadLink: -> @activateMode(DOWNLOAD_LINK_URL)
+  activateModeToTriggerRightClickAction: -> @activateMode(RIGHT_CLICK)
 
   activateMode: (mode = OPEN_IN_CURRENT_TAB) ->
     # we need documentElement to be ready in order to append links
@@ -112,9 +114,17 @@ LinkHints =
       HUD.show("Download link URL")
       @linkActivator = (link) ->
         DomUtils.simulateClick(link, {
-          altKey: true,
+          altKey: false,
           ctrlKey: false,
           metaKey: false })
+    else if @mode is RIGHT_CLICK
+      HUD.show("Right click link")
+      @linkActivator = (link) ->
+        DomUtils.simulateClick(link, {
+          altKey: true,
+          ctrlKey: false,
+          metaKey: false }, 2)
+        DomUtils.simulateContextMenuEvent(link)
     else # OPEN_IN_CURRENT_TAB
       HUD.show("Open link in current tab")
       @linkActivator = (link) -> DomUtils.simulateClick.bind(DomUtils, link)()

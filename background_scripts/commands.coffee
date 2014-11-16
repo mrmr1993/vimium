@@ -118,6 +118,7 @@ Commands =
       "LinkHints.activateModeWithQueue",
       "LinkHints.activateModeToDownloadLink",
       "LinkHints.activateModeToOpenIncognito",
+      "LinkHints.activateModeToTriggerRightClickAction",
       "Vomnibar.activate",
       "Vomnibar.activateInNewTab",
       "Vomnibar.activateTabSelection",
@@ -163,6 +164,7 @@ Commands =
     "focusInput",
     "LinkHints.activateModeWithQueue",
     "LinkHints.activateModeToDownloadLink",
+    "LinkHints.activateModeToTriggerRightClickAction",
     "Vomnibar.activateEditUrl",
     "Vomnibar.activateEditUrlInNewTab",
     "LinkHints.activateModeToOpenIncognito",
@@ -295,6 +297,7 @@ commandDescriptions =
   "LinkHints.activateModeWithQueue": ["Open multiple links in a new tab", { noRepeat: true }]
   "LinkHints.activateModeToOpenIncognito": ["Open a link in incognito window", { noRepeat: true }]
   "LinkHints.activateModeToDownloadLink": ["Download link url", { noRepeat: true }]
+  "LinkHints.activateModeToTriggerRightClickAction": ["Right click a link", { noRepeat: true }]
 
   enterFindMode: ["Enter find mode", { noRepeat: true }]
   performFind: ["Cycle forward to the next find match"]
