@@ -284,10 +284,12 @@ LinkHints =
   #
   # Sends a "mouseout" event to the last "mouseover"-ed element.
   #
-  unhoverLast: (element) ->
-    DomUtils.simulateUnhover(@_lastHoveredElement) if @_lastHoveredElement
-    @_lastHoveredElement = element
-  _lastHoveredElement: null
+  unhoverLast: do ->
+    lastHoveredElement = null
+
+    (element) ->
+      DomUtils.simulateUnhover(lastHoveredElement) if lastHoveredElement?
+      lastHoveredElement = element
 
 alphabetHints =
   hintKeystrokeQueue: []
@@ -485,7 +487,6 @@ filterHints =
     @hintKeystrokeQueue = []
     @linkTextKeystrokeQueue = []
     @labelMap = {}
-
 
 #
 # Make each hint character a span, so that we can highlight the typed characters as you type them.
