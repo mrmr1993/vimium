@@ -299,11 +299,11 @@ BackgroundCommands =
   nextFrame: (count) ->
     chrome.tabs.getSelected(null, (tab) ->
       frames = framesForTab[tab.id].frames
-      currIndex = getCurrFrameIndex(frames)
+      currIndex = frames.frameIndex or getCurrFrameIndex(frames)
 
       # TODO: Skip the "top" frame (which doesn't actually have a <frame> tag),
       # since it exists only to contain the other frames.
-      newIndex = (currIndex + count) % frames.length
+      frames.frameIndex = newIndex = (currIndex + count) % frames.length
 
       chrome.tabs.sendMessage(tab.id, { name: "focusFrame", frameId: frames[newIndex].id, highlight: true }))
 
@@ -408,7 +408,7 @@ chrome.tabs.onUpdated.addListener (tabId, changeInfo, tab) ->
     code: Settings.get("userDefinedLinkHintCss")
     runAt: "document_start"
   chrome.tabs.insertCSS tabId, cssConf, -> chrome.runtime.lastError
-  updateOpenTabs(tab)
+  updateOpenTabs(tab) if "url" in changeInfo
   updateActiveState(tabId)
 
 chrome.tabs.onAttached.addListener (tabId, attachedInfo) ->
@@ -625,11 +625,30 @@ registerFrame = (request, sender) ->
 
   if (request.is_top)
     focusedFrame = request.frameId
-    framesForTab[sender.tab.id].total = request.total
+    framesForTab[sender.tab.id].frames.frameIndex = getCurrFrameIndex(framesForTab[sender.tab.id])
 
   framesForTab[sender.tab.id].frames.push({ id: request.frameId })
 
-handleFrameFocused = (request, sender) -> focusedFrame = request.frameId
+unregisterFrame = (request, sender) ->
+  return unless framesForTab[sender.tab.id]
+
+  if request.is_top # The whole tab is closing, so we can drop the frames list.
+    updateOpenTabs(sender.tab)
+    return
+
+  frames = framesForTab[sender.tab.id].frames
+
+  for index, tabDetails of frames
+    if (tabDetails.id == request.frameId)
+      frames.splice(index, 1)
+
+      frames.frameIndex-- if frames.frameIndex >= index # Adjust index if it is shifted.
+      nextFrame(0) if frames.frameIndex == index # Focus another frame if the closed one was focused.
+      return
+
+handleFrameFocused = (request, sender) ->
+  focusedFrame = request.frameId
+  framesForTab[sender.tab.id].frames.frameIndex = getCurrFrameIndex(framesForTab[sender.tab.id])
 
 getCurrFrameIndex = (frames) ->
   for i in [0...frames.length]
@@ -650,6 +669,7 @@ sendRequestHandlers =
   openUrlInCurrentTab: openUrlInCurrentTab,
   openOptionsPageInNewTab: openOptionsPageInNewTab,
   registerFrame: registerFrame,
+  unregisterFrame: unregisterFrame,
   frameFocused: handleFrameFocused,
   upgradeNotificationClosed: upgradeNotificationClosed,
   updateScrollPosition: handleUpdateScrollPosition,
@@ -657,7 +677,7 @@ sendRequestHandlers =
   isEnabledForUrl: isEnabledForUrl,
   saveHelpDialogSettings: saveHelpDialogSettings,
   selectSpecificTab: selectSpecificTab,
-  refreshCompleter: refreshCompleter
+  refreshCompleter: refreshCompleter,
   createMark: Marks.create.bind(Marks),
   gotoMark: Marks.goto.bind(Marks)
 
