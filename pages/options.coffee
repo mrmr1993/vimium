@@ -194,6 +194,7 @@ document.addEventListener "DOMContentLoaded", ->
     newTabUrl: NonEmptyTextOption
     nextPatterns: NonEmptyTextOption
     previousPatterns: NonEmptyTextOption
+    enableBlurEmbeds: CheckBoxOption
     regexFindMode: CheckBoxOption
     scrollStepSize: NumberOption
     searchEngines: TextOption
