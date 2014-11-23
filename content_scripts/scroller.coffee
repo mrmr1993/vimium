@@ -6,6 +6,29 @@ window.Scroller = root = {}
 #
 activatedElement = null
 
+# keep track of jump history, ie whenever `jumpTo()` is called.
+maxHistory = 50
+jumpHistory = []
+jumpPosition = 0
+
+setActivatedElement = (el) ->
+  activatedElement = el
+  jumpHistory = []
+  jumpPosition = 0
+
+addToJumpHistory = (direction, val) ->
+  point = {}
+  if direction == 'x'
+    point.x = val
+    point.y = activatedElement[scrollProperties.y.axisName]
+  else
+    point.x = activatedElement[scrollProperties.x.axisName]
+    point.y = val
+  jumpHistory.push(point)
+  jumpHistory = jumpHistory.slice(-maxHistory)
+  console.log('updateing history', jumpHistory.length)
+
+
 root.init = ->
   handlerStack.push DOMActivate: -> activatedElement = event.target
 
@@ -41,7 +64,8 @@ ensureScrollChange = (direction, changeFn) ->
     # Elements with `overflow: hidden` should not be scrolled.
     overflow = window.getComputedStyle(element).getPropertyValue("overflow-#{direction}")
     changeFn(element, axisName) unless overflow == "hidden"
-    break unless element[axisName] == oldScrollValue && element != document.body
+    newScrollValue = element[axisName]
+    break unless (newScrollValue == oldScrollValue && element != document.body)
     # we may have an orphaned element. if so, just scroll the body element.
     element = element.parentElement || document.body
 
@@ -50,7 +74,9 @@ ensureScrollChange = (direction, changeFn) ->
   # subsequent scrolls only move the parent element.
   rect = activatedElement.getBoundingClientRect()
   if (rect.bottom < 0 || rect.top > window.innerHeight || rect.right < 0 || rect.left > window.innerWidth)
-    activatedElement = element
+    setActivatedElement(element)
+
+  [oldScrollValue, newScrollValue]
 
 # scroll the active element in :direction by :amount * :factor.
 # :factor is needed because :amount can take on string values, which scrollBy converts to element dimensions.
@@ -64,7 +90,7 @@ root.scrollBy = (direction, amount, factor = 1) ->
     return
 
   if (!activatedElement || !isRendered(activatedElement))
-    activatedElement = document.body
+    setActivatedElement(document.body)
 
   ensureScrollChange direction, (element, axisName) ->
     if Utils.isString amount
@@ -74,21 +100,64 @@ root.scrollBy = (direction, amount, factor = 1) ->
     elementAmount *= factor
     element[axisName] += elementAmount
 
-root.scrollTo = (direction, pos) ->
+root.scrollTo = (direction, pos, history, lastPosition) ->
   return unless document.body
 
   if (!activatedElement || !isRendered(activatedElement))
-    activatedElement = document.body
+    setActivatedElement(document.body)
 
-  ensureScrollChange direction, (element, axisName) ->
+  [oldVal, newVal] = ensureScrollChange direction, (element, axisName) ->
     if Utils.isString pos
       elementPos = getDimension element, direction, pos
     else
       elementPos = pos
     element[axisName] = elementPos
 
+  if history
+    if lastPosition
+      lastPosition[direction] = oldVal
+
+  else if oldVal != newVal
+    jumpHistory.length = jumpPosition
+    lastPos = jumpHistory[jumpPosition] - 1
+    if lastPos
+      if lastPos[direction] != oldVal
+        addToJumpHistory(direction, oldVal)
+      else if lastPos[direction] != newVal
+        addToJumpHistory(direction, newVal)
+      jumpPosition++
+    else
+      addToJumpHistory(direction, oldVal)
+      addToJumpHistory(direction, newVal)
+      jumpPosition++
+
+
 # TODO refactor and put this together with the code in getVisibleClientRect
 isRendered = (element) ->
   computedStyle = window.getComputedStyle(element, null)
   return !(computedStyle.getPropertyValue("visibility") != "visible" ||
       computedStyle.getPropertyValue("display") == "none")
+
+root.scrollBack = ->
+  return unless document.body
+  return unless activatedElement && isRendered(activatedElement)
+
+  lastPosition = jumpHistory[jumpPosition]
+  newPosition = jumpHistory[--jumpPosition]
+  if newPosition
+    root.scrollTo "x", newPosition.x, true, lastPosition
+    root.scrollTo "y", newPosition.y, true, lastPosition
+  else
+    jumpPosition = 0
+
+root.scrollForward = ->
+  return unless document.body
+  return unless activatedElement && isRendered(activatedElement)
+
+  lastPosition = jumpHistory[jumpPosition]
+  newPosition = jumpHistory[++jumpPosition]
+  if newPosition
+    root.scrollTo "x", newPosition.x, true, lastPosition
+    root.scrollTo "y", newPosition.y, true, lastPosition
+  else
+    jumpPosition = jumpHistory.length - 1

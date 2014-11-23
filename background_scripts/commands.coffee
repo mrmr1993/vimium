@@ -103,6 +103,8 @@ Commands =
       "scrollFullPageUp",
       "scrollFullPageDown",
       "reload",
+      "scrollBack",
+      "scrollForward",
       "toggleViewSource",
       "copyCurrentUrl",
       "LinkHints.activateModeToCopyLinkUrl",
@@ -188,6 +190,9 @@ defaultKeyMappings =
   "zL": "scrollToRight"
   "<c-e>": "scrollDown"
   "<c-y>": "scrollUp"
+  "<c-o>": "scrollBack"
+  "g;": "scrollBack"
+  "<c-i>": "scrollForward"
 
   "d": "scrollPageDown"
   "u": "scrollPageUp"
@@ -275,6 +280,9 @@ commandDescriptions =
   scrollPageUp: ["Scroll a page up"]
   scrollFullPageDown: ["Scroll a full page down"]
   scrollFullPageUp: ["Scroll a full page up"]
+
+  scrollBack: ["Go to older position in scroll jump history"]
+  scrollForward: ["Go to newer position in scroll jump history"]
 
   reload: ["Reload the page", { noRepeat: true }]
   toggleViewSource: ["View page source", { noRepeat: true }]
