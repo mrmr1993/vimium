@@ -146,9 +146,12 @@ Commands =
       "restoreTab",
       "moveTabToNewWindow",
       "togglePinTab",
-      "closeTabsOnLeft","closeTabsOnRight",
+      "closeTabsOnLeft",
+      "closeTabsOnRight",
       "closeOtherTabs",
       "moveTabLeft",
+      "moveTabToLeft",
+      "moveTabToRight",
       "moveTabRight"]
     misc:
       ["showHelp"]
@@ -174,6 +177,8 @@ Commands =
     "Marks.activateGotoMode",
     "moveTabLeft",
     "moveTabRight",
+    "moveTabToLeft",
+    "moveTabToRight",
     "closeTabsOnLeft",
     "closeTabsOnRight",
     "closeOtherTabs"]
@@ -340,7 +345,9 @@ commandDescriptions =
   closeOtherTabs: ["Close all other tabs", {background: true, noRepeat: true}]
 
   moveTabLeft: ["Move tab to the left", { background: true, passCountToFunction: true }]
-  moveTabRight: ["Move tab to the right", { background: true, passCountToFunction: true  }]
+  moveTabRight: ["Move tab to the right", { background: true, passCountToFunction: true }]
+  moveTabToLeft: ["Move tab all the way to the left", { background: true, passCountToFunction: true }]
+  moveTabToRight: ["Move tab all the way to the right", { background: true, passCountToFunction: true }]
 
   "Vomnibar.activate": ["Open URL, bookmark, or history entry", { noRepeat: true }]
   "Vomnibar.activateInNewTab": ["Open URL, bookmark, history entry, in a new tab", { noRepeat: true }]
