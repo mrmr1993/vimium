@@ -27,9 +27,6 @@ addToJumpHistory = (direction, val) ->
   console.log('updateing history', jumpHistory.length)
 
 
-root.init = ->
-  handlerStack.push DOMActivate: -> activatedElement = event.target
-
 scrollProperties =
   x: {
     axisName: 'scrollLeft'
