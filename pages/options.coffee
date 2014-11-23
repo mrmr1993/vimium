@@ -197,6 +197,7 @@ document.addEventListener "DOMContentLoaded", ->
     enableBlurEmbeds: CheckBoxOption
     regexFindMode: CheckBoxOption
     scrollStepSize: NumberOption
+    smoothScroll: CheckBoxOption
     searchEngines: TextOption
     searchUrl: NonEmptyTextOption
     userDefinedLinkHintCss: TextOption
