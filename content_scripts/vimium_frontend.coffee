@@ -182,26 +182,24 @@ window.addEventListener "focus", ->
 # Initialization tasks that must wait for the document to be ready.
 #
 initializeOnDomReady = ->
-  registerFrame()
-
   enterInsertModeIfElementIsFocused() if isEnabledForUrl
 
   # Tell the background page we're in the dom ready state.
   chrome.runtime.connect({ name: "domReady" })
 
 registerFrame = ->
-  chrome.runtime.sendMessage(
-    handler: "registerFrame"
-    frameId: frameId
-    is_top: window.top == window.self
-    total: frames.length + 1)
+  # Don't register frameset containers; focusing them is no use.
+  if document.body.tagName != "FRAMESET"
+    chrome.runtime.sendMessage
+      handler: "registerFrame"
+      frameId: frameId
 
 # Unregister the frame if we're going to exit.
 unregisterFrame = ->
-  chrome.runtime.sendMessage(
+  chrome.runtime.sendMessage
     handler: "unregisterFrame"
     frameId: frameId
-    is_top: window.top == window.self)
+    tab_is_closing: window.top == window.self
 
 #
 # Enters insert mode if the currently focused element in the DOM is focusable.
@@ -591,6 +589,8 @@ isEmbed = (element) -> ["embed", "object"].indexOf(element.nodeName.toLowerCase(
 # and will enter enter mode if focused.
 #
 isEditable = (target) ->
+  # Note: document.activeElement.isContentEditable is also rechecked in isInsertMode() dynamically.
+  return true if target.isContentEditable
   nodeName = target.nodeName.toLowerCase()
   # use a blacklist instead of a whitelist because new form controls are still being implemented for html5
   noFocus = ["radio", "checkbox"]
@@ -613,6 +613,7 @@ window.enterInsertMode = (target) ->
 # when the last editable element that came into focus -- which insertModeLock points to -- has been blurred.
 # If insert mode is entered manually (via pressing 'i'), then we set insertModeLock to 'undefined', and only
 # leave insert mode when the user presses <ESC>.
+# Note. This returns the truthiness of target, which is required by isInsertMode.
 #
 enterInsertModeWithoutShowingIndicator = (target) ->
   insertModeLock = target
@@ -624,12 +625,12 @@ exitInsertMode = (target) ->
     HUD.hide()
 
 isInsertMode = ->
-  # If the user currently has a caret/selection in a contentEditable element, they should be in insert mode,
-  # but sometimes are not.  This can happen for several reasons:
-  #  - the contentEditable element sets document.designMode when it is focused (which immediately fires a
-  #    blur event).
-  #  - contentEditable is set dynamically (eg. inbox.google.com).
-  insertModeLock != null or DomUtils.isContentEditableFocused()
+  return true if insertModeLock != null
+  # Some sites (e.g. inbox.google.com) change the contentEditable attribute on the fly (see #1245); and
+  # unfortunately, isEditable() is called *before* the change is made.  Therefore, we need to re-check whether
+  # the active element is contentEditable.
+  document.activeElement and document.activeElement.isContentEditable and
+    enterInsertModeWithoutShowingIndicator document.activeElement
 
 # should be called whenever rawQuery is modified.
 updateFindModeQuery = ->
@@ -1123,6 +1124,8 @@ Tween =
       state.onUpdate(value)
 
 initializePreDomReady()
+window.addEventListener("DOMContentLoaded", registerFrame)
+window.addEventListener("unload", unregisterFrame)
 window.addEventListener("DOMContentLoaded", initializeOnDomReady)
 window.addEventListener("unload", unregisterFrame)
 

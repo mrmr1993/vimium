@@ -8,7 +8,7 @@ keyQueue = "" # Queue of keys typed
 validFirstKeys = {}
 singleKeyCommands = []
 focusedFrame = null
-framesForTab = {}
+frameIdsForTab = {}
 
 # Keys are either literal characters, or "named" - for example <a-b> (alt+b), <left> (left arrow) or <f12>
 # This regular expression captures two groups: the first is a named key, the second is the remainder of
@@ -300,16 +300,13 @@ BackgroundCommands =
   moveTabRight: (count) -> moveTab("next", count)
   moveTabToLeft: (count) -> moveTab("first", count)
   moveTabToRight: (count) -> moveTab("last", count)
-  nextFrame: (count) ->
+  nextFrame: (count,frameId) ->
     chrome.tabs.getSelected(null, (tab) ->
-      frames = framesForTab[tab.id].frames
-      currIndex = frames.frameIndex or getCurrFrameIndex(frames)
-
-      # TODO: Skip the "top" frame (which doesn't actually have a <frame> tag),
-      # since it exists only to contain the other frames.
-      frames.frameIndex = newIndex = (currIndex + count) % frames.length
-
-      chrome.tabs.sendMessage(tab.id, { name: "focusFrame", frameId: frames[newIndex].id, highlight: true }))
+      # We can't always track which frame chrome has focussed, but here we learn that it's frameId; so add an
+      # additional offset such that we do indeed start from frameId.
+      offset = Math.max 0, frameIdsForTab[tab.id].indexOf frameId
+      frames = frameIdsForTab[tab.id] = frameIdsForTab[tab.id].rotate(count+offset)
+      chrome.tabs.sendMessage(tab.id, { name: "focusFrame", frameId: frames[0], highlight: true }))
 
   closeTabsOnLeft: -> removeTabsRelative "before"
   closeTabsOnRight: -> removeTabsRelative "after"
@@ -371,7 +368,7 @@ updateOpenTabs = (tab) ->
     scrollY: null
     deletor: null
   # Frames are recreated on refresh
-  delete framesForTab[tab.id]
+  delete frameIdsForTab[tab.id]
 
 setBrowserActionIcon = (tabId,path) ->
   chrome.browserAction.setIcon({ tabId: tabId, path: path })
@@ -418,7 +415,7 @@ chrome.tabs.onUpdated.addListener (tabId, changeInfo, tab) ->
     code: Settings.get("userDefinedLinkHintCss")
     runAt: "document_start"
   chrome.tabs.insertCSS tabId, cssConf, -> chrome.runtime.lastError
-  updateOpenTabs(tab) if "url" in changeInfo
+  updateOpenTabs(tab) if changeInfo.url?
   updateActiveState(tabId)
 
 chrome.tabs.onAttached.addListener (tabId, attachedInfo) ->
@@ -453,7 +450,7 @@ chrome.tabs.onRemoved.addListener (tabId) ->
   # scroll position)
   tabInfoMap.deletor = -> delete tabInfoMap[tabId]
   setTimeout tabInfoMap.deletor, 1000
-  delete framesForTab[tabId]
+  delete frameIdsForTab[tabId]
 
 chrome.tabs.onActiveChanged.addListener (tabId, selectInfo) -> updateActiveState(tabId)
 
@@ -581,9 +578,9 @@ checkKeyQueue = (keysToCheck, tabId, frameId) ->
         refreshedCompletionKeys = true
       else
         if registryEntry.passCountToFunction
-          BackgroundCommands[registryEntry.command](count)
+          BackgroundCommands[registryEntry.command](count, frameId)
         else if registryEntry.noRepeat
-          BackgroundCommands[registryEntry.command]()
+          BackgroundCommands[registryEntry.command](frameId)
         else
           repeatFunction(BackgroundCommands[registryEntry.command], count, 0, frameId)
 
@@ -630,40 +627,21 @@ openOptionsPageInNewTab = ->
     chrome.tabs.create({ url: chrome.runtime.getURL("pages/options.html"), index: tab.index + 1 }))
 
 registerFrame = (request, sender) ->
-  unless framesForTab[sender.tab.id]
-    framesForTab[sender.tab.id] = { frames: [] }
-
-  if (request.is_top)
-    focusedFrame = request.frameId
-    framesForTab[sender.tab.id].frames.frameIndex = getCurrFrameIndex(framesForTab[sender.tab.id])
-
-  framesForTab[sender.tab.id].frames.push({ id: request.frameId })
+  (frameIdsForTab[sender.tab.id] ?= []).push request.frameId
 
 unregisterFrame = (request, sender) ->
-  return unless framesForTab[sender.tab.id]
-
-  if request.is_top # The whole tab is closing, so we can drop the frames list.
-    updateOpenTabs(sender.tab)
-    return
-
-  frames = framesForTab[sender.tab.id].frames
-
-  for index, tabDetails of frames
-    if (tabDetails.id == request.frameId)
-      frames.splice(index, 1)
-
-      frames.frameIndex-- if frames.frameIndex >= index # Adjust index if it is shifted.
-      nextFrame(0) if frames.frameIndex == index # Focus another frame if the closed one was focused.
-      return
+  tabId = sender.tab.id
+  if frameIdsForTab[tabId]?
+    if request.tab_is_closing
+      updateOpenTabs sender.tab
+    else
+      frameIdsForTab[tabId] = frameIdsForTab[tabId].filter (id) -> id != request.frameId
 
 handleFrameFocused = (request, sender) ->
-  focusedFrame = request.frameId
-  framesForTab[sender.tab.id].frames.frameIndex = getCurrFrameIndex(framesForTab[sender.tab.id])
-
-getCurrFrameIndex = (frames) ->
-  for i in [0...frames.length]
-    return i if frames[i].id == focusedFrame
-  frames.length + 1
+  tabId = sender.tab.id
+  if frameIdsForTab[tabId]?
+    frameIdsForTab[tabId] =
+      [request.frameId, (frameIdsForTab[tabId].filter (id) -> id != request.frameId)...]
 
 # Port handler mapping
 portHandlers =
