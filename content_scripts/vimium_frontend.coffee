@@ -589,8 +589,6 @@ isEmbed = (element) -> ["embed", "object"].indexOf(element.nodeName.toLowerCase(
 # and will enter enter mode if focused.
 #
 isEditable = (target) ->
-  # Note: document.activeElement.isContentEditable is also rechecked in isInsertMode() dynamically.
-  return true if target.isContentEditable
   nodeName = target.nodeName.toLowerCase()
   # use a blacklist instead of a whitelist because new form controls are still being implemented for html5
   noFocus = ["radio", "checkbox"]
@@ -626,10 +624,12 @@ exitInsertMode = (target) ->
 
 isInsertMode = ->
   return true if insertModeLock != null
-  # Some sites (e.g. inbox.google.com) change the contentEditable attribute on the fly (see #1245); and
-  # unfortunately, isEditable() is called *before* the change is made.  Therefore, we need to re-check whether
-  # the active element is contentEditable.
-  document.activeElement and document.activeElement.isContentEditable and
+  # If the user currently has a caret/selection in a contentEditable element, they should be in insert mode,
+  # but sometimes are not.  This can happen for several reasons:
+  #  - the contentEditable element sets document.designMode when it is focused (which immediately fires a
+  #    blur event).
+  #  - contentEditable is set dynamically (eg. inbox.google.com).
+  document.activeElement and DomUtils.isContentEditableFocused() and
     enterInsertModeWithoutShowingIndicator document.activeElement
 
 # should be called whenever rawQuery is modified.
