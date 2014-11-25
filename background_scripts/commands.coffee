@@ -140,14 +140,17 @@ Commands =
       "LinkHints.activateModeToOpenIncognito",
       "Vomnibar.activate",
       "Vomnibar.activateInNewTab",
+      "Vomnibar.activateInNewWindow",
       "Vomnibar.activateTabSelection",
       "Vomnibar.activateBookmarks",
       "Vomnibar.activateBookmarksInNewTab",
+      "Vomnibar.activateBookmarksInNewWindow",
       "goPrevious",
       "goNext",
       "nextFrame",
       "Vomnibar.activateEditUrl",
       "Vomnibar.activateEditUrlInNewTab",
+      "Vomnibar.activateEditUrlInNewWindow",
       "Marks.activateCreateMode",
       "Marks.activateGotoMode"]
     findCommands: ["enterFindMode", "performFind", "performBackwardsFind"]
@@ -190,8 +193,13 @@ Commands =
     "focusInput",
     "LinkHints.activateModeWithQueue",
     "LinkHints.activateModeToDownloadLink",
+    "Vomnibar.activateInNewTab",
+    "Vomnibar.activateInNewWindow",
+    "Vomnibar.activateBookmarksInNewTab",
+    "Vomnibar.activateBookmarksInNewWindow",
     "Vomnibar.activateEditUrl",
     "Vomnibar.activateEditUrlInNewTab",
+    "Vomnibar.activateEditUrlInNewWindow",
     "LinkHints.activateModeToOpenIncognito",
     "goNext",
     "goPrevious",
@@ -386,11 +394,14 @@ commandDescriptions =
 
   "Vomnibar.activate": ["Open URL, bookmark, or history entry", { noRepeat: true }]
   "Vomnibar.activateInNewTab": ["Open URL, bookmark, history entry, in a new tab", { noRepeat: true }]
+  "Vomnibar.activateInNewWindow": ["Open URL, bookmark, history entry, in a new window", { noRepeat: true }]
   "Vomnibar.activateTabSelection": ["Search through your open tabs", { noRepeat: true }]
   "Vomnibar.activateBookmarks": ["Open a bookmark", { noRepeat: true }]
   "Vomnibar.activateBookmarksInNewTab": ["Open a bookmark in a new tab", { noRepeat: true }]
+  "Vomnibar.activateBookmarksInNewWindow": ["Open a bookmark in a new window", { noRepeat: true }]
   "Vomnibar.activateEditUrl": ["Edit the current URL", { noRepeat: true }]
   "Vomnibar.activateEditUrlInNewTab": ["Edit the current URL and open in a new tab", { noRepeat: true }]
+  "Vomnibar.activateEditUrlInNewWindow": ["Edit the current URL and open in a new window", { noRepeat: true }]
 
   nextFrame: ["Cycle forward to the next frame on the page", { background: true, passCountToFunction: true }]
 
