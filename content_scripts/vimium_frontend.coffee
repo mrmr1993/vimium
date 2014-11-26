@@ -25,7 +25,6 @@ keyQueue = null
 currentCompletionKeys = null
 insertExitKeys = null
 insertExitPassKeys = null
-validFirstKeys = null
 
 # The types in <input type="..."> that we consider for focusInput command. Right now this is recalculated in
 # each content script. Alternatively we could calculate it once in the background page and use a request to
@@ -556,13 +555,11 @@ refreshCompletionKeys = (response) ->
     insertExitKeys = response.insertExitKeys
     insertExitPassKeys = response.insertExitPassKeys
 
-    if (response.validFirstKeys)
-      validFirstKeys = response.validFirstKeys
   else
     chrome.runtime.sendMessage({ handler: "getCompletionKeys" }, refreshCompletionKeys)
 
 isValidFirstKey = (keyChar) ->
-  validFirstKeys[keyChar] || /^[1-9]/.test(keyChar)
+  /^[1-9]/.test(keyChar)
 
 onFocusCapturePhase = (event) ->
   if (isFocusable(event.target) && !findMode)
