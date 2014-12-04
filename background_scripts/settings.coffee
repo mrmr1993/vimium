@@ -68,6 +68,7 @@ root.Settings = Settings =
     filterLinkHints: false
     hideHud: false
     enableBlurEmbeds: false
+    disableAutoFocus: false
     userDefinedLinkHintCss:
       """
       div > .vimiumHintMarker {

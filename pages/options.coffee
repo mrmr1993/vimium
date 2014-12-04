@@ -170,6 +170,7 @@ document.addEventListener "DOMContentLoaded", ->
     exclusionRules: ExclusionRulesOption
     filterLinkHints: CheckBoxOption
     hideHud: CheckBoxOption
+    disableAutoFocus: CheckBoxOption
     keyMappings: TextOption
     linkHintCharacters: NonEmptyTextOption
     linkHintNumbers: NonEmptyTextOption
