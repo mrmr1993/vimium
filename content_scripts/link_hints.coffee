@@ -15,6 +15,7 @@ OPEN_WITH_QUEUE = {}
 COPY_LINK_URL = {}
 OPEN_INCOGNITO = {}
 DOWNLOAD_LINK_URL = {}
+HOVER = {}
 
 LinkHints =
   hintMarkerContainingDiv: null
@@ -54,6 +55,7 @@ LinkHints =
   activateModeWithQueue: -> @activateMode(OPEN_WITH_QUEUE)
   activateModeToOpenIncognito: -> @activateMode(OPEN_INCOGNITO)
   activateModeToDownloadLink: -> @activateMode(DOWNLOAD_LINK_URL)
+  activateModeToHover: -> @activateMode(HOVER)
 
   activateMode: (mode = OPEN_IN_CURRENT_TAB) ->
     # we need documentElement to be ready in order to append links
@@ -90,6 +92,7 @@ LinkHints =
       else
         HUD.show("Open multiple links in a new tab")
       @linkActivator = (link) ->
+        @unhoverLast(link)
         # When "clicking" on a link, dispatch the event with the appropriate meta key (CMD on Mac, CTRL on
         # windows) to open it in a new tab if necessary.
         DomUtils.simulateClick(link, {
@@ -115,9 +118,15 @@ LinkHints =
           altKey: true,
           ctrlKey: false,
           metaKey: false })
+    else if @mode is HOVER
+      @linkActivator = (link) ->
+        @unhoverLast(link)
+        DomUtils.simulateHover(link)
     else # OPEN_IN_CURRENT_TAB
       HUD.show("Open link in current tab")
-      @linkActivator = (link) -> DomUtils.simulateClick.bind(DomUtils, link)()
+      @linkActivator = (link) ->
+        @unhoverLast(link)
+        DomUtils.simulateClick link
 
   #
   # Creates a link marker for the given link.
@@ -275,6 +284,15 @@ LinkHints =
         deactivate()
         callback() if callback
       delay)
+  #
+  # Sends a "mouseout" event to the last "mouseover"-ed element.
+  #
+  unhoverLast: do ->
+    lastHoveredElement = null
+
+    (element) ->
+      DomUtils.simulateUnhover(lastHoveredElement) if lastHoveredElement?
+      lastHoveredElement = element
 
 alphabetHints =
   hintKeystrokeQueue: []
