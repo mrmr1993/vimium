@@ -201,7 +201,7 @@ context "Rect subtraction",
             subtractRect = Rect.create x, y, (x + width), (y + height)
             resultRects = Rect.subtract rect, subtractRect
             for resultRect in resultRects
-              assert.isFalse Rect.contains subtractRect, resultRect
+              assert.isFalse Rect.containsStrict subtractRect, resultRect
 
   should "be contained in original rect", ->
     rect = Rect.create 0, 0, 3, 3

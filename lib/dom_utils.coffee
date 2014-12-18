@@ -63,7 +63,7 @@ DomUtils =
           return childClientRect
 
       else
-        clientRect = @cropRectToVisible clientRect
+        clientRect = @cropRectToVisible @restrictToParentRects clientRect, element
 
         continue if clientRect == null or clientRect.width < 3 or clientRect.height < 3
 
@@ -92,6 +92,35 @@ DomUtils =
       null
     else
       boundedRect
+
+  #
+  # Restricts the rect of the given element by the rects of successive parents.
+  # This prevents us from using rects which are on-screen but are hidden inside by an element's overflow.
+  #
+  restrictToParentRects: (rect, element) ->
+    # If the element isn't restricted by its parent's dimensions, just return the rect.
+    elementStyle = window.getComputedStyle element
+    return rect if elementStyle.position == "absolute" or elementStyle.float != "none"
+
+    rect = Rect.copy rect
+    parentEl = element.parentElement
+    parentRects = parentEl?.getClientRects()
+    containingRect = null
+
+    # If there's no parent element or the parent reports no client rects, just return the rect.
+    return rect unless parentEl and parentRects.length > 0
+
+    # Try and find a rect that contains our rect.
+    for parentRect in parentRects
+      if Rect.contains parentRect, rect
+        containingRect = parentRect
+
+    if containingRect
+      rect = Rect.intersect rect, containingRect
+      @restrictToParentRects rect, parentEl
+    else
+      # The current rect is in the parent's overflow, and so not visible. Return an invalid rect.
+      Rect.create 0, 0, -1, -1
 
   #
   # Get the client rects for the <area> elements in a <map> based on the position of the <img> element using

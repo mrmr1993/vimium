@@ -26,15 +26,20 @@ Rect =
     width: rect.width
     height: rect.height
 
-  # Subtract rect2 from rect1, returning an array of rects which are in rect1 but not rect2.
-  subtract: (rect1, rect2) ->
-    # Bound rect2 by rect1
-    rect2 = @create(
+  # The intersection of rect1 and rect2
+  intersect: (rect1, rect2) ->
+    @create(
       Math.max(rect1.left, rect2.left),
       Math.max(rect1.top, rect2.top),
       Math.min(rect1.right, rect2.right),
       Math.min(rect1.bottom, rect2.bottom)
     )
+
+
+  # Subtract rect2 from rect1, returning an array of rects which are in rect1 but not rect2.
+  subtract: (rect1, rect2) ->
+    # Bound rect2 by rect1
+    rect2 = @intersect rect1, rect2
 
     # If bounding rect2 has made the width or height negative, rect1 does not contain rect2.
     return [Rect.copy rect1] if rect2.width < 0 or rect2.height < 0
@@ -68,6 +73,12 @@ Rect =
     rects.filter (rect) -> rect.height > 0 and rect.width > 0
 
   contains: (rect1, rect2) ->
+    rect1.right >= rect2.left and
+    rect1.left <= rect2.right and
+    rect1.bottom >= rect2.top and
+    rect1.top <= rect2.bottom
+
+  containsStrict: (rect1, rect2) ->
     rect1.right > rect2.left and
     rect1.left < rect2.right and
     rect1.bottom > rect2.top and
