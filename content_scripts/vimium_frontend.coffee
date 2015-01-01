@@ -6,7 +6,6 @@
 #
 
 insertMode = null
-insertModeLock = null
 findMode = false
 findModeQuery = { rawQuery: "", matchCount: 0 }
 findModeQueryHasResults = false
@@ -196,12 +195,9 @@ initializeWhenEnabled = (newPassKeys) ->
     # can't set handlers to grab the keys before us.
     for type in ["keydown", "keypress", "keyup"]
       do (type) -> installListener window, type, (event) -> handlerStack.bubbleEvent type, event
-    # installListener document, "focus", onFocusCapturePhase # No longer needed.
-    installListener document, "blur", onBlurCapturePhase
     installListener document, "DOMActivate", onDOMActivate
     installListener document, "focus", onFocus
     installListener document, "blur", onBlur
-    enterInsertModeIfElementIsFocused()
     installedListeners = true
 
 setState = (request) ->
@@ -221,8 +217,6 @@ window.addEventListener "focus", ->
 # Initialization tasks that must wait for the document to be ready.
 #
 initializeOnDomReady = ->
-  enterInsertModeIfElementIsFocused() if isEnabledForUrl
-
   # Tell the background page we're in the dom ready state.
   chrome.runtime.connect({ name: "domReady" })
   CursorHider.init()
@@ -241,13 +235,6 @@ unregisterFrame = ->
     handler: "unregisterFrame"
     frameId: frameId
     tab_is_closing: window.top == window.self
-
-#
-# Enters insert mode if the currently focused element in the DOM is focusable.
-#
-enterInsertModeIfElementIsFocused = ->
-  if (document.activeElement && isEditable(document.activeElement) && !findMode)
-    enterInsertModeWithoutShowingIndicator(document.activeElement)
 
 onDOMActivate = (event) -> handlerStack.bubbleEvent 'DOMActivate', event
 onFocus = (event) -> handlerStack.bubbleEvent 'focus', event
@@ -436,16 +423,11 @@ onKeypress = (event) ->
   if (event.keyCode > 31)
     keyChar = String.fromCharCode(event.charCode)
 
-    # Enter insert mode when the user enables the native find interface.
-    if (keyChar == "f" && KeyboardUtils.isPrimaryModifierKey(event))
-      enterInsertModeWithoutShowingIndicator()
-      return true
-
     if (keyChar)
       if (findMode)
         handleKeyCharForFindMode(keyChar)
         DomUtils.suppressEvent(event)
-      else if (!isInsertMode() && !findMode)
+      else if (!findMode)
         if (isPassKey keyChar)
           return handlerStack.passThrough
         if (currentCompletionKeys.indexOf(keyChar) != -1 or isValidFirstKey(keyChar))
@@ -483,19 +465,7 @@ onKeydown = (event) ->
       if (modifiers.length > 0 || keyChar.length > 1)
         keyChar = "<" + keyChar + ">"
 
-  if (isInsertMode() && KeyboardUtils.isEscape(event))
-    if isEditable(event.srcElement) or isEmbed(event.srcElement)
-      # Remove focus so the user can't just get himself back into insert mode by typing in the same input
-      # box.
-      # NOTE(smblott, 2014/12/22) Including embeds for .blur() etc. here is experimental.  It appears to be
-      # the right thing to do for most common use cases.  However, it could also cripple flash-based sites and
-      # games.  See discussion in #1211 and #1194.
-      event.srcElement.blur()
-    exitInsertMode()
-    DomUtils.suppressEvent event
-    handledKeydownEvents.push event
-
-  else if (findMode)
+  if (findMode)
     if (KeyboardUtils.isEscape(event))
       handleEscapeForFindMode()
       DomUtils.suppressEvent event
@@ -520,7 +490,7 @@ onKeydown = (event) ->
     DomUtils.suppressEvent event
     KeydownEvents.push event
 
-  else if (!isInsertMode() && !findMode)
+  else
     if (keyChar)
       if (currentCompletionKeys.indexOf(keyChar) != -1 or isValidFirstKey(keyChar))
         DomUtils.suppressEvent event
@@ -541,7 +511,7 @@ onKeydown = (event) ->
   # Subject to internationalization issues since we're using keyIdentifier instead of charCode (in keypress).
   #
   # TOOD(ilya): Revisit this. Not sure it's the absolute best approach.
-  if (keyChar == "" && !isInsertMode() &&
+  if (keyChar == "" &&
      (currentCompletionKeys.indexOf(KeyboardUtils.getKeyChar(event)) != -1 ||
       isValidFirstKey(KeyboardUtils.getKeyChar(event))))
     DomUtils.suppressPropagation(event)
@@ -575,58 +545,6 @@ refreshCompletionKeys = (response) ->
 
 isValidFirstKey = (keyChar) ->
   validFirstKeys[keyChar] || /^[1-9]/.test(keyChar)
-
-onFocusCapturePhase = (event) ->
-  if (isFocusable(event.target) && !findMode)
-    enterInsertModeWithoutShowingIndicator(event.target)
-
-onBlurCapturePhase = (event) ->
-  if (isFocusable(event.target))
-    exitInsertMode(event.target)
-
-#
-# Returns true if the element is focusable. This includes embeds like Flash, which steal the keybaord focus.
-#
-isFocusable = (element) -> isEditable(element) || isEmbed(element)
-
-#
-# Embedded elements like Flash and quicktime players can obtain focus but cannot be programmatically
-# unfocused.
-#
-isEmbed = (element) -> ["embed", "object"].indexOf(element.nodeName.toLowerCase()) >= 0
-
-#
-# Input or text elements are considered focusable and able to receieve their own keyboard events,
-# and will enter enter mode if focused. Also note that the "contentEditable" attribute can be set on
-# any element which makes it a rich text editor, like the notes on jjot.com.
-#
-isEditable = (target) ->
-  # Note: document.activeElement.isContentEditable is also rechecked in isInsertMode() dynamically.
-  return true if target.isContentEditable
-  nodeName = target.nodeName.toLowerCase()
-  # use a blacklist instead of a whitelist because new form controls are still being implemented for html5
-  noFocus = ["radio", "checkbox"]
-  if (nodeName == "input" && noFocus.indexOf(target.type) == -1)
-    return true
-  focusableElements = ["textarea", "select"]
-  focusableElements.indexOf(nodeName) >= 0
-
-#
-# We cannot count on 'focus' and 'blur' events to happen sequentially. For example, if blurring element A
-# causes element B to come into focus, we may get "B focus" before "A blur". Thus we only leave insert mode
-# when the last editable element that came into focus -- which insertModeLock points to -- has been blurred.
-# If insert mode is entered manually (via pressing 'i'), then we set insertModeLock to 'undefined', and only
-# leave insert mode when the user presses <ESC>.
-# Note. This returns the truthiness of target, which is required by isInsertMode.
-#
-enterInsertModeWithoutShowingIndicator = (target) ->
-  return # Disabled.
-
-exitInsertMode = (target) ->
-  return # Disabled.
-
-isInsertMode = ->
-  return false # Disabled.
 
 # should be called whenever rawQuery is modified.
 updateFindModeQuery = ->
@@ -783,7 +701,7 @@ selectFoundInputElement = ->
       isDOMDescendant(findModeAnchorNode, document.activeElement))
     DomUtils.simulateSelect(document.activeElement)
     # the element has already received focus via find(), so invoke insert mode manually
-    enterInsertModeWithoutShowingIndicator(document.activeElement)
+    window.enterInsertMode()
 
 getNextQueryFromRegexMatches = (stepSize) ->
   # find()ing an empty query always returns false
@@ -826,7 +744,7 @@ findAndFocus = (backwards) ->
         @remove()
         if (KeyboardUtils.isEscape(event))
           DomUtils.simulateSelect(document.activeElement)
-          enterInsertModeWithoutShowingIndicator(document.activeElement)
+          window.enterInsertMode()
           return false # we have "consumed" this event, so do not propagate
         return true
     })
