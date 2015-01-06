@@ -741,6 +741,12 @@ executeFind = (query, options) ->
   # we need to save the anchor node here because <esc> seems to nullify it, regardless of whether we do
   # preventDefault()
   findModeAnchorNode = document.getSelection().anchorNode
+
+  # If the anchor node is outside of the active element, then blur the active element.  We don't want to leave
+  # behind an inappropriate active element. This fixes #1412.
+  if document.activeElement and not isDOMDescendant findModeAnchorNode, document.activeElement
+    document.activeElement.blur()
+
   result
 
 restoreDefaultSelectionHighlight = -> document.body.classList.remove("vimiumFindMode")
