@@ -202,7 +202,7 @@ initializeOnDomReady = ->
   CursorHider.init()
   Vomnibar.init()
   HUD.init()
-  HUD.showUpgradeNotification("hello")
+  setTimeout( (-> HUD.showUpgradeNotification("hello")), 1000)
 
 registerFrame = ->
   # Don't register frameset containers; focusing them is no use.
