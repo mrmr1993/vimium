@@ -14,6 +14,10 @@ class HandlerStack
     # processing should take place.
     @stopBubblingAndFalse = new Object()
 
+    # A handler should return this value to indicate that @stack has changed, and that bubbling should be
+    # restarted.
+    @restartBubbling = new Object()
+
   # Adds a handler to the top of the stack. Returns a unique ID for that handler that can be used to remove it
   # later.
   push: (handler) ->
@@ -48,6 +52,7 @@ class HandlerStack
               return false
             return true if passThrough == @stopBubblingAndTrue
             return false if passThrough == @stopBubblingAndFalse
+            return @bubbleEvent type, event if passThrough == @restartBubbling
     true
 
   remove: (id = @currentId) ->

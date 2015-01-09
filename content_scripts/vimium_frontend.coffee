@@ -342,6 +342,9 @@ extend window,
   enterVisualMode: =>
     new VisualMode()
 
+  enterEditMode: ->
+    @focusInput 1, EditMode
+
   focusInput: (count, targetMode = InsertMode) ->
     # Focus the first input element on the page, and create overlays to highlight all the input elements, with
     # the currently-focused element highlighted specially. Tabbing will shift focus to the next input element.
@@ -397,7 +400,7 @@ extend window,
               @suppressEvent
             else unless event.keyCode == KeyboardUtils.keyCodes.shiftKey
               @exit event
-              @continueBubbling
+              @restartBubbling
 
         visibleInputs[selectedInputIndex].element.focus()
         if visibleInputs.length == 1
@@ -405,7 +408,7 @@ extend window,
         else
           hints[selectedInputIndex].classList.add 'internalVimiumSelectedInputHint'
 
-      exit: ->
+      exit: (event) ->
         super()
         DomUtils.removeElement hintContainingDiv
         if document.activeElement == visibleInputs[selectedInputIndex].element

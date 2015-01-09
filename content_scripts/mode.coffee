@@ -50,6 +50,7 @@ class Mode
   suppressEvent: false
   stopBubblingAndTrue: handlerStack.stopBubblingAndTrue
   stopBubblingAndFalse: handlerStack.stopBubblingAndFalse
+  restartBubbling: handlerStack.restartBubbling
 
   constructor: (@options={}) ->
     @handlers = []
