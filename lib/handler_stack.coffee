@@ -3,6 +3,7 @@ root = exports ? window
 class HandlerStack
 
   constructor: ->
+    @debug = 1
     @stack = []
     @counter = 0
 
@@ -30,6 +31,7 @@ class HandlerStack
   # event's propagation by returning a falsy value, or stop bubbling by returning @stopBubblingAndFalse or
   # @stopBubblingAndTrue.
   bubbleEvent: (type, event) ->
+    count = @debug++
     # extra is passed to each handler.  This allows handlers to pass information down the stack.
     extra = {}
     # We take a copy of the array, here, in order to avoid interference from concurrent removes (for example,
@@ -43,6 +45,7 @@ class HandlerStack
         for func in [ handler.all, handler[type] ]
           if func
             passThrough = func.call @, event, extra
+            @log count, type, extra, handler, event, passThrough if @debug
             if not passThrough
               DomUtils.suppressEvent(event) if @isChromeEvent event
               return false
@@ -71,6 +74,13 @@ class HandlerStack
   neverContinueBubbling: (handler) ->
     handler()
     false
+
+  log: (count, type, extra, handler, event, passThrough) ->
+    result = "suppress"
+    result = "continue" if passThrough
+    result = "stop-true" if passThrough == @stopBubblingAndTrue
+    result = "stop-false" if passThrough == @stopBubblingAndFalse
+    console.log count, type, (handler?.name || "anon"), result
 
 root.HandlerStack = HandlerStack
 root.handlerStack = new HandlerStack

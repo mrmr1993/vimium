@@ -66,6 +66,7 @@ class Mode
       keypress: @options.keypress || null
       keyup: @options.keyup || null
       updateBadge: (badge) => @alwaysContinueBubbling => @chooseBadge badge
+      name: @options.name
 
     # Some modes are singletons: there may be at most one instance active at any one time.  A mode is a
     # singleton if @options.singleton is truthy.  The value of @options.singleton should be the key which is
@@ -120,6 +121,7 @@ class Mode
     # End of Mode.constructor().
 
   push: (handlers) ->
+    handlers.name ||= "#{@options.name}-extra"
     @handlers.push handlerStack.push handlers
 
   unshift: (handlers) ->
