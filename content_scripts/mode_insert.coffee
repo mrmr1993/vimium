@@ -56,6 +56,11 @@ class InsertMode extends Mode
       # the right thing to do for most common use cases.  However, it could also cripple flash-based sites and
       # games.  See discussion in #1211 and #1194.
       target.blur()
+    # We cannot count on 'focus' and 'blur' events to happen sequentially. For example, if blurring element A
+    # causes element B to come into focus, we may get "B focus" before "A blur". Thus we only leave insert
+    # mode when the last editable element that came into focus -- which @insertModeLock points to -- has been
+    # blurred.  If insert mode is entered manually (via pressing 'i'), then we set @insertModeLock to
+    # 'undefined'.
     if target == undefined or target == @insertModeLock or @global
       @insertModeLock = null
       # Now really exit, unless this is the permanently-installed instance.
