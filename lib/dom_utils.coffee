@@ -166,11 +166,20 @@ DomUtils =
       node = node.parentNode
     false
 
+  isSelected: (element) ->
+    sel = document.getSelection()
+    if sel.type == "Range"
+      range = sel.getRangeAt 0
+      @isDOMDescendant element, range.commonAncestorContainer
+    else
+      false
+
   simulateSelect: (element) ->
     element.focus()
-    # When focusing a textbox, put the selection caret at the end of the textbox's contents.
-    # For some HTML5 input types (eg. date) we can't position the caret, so we wrap this with a try.
-    try element.setSelectionRange(element.value.length, element.value.length)
+    unless @isSelected element
+      # When focusing a textbox, put the selection caret at the end of the textbox's contents.
+      # For some HTML5 input types (eg. date) we can't position the caret, so we wrap this with a try.
+      try element.setSelectionRange(element.value.length, element.value.length)
 
   simulateClick: (element, modifiers) ->
     modifiers ||= {}
