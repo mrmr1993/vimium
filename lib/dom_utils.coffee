@@ -159,6 +159,12 @@ DomUtils =
   isFocusable: (element) ->
     @isEditable(element) or @isEmbed element
 
+  # If the selection is within an element for which isEditable() would be true, then find that element and
+  # focus it.
+  activateElementContainingSelection: ->
+    sel = document.getSelection()
+    # FIXME(smblott).  I don't know how to do this!
+
   isDOMDescendant: (parent, child) ->
     node = child
     while (node != null)

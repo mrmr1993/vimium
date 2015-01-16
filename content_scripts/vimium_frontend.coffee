@@ -918,7 +918,10 @@ window.enterFindMode = ->
 exitFindMode = ->
   window.findMode = true
   HUD.hide()
-  new PostFindMode findModeAnchorNode if findModeQueryHasResults
+  if findModeQueryHasResults
+    # If the result is in an editable element, then we need to activate it to make the selection visible.
+    DomUtils.activateElementContainingSelection()
+    new PostFindMode findModeAnchorNode if findModeQueryHasResults
 
 window.showHelpDialog = (html, fid) ->
   return if (isShowingHelpDialog || !document.body || fid != frameId)
