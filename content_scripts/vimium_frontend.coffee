@@ -436,6 +436,8 @@ KeydownEvents =
 onKeypress = (event) ->
   keyChar = ""
 
+  console.log "NMMM xxxx" if handlerStack.debug
+  console.log event.keyCode
   # Ignore modifier keys by themselves.
   if (event.keyCode > 31)
     keyChar = String.fromCharCode(event.charCode)

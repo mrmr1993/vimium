@@ -12,6 +12,27 @@ mockKeyboardEvent = (keyChar) ->
   event.preventDefault = -> @suppressed = true
   event
 
+sendKeyboardEvent = (type, keyChar) ->
+  for key of KeyboardEvent
+    console.log "&&&&&&&&&&&&&&&&&&&&", new KeyboardEvent
+  event = document.createEvent "KeyboardEvent"
+  keyCode = keyChar.charCodeAt 0
+  event.initKeyboardEvent type, true, true, window, false, false, false, false, keyCode, "U+00" + keyChar
+  console.log event.keyCode
+  console.log "KKKKKKKKKK", KeyboardUtils.getKeyChar event
+  console.log "kkkkkkkkkkkkkkkkkkkkkkkkkk", keyChar, keyChar.charCodeAt 0
+  console.log "kkkkkkkkkkkkkkkkkkkkkkkkkk", event.keyCode, keyCode
+  event.stopImmediatePropagation = ->
+    console.log "nnnnnnnnnnnn", @
+    console.log "xxxxxx"
+    @suppressed = true
+  event.preventDefault = ->
+    console.log "nnnnnnnnnnnn", @
+    console.log "yyyyyyy"
+    @suppressed = true
+  window.dispatchEvent event
+  event
+
 # Some tests have side effects on the handler stack and the active mode, so these are reset as necessary.
 initializeModeState = ->
   Mode.reset()
@@ -294,10 +315,12 @@ context "Normal mode",
 
   should "suppress mapped keys", ->
     for k in [ "m", "p" ]
-      for event in [ "keydown", "keypress", "keyup" ]
-        key = mockKeyboardEvent "p"
-        handlerStack.bubbleEvent event, key
-        assert.isTrue key.suppressed
+      for type in [ "keydown", "keypress", "keyup" ]
+        # handlerStack.debug = true
+        event = sendKeyboardEvent type, "m"
+        handlerStack.debug = false
+        console.log "ssssssssssssss", type, event.suppressed
+        assert.isTrue event.suppressed
 
   should "not suppress unmapped keys", ->
     for event in [ "keydown", "keypress", "keyup" ]
