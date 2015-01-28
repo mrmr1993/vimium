@@ -4,31 +4,26 @@
 # Use find as a mode.
 # Perhaps refactor visual/movement modes.
 # FocusInput selector is currently broken.
+# Exit on Ctrl-Enter.
 
 # This prevents printable characters from being passed through to the underlying page.  It should, however,
 # allow through Chrome keyboard shortcuts.  It's a keyboard-event backstop for visual mode and edit mode.
 class SuppressPrintable extends Mode
   constructor: (options = {}) ->
     handler = (event) =>
-      if KeyboardUtils.isPrintable event
-        if event.type == "keydown"
-          # Completely suppress Backspace and Delete.
-          if event.keyCode in [ 8, 46 ]
-            @suppressEvent
-          else
-            DomUtils.suppressPropagation
-            @stopBubblingAndFalse
-        else
-          @suppressEvent
-      else
-        @stopBubblingAndTrue
+      return @stopBubblingAndTrue unless KeyboardUtils.isPrintable event
+      return @suppressEvent unless event.type == "keydown"
+      # Completely suppress Backspace and Delete.
+      return @suppressEvent if event.keyCode in [ 8, 46 ]
+      DomUtils.suppressPropagation event
+      @stopBubblingAndFalse
 
     super extend options,
       keydown: handler
       keypress: handler
       keyup: handler
 
-# This watches keyboard events and maintains @countPrefix as number keys and other keys are pressed.
+# This watches keypresses and maintains the count prefix as number keys and other keys are pressed.
 class CountPrefix extends SuppressPrintable
   constructor: (options) ->
     super options
@@ -57,13 +52,12 @@ class CountPrefix extends SuppressPrintable
     @countPrefixFactor = 1
     count
 
-# Some symbolic names for widely-used strings.
+# Some symbolic names for frequently-used strings.
 forward = "forward"
 backward = "backward"
 character = "character"
 
-# This implements movement commands with count prefixes (using CountPrefix) for both visual mode and edit
-# mode.
+# This implements movement commands with count prefixes for both visual mode and edit mode.
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
@@ -73,8 +67,7 @@ class Movement extends CountPrefix
   paste: (callback) ->
     chrome.runtime.sendMessage handler: "pasteFromClipboard", (response) -> callback response
 
-  # Return a value which changes whenever the selection changes, regardless of whether the selection is
-  # collapsed.
+  # Return a value which changes whenever the selection changes.
   hashSelection: ->
     [ @element?.selectionStart, @selection.toString().length ].join "/"
 
@@ -82,10 +75,10 @@ class Movement extends CountPrefix
   selectionChanged: (func) ->
     before = @hashSelection(); func(); @hashSelection() != before
 
-  # Run a movement.  The arguments can be one of the following forms:
-  #   - "forward word" (one argument, a string)
-  #   - [ "forward", "word" ] (one argument, not a string)
-  #   - "forward", "word" (two arguments)
+  # Run a movement.  For convenience, the following three forms can be used:
+  #   @runMovement "forward word"
+  #   @runMovement [ "forward", "word" ]
+  #   @runMovement "forward", "word"
   runMovement: (args...) ->
     movement =
       if typeof(args[0]) == "string" and args.length == 1
@@ -103,16 +96,15 @@ class Movement extends CountPrefix
   # Swap the anchor node/offset and the focus node/offset.
   reverseSelection: ->
     element = document.activeElement
+    direction = @getDirection()
     if element and DomUtils.isEditable(element) and not element.isContentEditable
       # Note(smblott). This implementation is unacceptably inefficient if the selection is large.  We only use
-      # it if we have to.  However, the normal method (below) does not work for input elements.
-      direction = @getDirection()
+      # it if we have to.  However, the normal method (below) does not work for simple text inputs.
       length = @selection.toString().length
       @collapseSelectionToFocus()
       @runMovement @opposite[direction], character for [0...length]
     else
       # Normal method.
-      direction = @getDirection()
       original = @selection.getRangeAt(0).cloneRange()
       range = original.cloneRange()
       range.collapse direction == backward
@@ -246,14 +238,14 @@ class Movement extends CountPrefix
     @exit()
     @yankedText
 
-  # Select a lexical entity, such as a word, a line, or a sentence. The entity should be a Chrome movement
-  # type, such as "word" or "lineboundary".  This assumes that the selection is initially collapsed.
-  selectLexicalEntity: (entity) ->
+  # Select a lexical entity, such as a word, or a sentence. The entity should be a Chrome movement type, such
+  # as "word" or "lineboundary".
+  selectLexicalEntity: (entity, count = 1) ->
+    # Locate the start of the entity.
     @runMovement forward, entity
-    @selection.collapseToEnd()
     @runMovement backward, entity
-    # Move the end of the preceding entity.
-    @runMovements [ backward, entity ], [ forward, entity ]
+    @collapseSelectionToFocus()
+    @runMovements ([0..count].map -> [ forward, entity ])..., [ backward, entity ]
 
   # Try to scroll the focus into view.
   scrollIntoView: ->
@@ -327,14 +319,16 @@ class VisualMode extends Movement
     if @options.yankLineCharacter
       @commands[@options.yankLineCharacter] = ->
         if @keypressCount == 1
-          @selectLexicalEntity "lineboundary"
+          @selectLexicalEntity "lineboundary", @getCountPrefix()
           @yank()
 
     # For "daw", "cas", and so on.
     if @options.oneMovementOnly
       @commands.a = ->
         if @keypressCount == 1
-          for entity in [ "word", "sentence", "paragraph" ]
+          # We do not include "paragraph", here.  Chrome's paragraph movements seem to be asymmetrical,
+          # meaning "dap" ends up deleting the wrong text.
+          for entity in [ "word", "sentence" ] #, "paragraph" ]
             do (entity) =>
               @movements[entity.charAt 0] = ->
                 if @keypressCount == 2
