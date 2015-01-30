@@ -128,6 +128,9 @@ class Movement extends CountPrefix
     else
       beforeText[beforeText.length - 1]
 
+  getNextCharacter: (direction) ->
+    if direction == forward then @getNextForwardCharacter() else @getNextBackwardCharacter()
+
   # Test whether the character following the focus is a word character.  Leave the selection unchanged.
   nextCharacterIsWordCharacter: do ->
     regexp = /[A-Za-z0-9_]/
@@ -149,15 +152,31 @@ class Movement extends CountPrefix
       else
         if args.length == 1 then args[0] else args[...2]
 
+    direction = movement[0]
+    granularity = movement[1]
+
     # Perform the movement.
-    if movement[1] == vimword and movement[0] == forward
+    if granularity == vimword and direction == forward
+      # Handle the pseudo granularity, vimword.
       if @nextCharacterIsWordCharacter()
         @runMovements [ forward, word ], [ forward, vimword ]
       else
         @runMovements [ forward, word ], [ backward, word ]
 
-    else if movement[1] == vimword
+    else if granularity == vimword
       @selection.modify @alterMethod, backward, word
+
+    else if granularity == paragraph
+      # Chrome's paragraph movements are wonky, they're asymmetrical.  So we handle these specially.
+      unless @runMovements [ direction, lineboundary ]
+        if direction == backward
+          while @getNextCharacter(direction) == "\n"
+            return unless @runMovements [ direction, character ]
+      char = @getNextCharacter direction
+      while char and char != "\n"
+        return unless @runMovements [ direction, character ], [ direction, lineboundary ]
+        char = @getNextBackwardCharacter()
+      @runMovement forward, character if direction == forward
 
     else
       @selection.modify @alterMethod, movement...
@@ -374,25 +393,25 @@ class Movement extends CountPrefix
         @runMovements ([0...count].map -> [ forward, word ])..., [ forward, word ], [ backward, word ]
       else
         @runMovements [ forward, word ], [ backward, word ], ([0...count].map -> [ forward, word ])...
-    else if entity == sentence
+    else if entity in [ sentence, paragraph ]
       @runMovement forward, character
-      @runMovement backward, sentence
+      @runMovement backward, entity
       @collapseSelectionToFocus()
-      @runMovements ([0...count].map -> [ forward, sentence ])...
-    else if entity == paragraph
-      # Chrome's paragraph movements are weird: they're not symmetrical, and they tend to stop in odd places
-      # (like mid-paragraph, for example).  Here, we define a paragraph as a new-line delimited entity,
-      # including the terminating newline.
-      char = @getNextBackwardCharacter()
-      while char and char != "\n"
-        return unless @runMovements [ backward, character ], [ backward, lineboundary ]
-        char = @getNextBackwardCharacter()
-      @collapseSelectionToFocus()
-      char = @getNextForwardCharacter()
-      while char and char != "\n"
-        return unless @runMovements [ forward, character ], [ forward, lineboundary ]
-        char = @getNextForwardCharacter()
-      @runMovement forward, character
+      @runMovements ([0...count].map -> [ forward, entity ])...
+    # else if entity == paragraph
+    #   # Chrome's paragraph movements are weird: they're not symmetrical, and they tend to stop in odd places
+    #   # (like mid-paragraph, for example).  Here, we define a paragraph as a new-line delimited entity,
+    #   # including the terminating newline.
+    #   char = @getNextBackwardCharacter()
+    #   while char and char != "\n"
+    #     return unless @runMovements [ backward, character ], [ backward, lineboundary ]
+    #     char = @getNextBackwardCharacter()
+    #   @collapseSelectionToFocus()
+    #   char = @getNextForwardCharacter()
+    #   while char and char != "\n"
+    #     return unless @runMovements [ forward, character ], [ forward, lineboundary ]
+    #     char = @getNextForwardCharacter()
+    #   @runMovement forward, character
 
   # Try to scroll the focus into view.
   scrollIntoView: ->
