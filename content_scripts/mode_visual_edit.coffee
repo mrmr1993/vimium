@@ -1,10 +1,6 @@
 
 # Todo:
 # Konami code?
-# Scroll is broken (again).  Seems to be after dd.
-# Paste of whole lines.
-# Arrow keys.
-# J
 
 # This prevents printable characters from being passed through to the underlying page.  It should, however,
 # allow through Chrome keyboard shortcuts.

@@ -10,6 +10,7 @@ class InsertMode extends Mode
 
     handleKeyEvent = (event) =>
       return @continueBubbling unless @isActive event
+      @monitorKonamiCode event
       return @stopBubblingAndTrue unless event.type == 'keydown' and KeyboardUtils.isEscape event
       DomUtils.suppressKeyupAfterEscape handlerStack
       target = event.srcElement
@@ -68,6 +69,7 @@ class InsertMode extends Mode
   activateOnElement: (element) ->
     @log "#{@id}: activating (permanent)" if @debug and @permanent
     @insertModeLock = element
+    @konamiCode = ""
     Mode.updateBadge()
 
   exit: (_, target)  ->
@@ -84,6 +86,21 @@ class InsertMode extends Mode
   # Static stuff. This allows PostFindMode to suppress the permanently-installed InsertMode instance.
   @suppressedEvent: null
   @suppressEvent: (event) -> @suppressedEvent = event
+
+  monitorKonamiCode: do ->
+    konamiCode = "\\\\e"
+    (event) ->
+      if @permanent and @insertModeLock?.isContentEditable
+        if event.type == "keypress"
+          @konamiCode += String.fromCharCode event.charCode
+          if @konamiCode == konamiCode
+            editMode = new EditMode
+              singleton: @insertModeLock
+              targetElement: @insertModeLock
+            editMode.enterVisualModeForMovement konamiCode.length,
+              immediateMovement: "h"
+              deleteFromDocument: true
+              noCopyToClipboard: true
 
 root = exports ? window
 root.InsertMode = InsertMode
