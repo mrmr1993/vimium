@@ -697,5 +697,13 @@ chrome.windows.getAll { populate: true }, (windows) ->
         (response) -> updateScrollPosition(tab, response.scrollX, response.scrollY) if response?
       chrome.tabs.sendMessage(tab.id, { name: "getScrollPosition" }, createScrollPositionHandler())
 
+chromeCommands =
+  grabFocusFromChrome: ->
+    console.log "grabFocusFromChrome"
+    sendRequestToAllTabs name: "grabFocusFromChrome"
+
+chrome.commands.onCommand.addListener (command) ->
+  chromeCommands[command]?()
+
 # Start pulling changes from synchronized storage.
 Sync.init()

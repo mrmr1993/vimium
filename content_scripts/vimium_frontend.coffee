@@ -148,6 +148,7 @@ initializePreDomReady = ->
     executePageCommand: executePageCommand
     getActiveState: getActiveState
     setState: setState
+    grabFocusFromChrome: grabFocusFromChrome
     currentKeyQueue: (request) ->
       keyQueue = request.keyQueue
       handlerStack.bubbleEvent "registerKeyQueue", { keyQueue: keyQueue }
@@ -197,6 +198,11 @@ setState = (request) ->
 getActiveState = ->
   Mode.updateBadge()
   return { enabled: isEnabledForUrl, passKeys: passKeys }
+
+grabFocusFromChrome = ->
+  console.log "grabFocusFromChrome"
+  DomUtils.simulateClick document.body
+  document.body.focus()
 
 #
 # The backend needs to know which frame has focus.
