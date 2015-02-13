@@ -182,16 +182,6 @@ selectSpecificTab = (request) ->
     chrome.windows.update(tab.windowId, { focused: true })
     chrome.tabs.update(request.id, { selected: true }))
 
-#
-# Used by the content scripts to get settings from the local storage.
-#
-handleSettings = (args, port) ->
-  if (args.operation == "get")
-    value = Settings.get(args.key)
-    port.postMessage({ key: args.key, value: value })
-  else # operation == "set"
-    Settings.set(args.key, args.value)
-
 refreshCompleter = (request) -> completers[request.name].refresh()
 
 whitespaceRegexp = /\s+/
@@ -632,7 +622,6 @@ handleFrameFocused = (request, sender) ->
 # Port handler mapping
 portHandlers =
   keyDown: handleKeyDown,
-  settings: handleSettings,
   filterCompleter: filterCompleter
 
 sendRequestHandlers =
@@ -657,6 +646,7 @@ sendRequestHandlers =
   createMark: Marks.create.bind(Marks)
   gotoMark: Marks.goto.bind(Marks)
   setBadge: setBadge
+  setSetting: (request) -> Settings.set request.key, request.value
 
 # We always remove chrome.storage.local/findModeRawQueryListIncognito on startup.
 chrome.storage.local.remove "findModeRawQueryListIncognito"

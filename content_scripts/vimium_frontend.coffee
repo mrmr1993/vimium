@@ -39,57 +39,25 @@ textInputXPath = (->
 # must be called beforehand to ensure get() will return up-to-date values.
 #
 settings =
-  port: null
   values: {}
   loadedValues: 0
   valuesToLoad: [ "scrollStepSize", "linkHintCharacters", "linkHintNumbers", "filterLinkHints", "hideHud",
     "previousPatterns", "nextPatterns", "regexFindMode", "userDefinedLinkHintCss",
     "helpDialog_showAdvancedCommands", "smoothScroll" ]
   isLoaded: false
-  eventListeners: {}
-
-  init: ->
-    @port = chrome.runtime.connect({ name: "settings" })
-    @port.onMessage.addListener(@receiveMessage)
-
-    # If the port is closed, the background page has gone away (since we never close it ourselves). Stub the
-    # settings object so we don't keep trying to connect to the extension even though it's gone away.
-    @port.onDisconnect.addListener =>
-      @port = null
-      for own property, value of this
-        # @get doesn't depend on @port, so we can continue to support it to try and reduce errors.
-        @[property] = (->) if "function" == typeof value and property != "get"
-
-
-  get: (key) -> @values[key]
-
-  set: (key, value) ->
-    @init() unless @port
-
-    @values[key] = value
-    @port.postMessage({ operation: "set", key: key, value: value })
 
   load: ->
-    @init() unless @port
+    chrome.storage.local.get @valuesToLoad, (items) =>
+      @values = extend {}, items
+      @isLoaded = true
+      # FIXME(smblott). Looks like this is a nop!
+      LinkHints.init()
+      chrome.storage.onChanged.addListener (changes, area) =>
+        return unless area == "local"
+        for key, change of changes
+          @values[key] = change.newValue if key in @valuesToLoad
 
-    for i of @valuesToLoad
-      @port.postMessage({ operation: "get", key: @valuesToLoad[i] })
-
-  receiveMessage: (args) ->
-    # not using 'this' due to issues with binding on callback
-    settings.values[args.key] = args.value
-    # since load() can be called more than once, loadedValues can be greater than valuesToLoad, but we test
-    # for equality so initializeOnReady only runs once
-    if (++settings.loadedValues == settings.valuesToLoad.length)
-      settings.isLoaded = true
-      listener = null
-      while (listener = settings.eventListeners["load"].pop())
-        listener()
-
-  addEventListener: (eventName, callback) ->
-    if (!(eventName of @eventListeners))
-      @eventListeners[eventName] = []
-    @eventListeners[eventName].push(callback)
+  get: (key) -> @values[key]
 
 #
 # Give this frame a unique id.
@@ -144,7 +112,6 @@ window.initializeModes = ->
 # Complete initialization work that sould be done prior to DOMReady.
 #
 initializePreDomReady = ->
-  settings.addEventListener("load", LinkHints.init.bind(LinkHints))
   settings.load()
 
   initializeModes()
@@ -227,8 +194,6 @@ getActiveState = ->
 # The backend needs to know which frame has focus.
 #
 window.addEventListener "focus", ->
-  # settings may have changed since the frame last had focus
-  settings.load()
   chrome.runtime.sendMessage({ handler: "frameFocused", frameId: frameId })
 
 #
@@ -1024,7 +989,10 @@ window.showHelpDialog = (html, fid) ->
       event.preventDefault()
       showAdvanced = VimiumHelpDialog.getShowAdvancedCommands()
       VimiumHelpDialog.showAdvancedCommands(!showAdvanced)
-      settings.set("helpDialog_showAdvancedCommands", !showAdvanced)
+      chrome.runtime.sendMessage
+        handler: "setSetting"
+        key: "helpDialog_showAdvancedCommands"
+        value: not showAdvanced
 
     showAdvancedCommands: (visible) ->
       VimiumHelpDialog.dialogElement.getElementsByClassName("toggleAdvancedCommands")[0].innerHTML =
