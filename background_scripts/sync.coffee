@@ -48,14 +48,20 @@ root.Sync = Sync =
     defaultValue = Settings.defaults[key]
     defaultValueJSON = JSON.stringify(defaultValue)
 
+    # Update localStorage, update chrome.storage.local and call any postUpdateHook.
     if value and value != defaultValueJSON
       # Key/value has been changed to non-default value at remote instance.
       localStorage[key] = value
-      Settings.performPostUpdateHook key, JSON.parse(value)
+      parsedValue = JSON.parse value
+      obj = {}; obj[key] = parsedValue
+      chrome.storage.local.set obj
+      Settings.performPostUpdateHook key, parsedValue
     else
       # Key has been reset to default value at remote instance.
       if key of localStorage
         delete localStorage[key]
+      obj = {}; obj[key] = defaultValue
+      chrome.storage.local.set obj
       Settings.performPostUpdateHook key, defaultValue
 
   # Only called synchronously from within vimium, never on a callback.

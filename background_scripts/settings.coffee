@@ -1,5 +1,14 @@
 #
-# Used by all parts of Vimium to manipulate localStorage.
+# Used by the background page to manipulate localStorage, propagate option changes to remote instances via
+# Sync, and propagate current option values via chrome.storage.local.
+#
+# In localStorage and chrome.storage.sync:
+#   - we store JSONified settings
+#   - we only store settings whose values differ from the default values
+#
+# In chrome.storage.local:
+#   - settings are not JSONified
+#   - we store the actual current value of each option, be it the default value or not
 #
 
 root = exports ? window
@@ -14,11 +23,19 @@ root.Settings = Settings =
     else
       jsonValue = JSON.stringify value
       localStorage[key] = jsonValue
+      # Propagate to chrome.storage.local.
+      obj = {}; obj[key] = value
+      chrome.storage.local.set obj
+      # Propagate to chrome.storage.sync.
       Sync.set key, jsonValue
 
   clear: (key) ->
     if @has key
       delete localStorage[key]
+    # Propagate to chrome.storage.local.
+    obj = {}; obj[key] = @defaults[key]
+    chrome.storage.local.set obj
+    # Propagate to chrome.storage.sync.
     Sync.clear key
 
   has: (key) -> key of localStorage
@@ -117,6 +134,12 @@ root.Settings = Settings =
 
     settingsVersion: Utils.getCurrentVersion()
 
+
+# To allow default values to change, we always install options in chrome.storage.local on startup.
+options = {}
+for own key, _ of Settings.defaults
+  options[key] = Settings.get(key) unless key == "settingsVersion"
+chrome.storage.local.set options
 
 # We use settingsVersion to coordinate any necessary schema changes.
 if Utils.compareVersions("1.42", Settings.get("settingsVersion")) != -1

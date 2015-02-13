@@ -107,7 +107,7 @@ class GrabBackFocus extends Mode
       _name: "grab-back-focus-mousedown"
       mousedown: => @alwaysContinueBubbling => @exit()
 
-    chrome.storage.sync.get "grabBackfocus", (items) =>
+    chrome.storage.local.get "grabBackfocus", (items) =>
       return @exit() unless items.grabBackfocus and not chrome.runtime.lastError
       @push
         _name: "grab-back-focus-focus"
