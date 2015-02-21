@@ -127,11 +127,15 @@ class GrabBackFocus extends Mode
 window.initializeModes = ->
   class NormalMode extends Mode
     constructor: ->
+      safe = true
       super
         name: "normal"
-        keydown: (event) => onKeydown.call @, event
-        keypress: (event) => onKeypress.call @, event
+        keydown: (event) => safe = true; onKeydown.call @, event
+        keypress: (event) => if safe then onKeypress.call @, event else @continueBubbling
         keyup: (event) => onKeyup.call @, event
+
+      @push
+        blur: => @alwaysContinueBubbling => safe = false
 
       Scroller.init settings
 
