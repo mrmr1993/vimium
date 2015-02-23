@@ -361,13 +361,16 @@ setBadge = do ->
 # Also propagates new enabled/disabled/passkeys state to active window, if necessary.
 # This lets you disable Vimium on a page without needing to reload.
 # Exported via root because it's called from the page popup.
+ccount = 0
 root.updateActiveState = updateActiveState = (tabId) ->
   enabledIcon = "icons/browser_action_enabled.png"
   disabledIcon = "icons/browser_action_disabled.png"
   partialIcon = "icons/browser_action_partial.png"
   chrome.tabs.get tabId, (tab) ->
     setBadge badge: ""
+    console.log "send:", ++ccount
     chrome.tabs.sendMessage tabId, { name: "getActiveState" }, (response) ->
+      console.log "receive:", ccount
       if response
         isCurrentlyEnabled = response.enabled
         currentPasskeys = response.passKeys
