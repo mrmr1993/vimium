@@ -708,6 +708,5 @@ if localStorage.devReloadTabsOnStart
     for window in windows
       for tab in window.tabs
         unless tab.url.startsWith("chrome") or Utils.hasChromePrefix tab.url
-          console.log tab.id, tab.url
           chrome.tabs.reload tab.id
 
