@@ -700,3 +700,14 @@ chrome.windows.getAll { populate: true }, (windows) ->
 
 # Start pulling changes from synchronized storage.
 Sync.init()
+
+# For development only. If localStorage.devReloadTabsOnStart is set, then reload all (non-chrome) tabs on
+# restart.
+if localStorage.devReloadTabsOnStart
+  chrome.windows.getAll { populate: true }, (windows) ->
+    for window in windows
+      for tab in window.tabs
+        unless tab.url.startsWith("chrome") or Utils.hasChromePrefix tab.url
+          console.log tab.id, tab.url
+          chrome.tabs.reload tab.id
+
