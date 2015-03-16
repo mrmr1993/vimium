@@ -163,6 +163,7 @@ initializePreDomReady = ->
     chrome.runtime.sendMessage = ->
     chrome.runtime.connect = ->
     window.removeEventListener "focus", onFocus
+    window.removeEventListener "blur", onBlur
 
   requestHandlers =
     hideUpgradeNotification: -> HUD.hideUpgradeNotification()
@@ -188,7 +189,6 @@ initializePreDomReady = ->
     sendResponse requestHandlers[request.name](request, sender)
     # Ensure the sendResponse callback is freed.
     false
-
 
 # Wrapper to install event listeners.  Syntactic sugar.
 installListener = (element, event, callback) ->
@@ -216,14 +216,20 @@ window.initializeWhenEnabled = ->
 # Whenever we get the focus:
 # - Reload settings (they may have changed).
 # - Tell the background page this frame's URL.
-# - Check if we should be enabled.
+# - Check if we should be enabled (the exclusion rules may have changed).
 #
 onFocus = (event) ->
   if event.target == window
     settings.load()
     chrome.runtime.sendMessage handler: "frameFocused", frameId: frameId, url: window.location.toString()
     checkIfEnabledForUrl()
+
+onBlur = (event) ->
+  if event.target == window
+    chrome.runtime.sendMessage handler: "setIcon", icon: "disabled"
+
 window.addEventListener "focus", onFocus
+window.addEventListener "blur", onBlur
 
 #
 # Initialization tasks that must wait for the document to be ready.
