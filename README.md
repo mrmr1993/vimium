@@ -142,14 +142,15 @@ Release Notes
 -------------
 1.50 (2015-04-XX)
 
-- Visual mode (beta feature): use `v` to select text on the page, then `y` to yank or `p`/`P` to search; please provide feedback on [Github](https://github.com/philc/vimium/issues?q=is%3Aopen+sort%3Aupdated-desc).
-- Improved key exclusion-rule support: match multiple rules and correct handling of rules in frames.
+- Visual mode (beta feature): use `v` then vim-like movements to select text on the page, then `y` to yank or `p`/`P` to search; please provide feedback on [Github](https://github.com/philc/vimium/issues?q=is%3Aopen+sort%3Aupdated-desc).
 - Improved custom search engines: search engines can now have a description (and several important bug fixes).
 - An option to stop pages from focusing an input when loaded.
 - Find mode now has a history: use up-arrow to repeat previous searches.
 - `Ctrl` and `Shift` now modify link-hint behavior (reinstated feature).
 - Focus input (`gi`) now remembers previously-visited inputs.
-- Many bug fixes.
+- Improved key exclusion-rule support: multiple-rule support and correct handling of rules in frames.
+- Some visual feedback as to Vimium's state is now provided via badges on the Vimium icon in the address bar.
+- Many bug fixes and improvements.
 
 1.49 (2014-12-16)
 
