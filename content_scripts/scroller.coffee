@@ -195,8 +195,9 @@ CoreScroller =
       delta = Math.ceil amount * (elapsed / duration) * calibration
       delta = if myKeyIsStillDown() then delta else Math.max 0, Math.min delta, amount - totalDelta
 
-      if delta and performScroll element, direction, sign * delta
+      if 0 < delta and performScroll element, direction, sign * delta
         totalDelta += delta
+        console.log amount, sign, myKeyIsStillDown(), delta, totalDelta
         requestAnimationFrame animate
       else
         # We're done.
