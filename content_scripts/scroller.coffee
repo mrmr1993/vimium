@@ -174,6 +174,8 @@ CoreScroller =
     calibration = 1.0
     previousTimestamp = null
 
+    console.log "-----", amount
+
     animate = (timestamp) =>
       previousTimestamp ?= timestamp
       return requestAnimationFrame(animate) if timestamp == previousTimestamp
