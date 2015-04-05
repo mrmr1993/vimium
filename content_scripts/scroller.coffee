@@ -127,10 +127,12 @@ CoreScroller =
       _name: 'scroller/track-key-status'
       keydown: (event) =>
         handlerStack.alwaysContinueBubbling =>
+          console.log "keydown"
           @keyIsDown = true
           @lastEvent = event
       keyup: =>
         handlerStack.alwaysContinueBubbling =>
+          console.log "keyup"
           @keyIsDown = false
           @time += 1
 
