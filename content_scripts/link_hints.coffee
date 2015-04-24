@@ -51,15 +51,19 @@ LinkHints =
   activateMode: (mode = OPEN_IN_CURRENT_TAB) ->
     # we need documentElement to be ready in order to append links
     return unless document.documentElement
-
-    if @isActive
-      return
-    @isActive = true
+    return if @isActive
 
     elements = @getVisibleClickableElements()
     # For these modes, we filter out those elements which don't have an HREF (since there's nothing we can do
     # with them).
     elements = (el for el in elements when el.element.href?) if mode in [ COPY_LINK_URL, OPEN_INCOGNITO ]
+
+    # Bail if we haven't found any links.
+    if elements.length == 0
+      HUD.showForDuration "No links to select", 1000
+      return
+
+    @isActive = true
     hintMarkers = (@createMarkerFor(el) for el in elements)
     @getMarkerMatcher().fillInMarkers(hintMarkers)
 
