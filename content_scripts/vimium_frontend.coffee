@@ -1059,6 +1059,7 @@ window.showHelpDialog = (html, fid) ->
         VimiumHelpDialog.toggleAdvancedCommands, false)
       this.dialogElement.style.maxHeight = window.innerHeight - 80
       this.showAdvancedCommands(this.getShowAdvancedCommands())
+      Scroller.setActivatedElement document.getElementById "vimiumHelpDialog"
 
     #
     # Advanced commands are hidden by default so they don't overwhelm new and casual users.
@@ -1082,7 +1083,6 @@ window.showHelpDialog = (html, fid) ->
       clickEvent.preventDefault()
       chrome.runtime.sendMessage({handler: "openOptionsPageInNewTab"})
     false)
-
 
 hideHelpDialog = (clickEvent) ->
   isShowingHelpDialog = false

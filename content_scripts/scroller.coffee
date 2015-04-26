@@ -220,6 +220,10 @@ Scroller =
       DOMActivate: (event) -> handlerStack.alwaysContinueBubbling -> activatedElement = event.target
     CoreScroller.init frontendSettings
 
+  # Allow the front end to explicitly set the activated element (e.g. the help page).
+  setActivatedElement: (element) ->
+    activatedElement = element
+
   # scroll the active element in :direction by :amount * :factor.
   # :factor is needed because :amount can take on string values, which scrollBy converts to element dimensions.
   scrollBy: (direction, amount, factor = 1) ->
