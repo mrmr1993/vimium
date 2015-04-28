@@ -149,7 +149,6 @@ window.initializeModes = ->
   new NormalMode
   new PassKeysMode
   new InsertMode permanent: true
-  new GrabBackFocus
   Scroller.init settings
 
 #
@@ -159,6 +158,8 @@ initializePreDomReady = ->
   settings.addEventListener("load", LinkHints.init.bind(LinkHints))
   settings.load()
 
+  # Note. checkIfEnabledForUrl() must come after initializeModes(), here, because checkIfEnabledForUrl() may
+  # install an additional mode (GrabBackFocus).
   initializeModes()
   checkIfEnabledForUrl()
   refreshCompletionKeys()
@@ -229,7 +230,9 @@ window.installListeners = ->
       do (type) -> installListener window, type, (event) -> handlerStack.bubbleEvent type, event
     installListener document, "DOMActivate", (event) -> handlerStack.bubbleEvent 'DOMActivate', event
     installedListeners = true
+    # Other one-time initialization operations.
     FindModeHistory.init()
+    new GrabBackFocus if isEnabledForUrl
 
 #
 # Whenever we get the focus:
@@ -395,7 +398,7 @@ extend window,
       visibleInputs =
         for i in [0...resultSet.snapshotLength] by 1
           element = resultSet.snapshotItem i
-          rect = DomUtils.getVisibleClientRect element
+          rect = DomUtils.getVisibleClientRect element, true
           continue if rect == null
           { element: element, rect: rect }
 
@@ -1135,7 +1138,8 @@ HUD =
   createHudElement: ->
     element = document.createElement("div")
     element.className = "vimiumReset vimiumHUD"
-    document.body.appendChild(element)
+    # FIXME(smblott) The "?" below is only inserted for the tests.  Fix!
+    document.body?.appendChild(element)
     element
 
   # Hide the HUD.

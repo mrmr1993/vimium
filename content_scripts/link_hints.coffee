@@ -197,7 +197,7 @@ LinkHints =
       isClickable = onlyHasTabIndex = true
 
     if isClickable
-      clientRect = DomUtils.getVisibleClientRect element
+      clientRect = DomUtils.getVisibleClientRect element, true
       if clientRect != null
         visibleElements.push {element: element, rect: clientRect, secondClassCitizen: onlyHasTabIndex}
 
@@ -316,7 +316,7 @@ LinkHints =
       @deactivateMode(delay, -> LinkHints.delayMode = false)
     else
       # TODO figure out which other input elements should not receive focus
-      if (clickEl.nodeName.toLowerCase() == "input" && clickEl.type != "button")
+      if (clickEl.nodeName.toLowerCase() == "input" and clickEl.type not in ["button", "submit"])
         clickEl.focus()
       DomUtils.flashRect(matchedLink.rect)
       @linkActivator(clickEl)
