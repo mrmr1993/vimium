@@ -60,6 +60,12 @@ LinkHints =
     # For these modes, we filter out those elements which don't have an HREF (since there's nothing we can do
     # with them).
     elements = (el for el in elements when el.element.href?) if mode in [ COPY_LINK_URL, OPEN_INCOGNITO ]
+    if settings.get "filterLinkHints"
+      # When using text filtering, we sort the elements such that we visit descendants before their ancestors.
+      # This allows us to exclude the text used for matching descendants from that used for matching their
+      # ancestors.
+      textLength = (el) -> el.element.textContent?.length ? 0
+      elements.sort (a,b) -> textLength(a) - textLength b
     hintMarkers = (@createMarkerFor(el) for el in elements)
     @getMarkerMatcher().fillInMarkers(hintMarkers)
 
@@ -197,7 +203,7 @@ LinkHints =
       isClickable = onlyHasTabIndex = true
 
     if isClickable
-      clientRect = DomUtils.getVisibleClientRect element
+      clientRect = DomUtils.getVisibleClientRect element, true
       if clientRect != null
         visibleElements.push {element: element, rect: clientRect, secondClassCitizen: onlyHasTabIndex}
 
@@ -238,8 +244,6 @@ LinkHints =
     # Remove rects from elements where another clickable element lies above it.
     nonOverlappingElements = []
     # Traverse the DOM from first to last, since later elements show above earlier elements.
-    # NOTE(smblott). filterHints.generateLinkText also assumes this order when generating the content text for
-    # each hint.  Specifically, we consider descendents before we consider their ancestors.
     visibleElements = visibleElements.reverse()
     while visibleElement = visibleElements.pop()
       rects = [visibleElement.rect]
@@ -262,7 +266,7 @@ LinkHints =
   # Handles shift and esc keys. The other keys are passed to getMarkerMatcher().matchHintsByKey.
   #
   onKeyDownInMode: (hintMarkers, event) ->
-    return if @delayMode
+    return if @delayMode or event.repeat
 
     if ((event.keyCode == keyCodes.shiftKey or event.keyCode == keyCodes.ctrlKey) and
         (@mode == OPEN_IN_CURRENT_TAB or
@@ -316,7 +320,7 @@ LinkHints =
       @deactivateMode(delay, -> LinkHints.delayMode = false)
     else
       # TODO figure out which other input elements should not receive focus
-      if (clickEl.nodeName.toLowerCase() == "input" && clickEl.type != "button")
+      if (clickEl.nodeName.toLowerCase() == "input" and clickEl.type not in ["button", "submit"])
         clickEl.focus()
       DomUtils.flashRect(matchedLink.rect)
       @linkActivator(clickEl)

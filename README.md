@@ -141,10 +141,14 @@ Please see [CONTRIBUTING.md](https://github.com/philc/vimium/blob/master/CONTRIB
 
 Release Notes
 -------------
+1.51 (not yet released)
+- Bug fixes for 1.50 (see [here](https://github.com/philc/vimium/pulls?utf8=%E2%9C%93&q=is%3Apr+sort%3Aupdated-desc+is%3Aclosed+updated%3A%3E%3D2015-04-26+state%3Amerged)).
+- 1.51 is expected to be released mid-to-end May, 2015.
+
 1.50 (2015-04-26)
 
 - Visual mode (in beta): use `v` and then vim-like keystrokes to select text on the page. Use `y` to yank or
-  `p` and `P` to search. Please provide feedback on Github.
+  `p` and `P` to search with your default search engine.. Please provide feedback on Github.
 - Added the option to prevent pages from stealing focus from Vimium when loaded.
 - Many bugfixes for custom search engines, and search engines can now have a description.
 - Better support for frames: key exclusion rules are much improved and work within frames; the Vomnibar is

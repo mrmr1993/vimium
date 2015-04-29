@@ -149,7 +149,6 @@ window.initializeModes = ->
   new NormalMode
   new PassKeysMode
   new InsertMode permanent: true
-  new GrabBackFocus
   Scroller.init settings
 
 #
@@ -229,7 +228,9 @@ window.installListeners = ->
       do (type) -> installListener window, type, (event) -> handlerStack.bubbleEvent type, event
     installListener document, "DOMActivate", (event) -> handlerStack.bubbleEvent 'DOMActivate', event
     installedListeners = true
+    # Other once-only initialisation.
     FindModeHistory.init()
+    new GrabBackFocus if isEnabledForUrl
 
 #
 # Whenever we get the focus:
@@ -395,7 +396,7 @@ extend window,
       visibleInputs =
         for i in [0...resultSet.snapshotLength] by 1
           element = resultSet.snapshotItem i
-          rect = DomUtils.getVisibleClientRect element
+          rect = DomUtils.getVisibleClientRect element, true
           continue if rect == null
           { element: element, rect: rect }
 
@@ -463,6 +464,7 @@ extend window,
             new mode
               singleton: document.activeElement
               targetElement: document.activeElement
+              indicator: false
 
 # Track which keydown events we have handled, so that we can subsequently suppress the corresponding keyup
 # event.
@@ -608,8 +610,11 @@ checkIfEnabledForUrl = (frameIsFocused = windowIsFocused()) ->
 
 # When we're informed by the background page that a URL in this tab has changed, we check if we have the
 # correct enabled state (but only if this frame has the focus).
-checkEnabledAfterURLChange = ->
-  checkIfEnabledForUrl() if windowIsFocused()
+checkEnabledAfterURLChange = (request) ->
+  if windowIsFocused()
+    checkIfEnabledForUrl()
+    # We also grab back the focus.  See #1588.
+    new GrabBackFocus() if request.transitionType in [ "link", "form_submit" ]
 
 # Exported to window, but only for DOM tests.
 window.refreshCompletionKeys = (response) ->
@@ -1150,7 +1155,10 @@ HUD =
     else
       HUD._tweenId = Tween.fade HUD.displayElement(), 0, 150, -> HUD.hide true, updateIndicator
 
-  isReady: -> document.body != null
+  isReady: do ->
+    ready = false
+    DomUtils.documentReady -> ready = true
+    -> ready and document.body != null
 
   # A preference which can be toggled in the Options page. */
   enabled: -> !settings.get("hideHud")
