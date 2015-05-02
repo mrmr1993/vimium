@@ -13,7 +13,7 @@
 # It also has an attached "computeRelevancyFunction" which determines how well this item matches the given
 # query terms.
 class Suggestion
-  showRelevancy: false # Set this to true to render relevancy when debugging the ranking scores.
+  showRelevancy: true # Set this to true to render relevancy when debugging the ranking scores.
 
   # - type: one of [bookmark, history, tab].
   # - computeRelevancyFunction: a function which takes a Suggestion and returns a relevancy score
@@ -321,8 +321,67 @@ class TabCompleter
     else
       tabRecency.recencyScore(suggestion.tabId)
 
-# A completer which will return your search engines
+# searchUrl is the URL that will be used for the search, either the default search URL, or a custom
+# search-engine URL.  The other arguments area obvious.
+# If we know the search-suggestion URL for searchUrl, then use it to pass a list of suggestions to callback.
+# Otherwise, just call callback.
+#
+# Note: That's all TBD.  For now, we just assume Google and use it.
+#
+getOnlineSuggestions = do ->
+  xhrs = {} # Maps searchUrl to outstanding HTTP request.
+  (searchUrl, queryTerms, callback) ->
+    # Cancel any outstanding requests.
+    xhrs?[searchUrl]?.abort()
+    xhrs[searchUrl] = null
+
+    sendNoSuggestions = -> xhrs[searchUrl] = null; callback []
+    return sendNoSuggestions() if queryTerms.length == 0
+
+    url = "http://suggestqueries.google.com/complete/search?ss_protocol=legace&client=toolbar&q=#{Utils.createSearchQuery queryTerms}"
+    xhrs[searchUrl] = xhr = new XMLHttpRequest()
+    xhr.open "GET", url, true
+    xhr.timeout = 500
+    xhr.ontimeout = sendNoSuggestions
+    xhr.onerror = sendNoSuggestions
+    xhr.send()
+
+    xhr.onreadystatechange = (response) =>
+      if xhr.readyState == 4
+        suggestions = xhr.responseXML?.getElementsByTagName "suggestion"
+        return sendNoSuggestions() unless xhr.status == 200 and suggestions
+        xhr[searchUrl] = null
+        suggestions =
+          for suggestion in suggestions
+            continue unless suggestion = suggestion.getAttribute "data"
+            suggestion
+        callback suggestions
+
 class SearchEngineCompleter
+  refresh: ->
+  filter: (queryTerms, onComplete) ->
+    return onComplete([]) if queryTerms.length == 0
+
+    getOnlineSuggestions Settings.get("searchUrl"), queryTerms, (suggestions) =>
+        completions =
+          for suggestion in suggestions
+            url = Utils.createSearchUrl suggestion.split /\s+/
+            new Suggestion queryTerms, "suggestion", url, suggestion, @computeRelevancy
+        characterCount = queryTerms.join(" ").length
+        completion.characterCount = characterCount for completion in completions
+        onComplete completions
+
+  computeRelevancy: (suggestion) ->
+    # We score search-engine completions by word relevancy, but weight increasingly as the number of
+    # characters in the query terms increases.  The idea is that, the more the user has had to type, the less
+    # likely it is that one of the other suggestion types has found what they're looking for, so the more
+    # likely it is that a search suggestion will be useful.
+    # (1.0 - (1.0 / suggestion.characterCount)) *
+    (Math.min(suggestion.characterCount, 12)/12) *
+      RankingUtils.wordRelevancy suggestion.queryTerms, suggestion.title, suggestion.title
+
+# A completer which will return your search engines
+class CustomSearchEngineCompleter
   searchEngines: {}
 
   filter: (queryTerms, onComplete) ->
@@ -344,7 +403,7 @@ class SearchEngineCompleter
   computeRelevancy: -> 1
 
   refresh: ->
-    @searchEngines = SearchEngineCompleter.getSearchEngines()
+    @searchEngines = CustomSearchEngineCompleter.getSearchEngines()
 
   getSearchEngineMatches: (queryTerms) ->
     (1 < queryTerms.length and @searchEngines[queryTerms[0]]) or {}
@@ -353,9 +412,9 @@ class SearchEngineCompleter
   # mapping in @searchEnginesMap.
   @searchEnginesMap: null
 
-  # Parse the custom search engines setting and cache it in SearchEngineCompleter.searchEnginesMap.
+  # Parse the custom search engines setting and cache it in CustomSearchEngineCompleter.searchEnginesMap.
   @parseSearchEngines: (searchEnginesText) ->
-    searchEnginesMap = SearchEngineCompleter.searchEnginesMap = {}
+    searchEnginesMap = CustomSearchEngineCompleter.searchEnginesMap = {}
     for line in searchEnginesText.split /\n/
       tokens = line.trim().split /\s+/
       continue if tokens.length < 2 or tokens[0].startsWith('"') or tokens[0].startsWith("#")
@@ -367,9 +426,9 @@ class SearchEngineCompleter
 
   # Fetch the search-engine map, building it if necessary.
   @getSearchEngines: ->
-    unless SearchEngineCompleter.searchEnginesMap?
-      SearchEngineCompleter.parseSearchEngines Settings.get "searchEngines"
-    SearchEngineCompleter.searchEnginesMap
+    unless CustomSearchEngineCompleter.searchEnginesMap?
+      CustomSearchEngineCompleter.parseSearchEngines Settings.get "searchEngines"
+    CustomSearchEngineCompleter.searchEnginesMap
 
 # A completer which calls filter() on many completers, aggregates the results, ranks them, and returns the top
 # 10. Queries from the vomnibar frontend script come through a multi completer.
@@ -618,6 +677,7 @@ root.HistoryCompleter = HistoryCompleter
 root.DomainCompleter = DomainCompleter
 root.TabCompleter = TabCompleter
 root.SearchEngineCompleter = SearchEngineCompleter
+root.CustomSearchEngineCompleter = CustomSearchEngineCompleter
 root.HistoryCache = HistoryCache
 root.RankingUtils = RankingUtils
 root.RegexpCache = RegexpCache
