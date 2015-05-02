@@ -82,6 +82,7 @@ class VomnibarUI
     @updateTimer = null
     @completions = []
     @selection = @initialSelectionValue
+    @previousText = null
 
   updateSelection: ->
     # We retain global state here (previousAutoSelect) to tell if a search item (for which autoSelect is set)
@@ -92,6 +93,21 @@ class VomnibarUI
       @previousAutoSelect = @completions[0].autoSelect
     for i in [0...@completionList.children.length]
       @completionList.children[i].className = (if i == @selection then "vomnibarSelected" else "")
+
+    # When a search-completion is selected, we place it in the vomnibar input.  Later, if another completion
+    # is selected, we replace the original text.
+    if 0 <= @selection
+      completion = @completions[@selection]
+      if completion.insertTitle
+        @previousText ?= @input.value
+        @input.value = completion.title
+      else if @previousText?
+        @input.value = @previousText
+        @previousText = null
+    else
+      if @previousText?
+        @input.value = @previousText
+        @previousText = null
 
   #
   # Returns the user's action ("up", "down", "enter", "dismiss" or null) based on their keypress.
@@ -141,9 +157,9 @@ class VomnibarUI
             handler: if openInNewTab then "openUrlInNewTab" else "openUrlInCurrentTab"
             url: query
       else
+        completion = @completions[@selection]
         @update true, =>
           # Shift+Enter will open the result in a new tab instead of the current tab.
-          completion = @completions[@selection]
           @hide -> completion.performAction openInNewTab
 
     # It seems like we have to manually suppress the event here and still return true.
@@ -168,6 +184,11 @@ class VomnibarUI
 
   update: (updateSynchronously, callback) =>
     if (updateSynchronously)
+      # The user typed something.  If we're storing an previously-stored text, then we can discard it.  Also,
+      # reset the selection.
+      if @previousText?
+        @previousText = null
+        @selection = -1
       # cancel scheduled update
       if (@updateTimer != null)
         window.clearTimeout(@updateTimer)
