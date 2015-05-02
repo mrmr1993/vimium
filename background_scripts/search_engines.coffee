@@ -1,4 +1,9 @@
 
+matchesAnyRegexp = (regexps, string) ->
+  for re in regexps
+    return true if re.test string
+  false
+
 # Each completer implements three functions:
 #
 #   match:  can this completer be used for this search URL?
@@ -7,12 +12,15 @@
 #
 class Google
   constructor: ->
+    @regexps = [
+      # We include matches for the major English-speaking TLDs.
+      new RegExp "^https?://[a-z]+\.google\.(com|ie|co.uk|ca|com.au)/"
+      # NOTE(smblott). A  temporary hack, just for me, and just for development. Will be removed.
+      new RegExp "localhost/.*/booky"
+      ]
+
   name: "Google"
-  match: (searchUrl) ->
-    return true if /^https?:\/\/[a-z]+.google.com\//.test searchUrl
-    # NOTE(smblott). A  temporary hack, just for me, and just for development. Will be removed.
-    return true if /localhost\/.*\/booky/.test searchUrl
-    false
+  match: (searchUrl) -> matchesAnyRegexp @regexps, searchUrl
 
   getUrl: (queryTerms) ->
     "http://suggestqueries.google.com/complete/search?ss_protocol=legace&client=toolbar&q=#{Utils.createSearchQuery queryTerms}"
@@ -25,6 +33,26 @@ class Google
       continue unless suggestion = suggestion.getAttribute "data"
       suggestion
 
+class Youtube
+  constructor: ->
+    @regexps = [ new RegExp "https?://[a-z]+\.youtube\.com/results" ]
+
+  name: "YouTube"
+  match: (searchUrl) -> matchesAnyRegexp @regexps, searchUrl
+
+  getUrl: (queryTerms) ->
+    "http://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q=#{Utils.createSearchQuery queryTerms}"
+
+  # Returns a list of suggestions (strings).
+  parse: (xhr) ->
+    try
+      text = xhr.responseText
+      text = text.replace /^[^(]*\(/, ""
+      text = text.replace /\)[^\)]*$/, ""
+      suggestion[0] for suggestion in JSON.parse(text)[1]
+    catch
+      []
+
 # A dummy search engine which is guaranteed to match any search URL, but never produces completions.  This
 # allows the rest of the logic to be written knowing that there will be a search engine match.
 class DummySearchEngine
@@ -35,7 +63,7 @@ class DummySearchEngine
   getUrl: -> chrome.runtime.getURL "content_scripts/vimium.css"
   parse: -> []
 
-completionEngines = [ Google, DummySearchEngine ]
+completionEngines = [ Google, Youtube, DummySearchEngine ]
 
 SearchEngines =
   cancel: (searchUrl, callback = null) ->
