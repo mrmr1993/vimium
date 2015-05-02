@@ -331,7 +331,7 @@ class SearchEngineCompleter
         for suggestion in suggestions
           url = Utils.createSearchUrl suggestion.split /\s+/
           suggestion = new Suggestion queryTerms, "search", url, suggestion, @computeRelevancy, characterCount
-          suggestion.insertTitle = true
+          suggestion.insertText = true
           suggestion
       onComplete completions
 

@@ -98,7 +98,7 @@ class VomnibarUI
     # is selected, we replace the original text.
     if 0 <= @selection
       completion = @completions[@selection]
-      if completion.insertTitle
+      if completion.insertText
         @previousText ?= @input.value
         @input.value = completion.title
       else if @previousText?
@@ -190,7 +190,7 @@ class VomnibarUI
         @previousText = null
         @selection = -1
       # cancel scheduled update
-      if (@updateTimer != null)
+      if @updateTimer?
         window.clearTimeout(@updateTimer)
         @updateTimer = null
       @updateCompletions(callback)
