@@ -180,10 +180,11 @@ class VomnibarUI
 
   update: (updateSynchronously, callback) =>
     if (updateSynchronously)
-      # The user typed something.  If we're storing an previously-stored text, then we can discard it.  Also,
-      # reset the selection.
+      # The user entered something.  Don't reset any previous text, and re-enable custom search engine auto
+      # selection.
       if @previousText?
         @previousText = null
+        @previousAutoSelect = null
         @selection = -1
       # cancel scheduled update
       if @updateTimer?
