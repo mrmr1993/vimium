@@ -114,7 +114,10 @@ Utils =
       # We blindly URL decode javascript: URLs.  That's what Chrome does when they're clicked, or entered into
       # the omnibox.  However, Chrome does not URL decode such URLs in chrome.tabs.update.
       # This is arguably a Chrome bug.  See https://code.google.com/p/chromium/issues/detail?id=483000.
-      decodeURI string
+      try
+        decodeURI string
+      catch
+        string
     else if Utils.isUrl string
       Utils.createFullUrl string
     else
