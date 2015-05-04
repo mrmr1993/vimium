@@ -24,9 +24,8 @@ Vomnibar =
       selectFirst: false
     extend options, userOptions
 
-    options.refreshInterval = switch options.completer
-      when "omni" then 100
-      else 0
+    options.refreshInterval =
+      if options.completer == "omni" then 125 else 50
 
     completer = @getCompleter(options.completer)
     @vomnibarUI ?= new VomnibarUI()
@@ -55,7 +54,7 @@ class VomnibarUI
   setCompleter: (completer) ->
     @completer = completer
     @reset()
-    @update(true)
+    # NEEDED? (smblott) @update(true)
 
   setRefreshInterval: (refreshInterval) -> @refreshInterval = refreshInterval
 
@@ -81,29 +80,31 @@ class VomnibarUI
     @input.value = ""
     @updateTimer = null
     @completions = []
-    @previousText = null
+    @previousAutoSelect = null
+    @previousInputValue = null
     @selection = @initialSelectionValue
     @previousText = null
 
   updateSelection: ->
     # We retain global state here (previousAutoSelect) to tell if a search item (for which autoSelect is set)
     # has just appeared or disappeared. If that happens, we set @selection to 0 or -1.
-    if @completions[0]
+    if 0 < @completions.length
       @selection = 0 if @completions[0].autoSelect and not @previousAutoSelect
       @selection = -1 if @previousAutoSelect and not @completions[0].autoSelect
       @previousAutoSelect = @completions[0].autoSelect
-    for i in [0...@completionList.children.length]
-      @completionList.children[i].className = (if i == @selection then "vomnibarSelected" else "")
 
     # For suggestions from search-engine completion, we copy the suggested text into the input when selected,
     # and revert when not.  This allows the user to select a suggestion and then continue typing.
-    if 0 <= @selection and @completions[@selection].insertText
-      @previousText ?= @input.value
-      suggestion = @completions[@selection]
-      @input.value = (suggestion.reinsertPrefix ? "") + suggestion.title + " "
-    else if @previousText?
-        @input.value = @previousText
-        @previousText = null
+    if 0 <= @selection and @completions[@selection].insertText?
+      @previousInputValue ?= @input.value
+      @input.value = @completions[@selection].insertText
+    else if @previousInputValue?
+        @input.value = @previousInputValue
+        @previousInputValue = null
+
+    # Highlight the the selected entry, and only the selected entry.
+    for i in [0...@completionList.children.length]
+      @completionList.children[i].className = (if i == @selection then "vomnibarSelected" else "")
 
   #
   # Returns the user's action ("up", "down", "enter", "dismiss" or null) based on their keypress.
@@ -163,44 +164,40 @@ class VomnibarUI
     event.preventDefault()
     true
 
-  updateCompletions: (callback) ->
-    query = @input.value.trim()
-
-    @completer.filter query, (completions) =>
-      @completions = completions
-      @populateUiWithCompletions(completions)
-      callback() if callback
+  updateCompletions: (callback = null) ->
+    @completer.filter @input.value.trim(), (@completions) =>
+      @populateUiWithCompletions @completions
+      callback?()
 
   populateUiWithCompletions: (completions) ->
     # update completion list with the new data
     @completionList.innerHTML = completions.map((completion) -> "<li>#{completion.html}</li>").join("")
     @completionList.style.display = if completions.length > 0 then "block" else ""
-    @selection = Math.min(Math.max(@initialSelectionValue, @selection), @completions.length - 1)
+    @selection = Math.min completions.length - 1, Math.max @initialSelectionValue, @selection
     @updateSelection()
 
-  update: (updateSynchronously, callback) =>
-    if (updateSynchronously)
-      # The user entered something.  Don't reset any previous text, and re-enable custom search engine auto
-      # selection.
-      if @previousText?
-        @previousText = null
-        @previousAutoSelect = null
-        @selection = -1
-      # cancel scheduled update
-      if @updateTimer?
-        window.clearTimeout(@updateTimer)
-        @updateTimer = null
-      @updateCompletions(callback)
-    else if (@updateTimer != null)
-      # an update is already scheduled, don't do anything
-      return
+  updateOnInput: =>
+    # If the user types, then don't reset any previous text, and re-enable auto-select.
+    if @previousInputValue?
+      @previousInputValue = null
+      @previousAutoSelect = null
+      @selection = -1
+    @update()
+
+  update: (updateSynchronously = false, callback = null) =>
+    # Cancel any scheduled update.
+    if @updateTimer?
+      window.clearTimeout @updateTimer
+      @updateTimer = null
+
+    if updateSynchronously
+      @updateCompletions callback
     else
-      # always update asynchronously for better user experience and to take some load off the CPU
-      # (not every keystroke will cause a dedicated update)
-      @updateTimer = setTimeout(=>
-        @updateCompletions(callback)
+      # Update asynchronously for better user experience and to take some load off the CPU (not every
+      # keystroke will cause a dedicated update)
+      @updateTimer = Utils.setTimeout @refreshInterval, =>
         @updateTimer = null
-      @refreshInterval)
+        @updateCompletions callback
 
     @input.focus()
 
@@ -208,7 +205,7 @@ class VomnibarUI
     @box = document.getElementById("vomnibar")
 
     @input = @box.querySelector("input")
-    @input.addEventListener "input", @update
+    @input.addEventListener "input", @updateOnInput
     @input.addEventListener "keydown", @onKeydown
     @completionList = @box.querySelector("ul")
     @completionList.style.display = ""

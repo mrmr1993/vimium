@@ -23,21 +23,28 @@ class Suggestion
     @title ||= ""
     # When @autoSelect is truthy, the suggestion is automatically pre-selected in the vomnibar.
     @autoSelect = false
+    # If @noHighlightTerms is falsy, then we don't highlight matched terms in the title and URL.
+    @noHighlightTerms = false
+    # If @insertText is a string, then the indicated text is inserted into the vomnibar input when the
+    # suggestion is selected.
+    @insertText = null
 
   computeRelevancy: -> @relevancy = @computeRelevancyFunction(this)
 
   generateHtml: ->
     return @html if @html
     relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@computeRelevancy()}</span>" else ""
+    highlightTerms =
+      if @noHighlightTerms then ((s) -> Utils.escapeHtml s) else ((s) => @highlightTerms Utils.escapeHtml s)
     # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
     @html =
       """
       <div class="vimiumReset vomnibarTopHalf">
          <span class="vimiumReset vomnibarSource">#{@type}</span>
-         <span class="vimiumReset vomnibarTitle">#{@highlightTerms(Utils.escapeHtml(@title))}</span>
+         <span class="vimiumReset vomnibarTitle">#{highlightTerms @title}</span>
        </div>
        <div class="vimiumReset vomnibarBottomHalf">
-        <span class="vimiumReset vomnibarUrl">#{@shortenUrl(@highlightTerms(Utils.escapeHtml(@url)))}</span>
+        <span class="vimiumReset vomnibarUrl">#{@shortenUrl highlightTerms @url}</span>
         #{relevancyHtml}
       </div>
       """
@@ -343,7 +350,7 @@ class SearchEngineCompleter
     if custom
       query = queryTerms[1..].join " "
       title = if haveDescription then query else keyword + ": " + query
-      suggestions.push @mkSuggestion false, queryTerms, type, mkUrl(query), title, @computeRelevancy, 1
+      suggestions.push @mkSuggestion null, queryTerms, type, mkUrl(query), title, @computeRelevancy, 1
       suggestions[0].autoSelect = true
       queryTerms = queryTerms[1..]
 
@@ -376,34 +383,25 @@ class SearchEngineCompleter
           # immediately.
           return onComplete []
 
-      # We pause in case the user is still typing.
-      Utils.setTimeout 250, handler = @mostRecentHandler = =>
-        return onComplete [] if handler != @mostRecentHandler # Bail if another completion has begun.
+      SearchEngines.complete searchUrl, queryTerms, (searchSuggestions = []) =>
+        for suggestion in searchSuggestions
+          insertText = if custom then "#{keyword} #{suggestion}" else suggestion
+          suggestions.push @mkSuggestion insertText, queryTerms, type, mkUrl(suggestion), suggestion, @computeRelevancy, score
+          score *= 0.9
 
-        SearchEngines.complete searchUrl, queryTerms, (searchSuggestions = []) =>
-          for suggestion in searchSuggestions
-            suggestions.push @mkSuggestion true, queryTerms, type, mkUrl(suggestion), suggestion, @computeRelevancy, score
-            score *= 0.9
+        # Experimental. Force the best match to the top of the list.
+        suggestions[0].extraRelevancyData = 0.9999999 if 0 < suggestions.length
 
-          # Experimental. Force the best match to the top of the list.
-          suggestions[0].extraRelevancyData = 0.9999999 if 0 < suggestions.length
-
-          if custom
-            # For custom search engines, we need to tell the front end to insert the search engine's keyword
-            # when copying a suggestion into the vomnibar.
-            suggestion.reinsertPrefix = "#{keyword} " for suggestion in suggestions
-
-          # We keep at least three suggestions (if possible) and at most six.  We keep more than three only if
-          # there are enough slots.  The idea is that these suggestions shouldn't wholly displace suggestions
-          # from other completers.  That would potentially be a problem because there is no relationship
-          # between the relevancy scores produced here and those produced by other completers.
-          count = Math.min 6, Math.max 3, MultiCompleter.maxResults - existingSuggestions.length
-          onComplete suggestions[...count]
+        # We keep at least three suggestions (if possible) and at most six.  We keep more than three only if
+        # there are enough slots.  The idea is that these suggestions shouldn't wholly displace suggestions
+        # from other completers.  That would potentially be a problem because there is no relationship
+        # between the relevancy scores produced here and those produced by other completers.
+        count = Math.min 6, Math.max 3, MultiCompleter.maxResults - existingSuggestions.length
+        onComplete suggestions[...count]
 
   mkSuggestion: (insertText, args...) ->
     suggestion = new Suggestion args...
-    suggestion.insertText = insertText
-    suggestion
+    extend suggestion, insertText: insertText, noHighlightTerms: true
 
   # The score is computed in filter() and provided here via suggestion.extraRelevancyData.
   computeRelevancy: (suggestion) -> suggestion.extraRelevancyData
@@ -472,6 +470,7 @@ class MultiCompleter
             continuation = cont if cont?
             if @completers.length <= ++completersFinished
               shouldRunContinuation = continuation? and not @mostRecentQuery
+              console.log "skip continuation" if continuation? and not shouldRunContinuation
               # We don't post results immediately if there are none, and we're going to run a continuation
               # (ie. a SearchEngineCompleter).  This prevents hiding the vomnibar briefly before showing it
               # again, which looks ugly.
