@@ -29,6 +29,7 @@
     "sessions",
     "notifications",
     "webNavigation",
+    "topSites",
     "<all_urls>"
   ],
   "content_scripts": [

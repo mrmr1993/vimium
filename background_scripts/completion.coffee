@@ -173,19 +173,37 @@ class BookmarkCompleter
 
 class HistoryCompleter
   filter: (queryTerms, onComplete) ->
-    @currentSearch = { queryTerms: @queryTerms, onComplete: @onComplete }
-    results = []
-    HistoryCache.use (history) =>
-      results =
-        if queryTerms.length > 0
+    return onComplete [] unless 0 < queryTerms.length
+    chrome.topSites.get (sites) =>
+      topSuggestions =
+        for site in sites
+          continue unless RankingUtils.matches queryTerms, site.url, site.title
+          new Suggestion queryTerms, "top site", site.url, site.title, @computeRelevancy
+
+      # Precompute relevancy for top sites.  We do this so that we can give their relevancy scores a bit of a
+      # boost.  If Chrome thinks they're important, then they probably are.
+      for suggestion in topSuggestions
+        suggestion.relevancy = RankingUtils.wordRelevancy suggestion.queryTerms, suggestion.url, suggestion.title
+        x = suggestion.relevancy
+        suggestion.relevancy =
+          if suggestion.relevancy < 0.5
+            suggestion.relevancy * 1.5
+          else
+            suggestion.relevancy + 0.5 * (1.0 - suggestion.relevancy)
+        console.log x, suggestion. relevancy
+
+      console.log topSuggestions
+      @currentSearch = queryTerms: @queryTerms, onComplete: @onComplete
+      results = []
+      HistoryCache.use (history) =>
+        results =
           history.filter (entry) -> RankingUtils.matches(queryTerms, entry.url, entry.title)
-        else
-          []
-      suggestions = results.map (entry) =>
-        new Suggestion(queryTerms, "history", entry.url, entry.title, @computeRelevancy, entry)
-      onComplete(suggestions)
+        historySuggestions = results.map (entry) =>
+          new Suggestion(queryTerms, "history", entry.url, entry.title, @computeRelevancy, entry)
+        onComplete topSuggestions.concat historySuggestions
 
   computeRelevancy: (suggestion) ->
+    return suggestion.relevancy if suggestion.relevancy?
     historyEntry = suggestion.extraRelevancyData
     recencyScore = RankingUtils.recencyScore(historyEntry.lastVisitTime)
     wordRelevancy = RankingUtils.wordRelevancy(suggestion.queryTerms, suggestion.url, suggestion.title)
@@ -394,7 +412,14 @@ class MultiCompleter
         suggestions = suggestions.concat(newSuggestions)
         completersFinished += 1
         if completersFinished >= @completers.length
-          results = @sortSuggestions(suggestions)[0...@maxResults]
+          results = @sortSuggestions suggestions
+          # Filter out duplicates.  We do this after sorting so that we retain the highest-scoring duplicate.
+          seenUrls = {}
+          results = results.filter (suggestion) ->
+            url = suggestion.shortenUrl suggestion.url
+            if seenUrls[url] then false else seenUrls[url] = true
+          # Keep only the top results.
+          results = results[0...@maxResults]
           result.generateHtml() for result in results
           onComplete(results)
           @filterInProgress = false
