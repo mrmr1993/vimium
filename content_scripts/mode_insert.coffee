@@ -68,7 +68,7 @@ class InsertMode extends Mode
 
           handlerStack.push
             _name: "shadow-DOM-input-mode"
-            blur: (event) ->
+            blur: (event) => @alwaysContinueBubbling ->
               if event.target.shadowRoot == shadowRoot
                 handlerStack.remove()
                 for type, listener of eventListeners
