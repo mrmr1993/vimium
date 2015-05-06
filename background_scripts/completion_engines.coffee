@@ -13,8 +13,8 @@
 #   3. "parse" - This takes a successful XMLHttpRequest object (the request has completed successfully), and
 #      returns a list of suggestions (a list of strings).
 #
-# The main (only) completion entry point is SearchEngines.complete().  This implements all lookup and caching
-# logic.  It is possible to add new completion engines without changing the SearchEngines infrastructure
+# The main completion entry point is CompletionEngines.complete().  This implements all lookup and caching
+# logic.  It is possible to add new completion engines without changing the CompletionEngines infrastructure
 # itself.
 
 # A base class for common regexp-based matching engines.
@@ -34,7 +34,7 @@ class Google extends GoogleXMLRegexpEngine
   constructor: ->
     super [
       # We match the major English-speaking TLDs.
-      new RegExp "^https?://[a-z]+\.google\.(com|ie|co.uk|ca|com.au)/"
+      new RegExp "^https?://[a-z]+\.google\.(com|ie|co\.uk|ca|com\.au)/"
       new RegExp "localhost/cgi-bin/booky" # Only for smblott.
       ]
 
@@ -113,7 +113,7 @@ completionEngines = [
   DummySearchEngine
 ]
 
-SearchEngines =
+CompletionEngines =
   debug: true
 
   get: (searchUrl, url, callback) ->
@@ -175,29 +175,31 @@ SearchEngines =
     fetchSuggestions = (callback) =>
       engine = @lookupEngine searchUrl
       url = engine.getUrl queryTerms
-      console.log "get", url if @debug
       query = queryTerms.join(" ").toLowerCase()
       @get searchUrl, url, (xhr = null) =>
         # Parsing the response may fail if we receive an unexpected or an unexpectedly-formatted response.  In
-        # all cases, we fall back to the catch clause, below.
+        # all cases, we fall back to the catch clause, below.  Therefore, we "fail safe" in the case of
+        # incorrect or out-of-date completion engines.
         try
           suggestions = engine.parse xhr
           # Make sure we really do have an iterable of strings.
           suggestions = (suggestion for suggestion in suggestions when "string" == typeof suggestion)
           # Filter out the query itself. It's not adding anything.
           suggestions = (suggestion for suggestion in suggestions when suggestion.toLowerCase() != query)
+          console.log "GET", url if @debug
         catch
           suggestions = []
-          # We cache failures, but remove them after just ten minutes.  This (it is hoped) avoids repeated
-          # XMLHttpRequest failures over a short period of time.
+          # We allow failures to be cached, but remove them after just ten minutes.  This (it is hoped) avoids
+          # repeated unnecessary XMLHttpRequest failures over a short period of time.
           removeCompletionCacheKey = => @completionCache.set completionCacheKey, null
           setTimeout removeCompletionCacheKey, 10 * 60 * 1000 # Ten minutes.
+          console.log "fail", url if @debug
 
         callback suggestions
 
     # We pause in case the user is still typing.
-    Utils.setTimeout 200, handler = @mostRecentHandler = =>
-      if handler != @mostRecentHandler # Bail if another completion has begun.
+    Utils.setTimeout 250, handler = @mostRecentHandler = =>
+      if handler != @mostRecentHandler # Bail if another completion has begun, or the user is typing.
         console.log "bail", completionCacheKey if @debug
         return callback []
       # Don't allow duplicate identical active requests.  This can happen, for example, when the user enters or
@@ -211,5 +213,9 @@ SearchEngines =
           console.log "callbacks", queue.length, completionCacheKey if @debug and 0 < queue.length
           callback suggestions for callback in queue
 
+  userIsTyping: ->
+    console.log "reset (typing)" if @debug and @mostRecentHandler?
+    @mostRecentHandler = null
+
 root = exports ? window
-root.SearchEngines = SearchEngines
+root.CompletionEngines = CompletionEngines

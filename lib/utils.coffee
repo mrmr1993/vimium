@@ -107,11 +107,12 @@ Utils =
     query = query.split(/\s+/) if typeof(query) == "string"
     query.map(encodeURIComponent).join "+"
 
-  # Creates a search URL from the given :query.
-  createSearchUrl: (query) ->
-    # It would be better to pull the default search engine from chrome itself.  However, unfortunately chrome
-    # does not provide an API for doing so.
-    Settings.get("searchUrl") + @createSearchQuery query
+  # Create a search URL from the given :query (using either the provided search URL, or the default one).
+  # It would be better to pull the default search engine from chrome itself.  However, chrome does not provide
+  # an API for doing so.
+  createSearchUrl: (query, searchUrl = Settings.get("searchUrl")) ->
+    searchUrl += "%s" unless 0 <= searchUrl.indexOf "%s"
+    searchUrl.replace /%s/g, @createSearchQuery query
 
   # Converts :string into a Google search if it's not already a URL. We don't bother with escaping characters
   # as Chrome will do that for us.
@@ -215,20 +216,22 @@ globalRoot.extend = (hash1, hash2) ->
     hash1[key] = hash2[key]
   hash1
 
-# A simple cache. Entries used within an expiry period are retained (for one more expiry period), otherwise
-# they are discarded.
+# A simple cache. Entries used within two expiry periods are retained, otherwise they are discarded.
+# At most 2 * @entries entries are retained.
 class SimpleCache
   # expiry: expiry time in milliseconds (default, one hour)
-  # entries: maximum number of entries
+  # entries: maximum number of entries in @cache (there may be this many entries in @previous, too)
   constructor: (@expiry = 60 * 60 * 1000, @entries = 1000) ->
     @cache = {}
-    @previous = {}
-    rotate = => @rotate()
-    setInterval rotate, @expiry
+    @rotate() # Force start the rotation timer.
 
   rotate: ->
     @previous = @cache
     @cache = {}
+    # We reset the timer every time the cache is rotated (which could be because a previous timer expired, or
+    # because the number of @entries was exceeded.
+    clearTimeout @timer if @timer?
+    @timer = Utils.setTimeout @expiry, => @rotate()
 
   has: (key) ->
     (key of @cache) or key of @previous

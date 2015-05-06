@@ -179,6 +179,7 @@ class VomnibarUI
     @updateSelection()
 
   updateOnInput: =>
+    @completer.userIsTyping()
     # If the user types, then don't reset any previous text, and re-enable auto-select.
     if @previousInputValue?
       @previousInputValue = null
@@ -187,14 +188,13 @@ class VomnibarUI
     @update()
 
   update: (updateSynchronously = false, callback = null) =>
-    # Cancel any scheduled update.
-    if @updateTimer?
-      window.clearTimeout @updateTimer
-      @updateTimer = null
-
     if updateSynchronously
+      # Cancel any scheduled update.
+      if @updateTimer?
+        window.clearTimeout @updateTimer
+        @updateTimer = null
       @updateCompletions callback
-    else
+    else if not @updateTimer?
       # Update asynchronously for better user experience and to take some load off the CPU (not every
       # keystroke will cause a dedicated update)
       @updateTimer = Utils.setTimeout @refreshInterval, =>
@@ -221,44 +221,41 @@ class VomnibarUI
     document.body.addEventListener "click", => @hide()
 
 #
-# Sends filter and refresh requests to a Vomnibox completer on the background page.
+# Sends requests to a Vomnibox completer on the background page.
 #
 class BackgroundCompleter
-  # We increment this counter on each message sent, and ignore responses which arrive too late.
-  @messageId: 0
-
-  # - name: The background page completer that you want to interface with. Either "omni", "tabs", or
-  # "bookmarks". */
+  # name is background-page completer to connect to: "omni", "tabs", or "bookmarks".
   constructor: (@name) ->
-    @filterPort = chrome.runtime.connect name: "filterCompleter"
+    @messageId = null
+    @port = chrome.runtime.connect name: "completions"
+    @port.onMessage.addListener handler = @messageHandler
+
+  messageHandler: (msg) =>
+    # We ignore messages which arrive too late.
+    if msg.id == @messageId
+      # The result objects coming from the background page will be of the form:
+      #   { html: "", type: "", url: "" }
+      # type will be one of [tab, bookmark, history, domain].
+      results = msg.results.map (result) =>
+        functionToCall = if  result.type == "tab"
+          @completionActions.switchToTab.curry result.tabId
+        else
+          @completionActions.navigateToUrl.curry result.url
+        result.performAction = functionToCall
+        result
+      @mostRecentCallback results
+
+  filter: (query, @mostRecentCallback) ->
+    @messageId = Utils.createUniqueId()
+    @port.postMessage name: @name, handler: "filter", id: @messageId, query: query
 
   refresh: ->
-    chrome.runtime.sendMessage handler: "refreshCompleter", name: @name
+    @port.postMessage name: @name, handler: "refreshCompleter"
 
-  filter: (query, callback) ->
-    id = BackgroundCompleter.messageId += 1
-    @filterPort.onMessage.addListener handler = (msg) =>
-      if msg.id == id
-        @filterPort.onMessage.removeListener handler unless msg.keepAlive and id == BackgroundCompleter.messageId
-        if id == BackgroundCompleter.messageId
-          # The result objects coming from the background page will be of the form:
-          #   { html: "", type: "", url: "" }
-          # type will be one of [tab, bookmark, history, domain].
-          results = msg.results.map (result) ->
-            functionToCall = if (result.type == "tab")
-              BackgroundCompleter.completionActions.switchToTab.curry(result.tabId)
-            else
-              BackgroundCompleter.completionActions.navigateToUrl.curry(result.url)
-            result.performAction = functionToCall
-            result
-          callback(results)
+  userIsTyping: ->
+    @port.postMessage name: @name, handler: "userIsTyping"
 
-    @filterPort.postMessage id: id, name: @name, query: query
-
-extend BackgroundCompleter,
-  #
   # These are the actions we can perform when the user selects a result in the Vomnibox.
-  #
   completionActions:
     navigateToUrl: (url, openInNewTab) ->
       # If the URL is a bookmarklet prefixed with javascript:, we shouldn't open that in a new tab.
