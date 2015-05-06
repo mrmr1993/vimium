@@ -370,7 +370,7 @@ class SearchEngineCompleter
       suggestions.push new Suggestion
         queryTerms: queryTerms
         type: description
-        url: searchUrl.replace /%s/g, Utils.createSearchQuery query.split /\s+/
+        url: Utils.createSearchUrl queryTerms, searchUrl
         title: if haveDescription then query else "#{keyword}:  #{query}"
         relevancy: 1
         autoSelect: true
@@ -399,18 +399,18 @@ class SearchEngineCompleter
       relavancy = 0.6 * (Math.min(characterCount, 10.0)/10.0)
 
       if 0 < existingSuggestions.length
-        existingSuggestionMinScore = existingSuggestions[existingSuggestions.length-1].relevancy
-        if relavancy < existingSuggestionMinScore and MultiCompleter.maxResults <= existingSuggestions.length
+        existingSuggestionsMinScore = existingSuggestions[existingSuggestions.length-1].relevancy
+        if relavancy < existingSuggestionsMinScore and MultiCompleter.maxResults <= existingSuggestions.length
           # No suggestion we propose will have a high enough relavancy to beat the existing suggestions, so bail
           # immediately.
           return onComplete []
 
-      CompletionEngines.complete searchUrl, queryTerms, (searchSuggestions = []) =>
-        for suggestion in searchSuggestions
+      CompletionEngines.complete searchUrl, queryTerms, (completionSuggestions = []) =>
+        for suggestion in completionSuggestions
           suggestions.push new Suggestion
             queryTerms: queryTerms
             type: description
-            url: searchUrl.replace /%s/g, Utils.createSearchQuery suggestion.split /\s+/
+            url: Utils.createSearchUrl suggestion, searchUrl
             title: suggestion
             relevancy: relavancy
             insertText: if custom then "#{keyword} #{suggestion}" else suggestion

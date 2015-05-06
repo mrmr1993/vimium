@@ -175,28 +175,30 @@ CompletionEngines =
     fetchSuggestions = (callback) =>
       engine = @lookupEngine searchUrl
       url = engine.getUrl queryTerms
-      console.log "get", url if @debug
       query = queryTerms.join(" ").toLowerCase()
       @get searchUrl, url, (xhr = null) =>
         # Parsing the response may fail if we receive an unexpected or an unexpectedly-formatted response.  In
-        # all cases, we fall back to the catch clause, below.
+        # all cases, we fall back to the catch clause, below.  Therefore, we "fail safe" in the case of
+        # incorrect or out-of-date completion engines.
         try
           suggestions = engine.parse xhr
           # Make sure we really do have an iterable of strings.
           suggestions = (suggestion for suggestion in suggestions when "string" == typeof suggestion)
           # Filter out the query itself. It's not adding anything.
           suggestions = (suggestion for suggestion in suggestions when suggestion.toLowerCase() != query)
+          console.log "GET", url if @debug
         catch
           suggestions = []
-          # We cache failures, but remove them after just ten minutes.  This (it is hoped) avoids repeated
-          # XMLHttpRequest failures over a short period of time.
+          # We allow failures to be cached, but remove them after just ten minutes.  This (it is hoped) avoids
+          # repeated unnecessary XMLHttpRequest failures over a short period of time.
           removeCompletionCacheKey = => @completionCache.set completionCacheKey, null
           setTimeout removeCompletionCacheKey, 10 * 60 * 1000 # Ten minutes.
+          console.log "fail", url if @debug
 
         callback suggestions
 
     # We pause in case the user is still typing.
-    Utils.setTimeout 200, handler = @mostRecentHandler = =>
+    Utils.setTimeout 250, handler = @mostRecentHandler = =>
       if handler != @mostRecentHandler # Bail if another completion has begun, or the user is typing.
         console.log "bail", completionCacheKey if @debug
         return callback []
