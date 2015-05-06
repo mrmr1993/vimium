@@ -8,8 +8,7 @@
 # A completer is a class which has three functions:
 #  - filter(query, onComplete): "query" will be whatever the user typed into the Vomnibox.
 #  - refresh(): (optional) refreshes the completer's data source (e.g. refetches the list of bookmarks).
-#  - userIsTyping(): (optional) informs the completer that the user is typing (and pending completions may no
-#                               longer be needed).
+#  - cancel(): (optional) cancels any pending, cancelable action.
 class Suggestion
   showRelevancy: true # Set this to true to render relevancy when debugging the ranking scores.
 
@@ -351,8 +350,8 @@ class TabCompleter
 class SearchEngineCompleter
   searchEngines: {}
 
-  userIsTyping: ->
-    CompletionEngines.userIsTyping()
+  cancel: ->
+    CompletionEngines.cancel()
 
   filter: (queryTerms, onComplete) ->
     suggestions = []
@@ -363,23 +362,22 @@ class SearchEngineCompleter
     haveDescription = description? and 0 < description.length
     description ||= "#{if custom then "custom " else ""}search"
 
+    queryTerms = queryTerms[1..] if custom
+    query = queryTerms.join " "
+
+    if queryTerms.length == 0
+      return onComplete suggestions
+
     # For custom search engines, we add an auto-selected suggestion.
     if custom
-      queryTerms = queryTerms[1..]
-      query = queryTerms.join " "
       suggestions.push new Suggestion
         queryTerms: queryTerms
         type: description
         url: Utils.createSearchUrl queryTerms, searchUrl
-        title: if haveDescription then query else "#{keyword}:  #{query}"
+        title: if haveDescription then query else "#{keyword}: #{query}"
         relevancy: 1
-        autoSelect: true
         highlightTerms: false
-    else
-      query = queryTerms.join " "
-
-    if queryTerms.length == 0
-      return onComplete suggestions
+        autoSelect: true
 
     onComplete suggestions, (existingSuggestions, onComplete) =>
       suggestions = []
@@ -412,10 +410,9 @@ class SearchEngineCompleter
             type: description
             url: Utils.createSearchUrl suggestion, searchUrl
             title: suggestion
-            relevancy: relavancy
-            insertText: if custom then "#{keyword} #{suggestion}" else suggestion
+            relevancy: relavancy *= 0.9
             highlightTerms: false
-          relavancy *= 0.9
+            insertText: if custom then "#{keyword} #{suggestion}" else suggestion
 
         # We keep at least three suggestions (if possible) and at most six.  We keep more than three only if
         # there are enough slots.  The idea is that these suggestions shouldn't wholly displace suggestions
@@ -464,8 +461,8 @@ class MultiCompleter
   refresh: ->
     completer.refresh?() for completer in @completers
 
-  userIsTyping: ->
-    completer.userIsTyping?() for completer in @completers
+  cancel: ->
+    completer.cancel?() for completer in @completers
 
   filter: (queryTerms, onComplete) ->
     # Allow only one query to run at a time.
@@ -501,7 +498,8 @@ class MultiCompleter
               @filterInProgress = false
               if shouldRunContinuation
                 continuation suggestions, (newSuggestions) =>
-                  onComplete @prepareSuggestions queryTerms, suggestions.concat newSuggestions
+                  if 0 < newSuggestions.length
+                    onComplete @prepareSuggestions queryTerms, suggestions.concat newSuggestions
               else
                 @filter @mostRecentQuery.queryTerms, @mostRecentQuery.onComplete if @mostRecentQuery
 
