@@ -63,6 +63,11 @@ class Suggestion
     a.href = url
     a.protocol + "//" + a.hostname
 
+  getHostname: (url) ->
+    a = document.createElement 'a'
+    a.href = url
+    a.hostname
+
   shortenUrl: (url) -> @stripTrailingSlash(url).replace(/^https?:\/\//, "")
 
   stripTrailingSlash: (url) ->
@@ -131,7 +136,8 @@ class BookmarkCompleter
   # These bookmarks are loaded asynchronously when refresh() is called.
   bookmarks: null
 
-  filter: (@queryTerms, @onComplete) ->
+  filter: (queryTerms, @onComplete) ->
+    @queryTerms = queryTerms.filter (t) -> 0 < t.length
     @currentSearch = { queryTerms: @queryTerms, onComplete: @onComplete }
     @performSearch() if @bookmarks
 
@@ -193,6 +199,7 @@ class BookmarkCompleter
 
 class HistoryCompleter
   filter: (queryTerms, onComplete) ->
+    queryTerms = queryTerms.filter (t) -> 0 < t.length
     @currentSearch = { queryTerms: @queryTerms, onComplete: @onComplete }
     results = []
     HistoryCache.use (history) =>
@@ -227,6 +234,7 @@ class DomainCompleter
   domains: null
 
   filter: (queryTerms, onComplete) ->
+    queryTerms = queryTerms.filter (t) -> 0 < t.length
     return onComplete([]) unless queryTerms.length == 1
     if @domains
       @performSearch(queryTerms, onComplete)
@@ -329,6 +337,7 @@ tabRecency = new TabRecency()
 # Searches through all open tabs, matching on title and URL.
 class TabCompleter
   filter: (queryTerms, onComplete) ->
+    queryTerms = queryTerms.filter (t) -> 0 < t.length
     # NOTE(philc): We search all tabs, not just those in the current window. I'm not sure if this is the
     # correct UX.
     chrome.tabs.query {}, (tabs) =>
@@ -355,6 +364,13 @@ class SearchEngineCompleter
   cancel: ->
     CompletionEngines.cancel()
 
+  refresh: (port) ->
+    @searchEngines = SearchEngineCompleter.getSearchEngines()
+    # Let the vomnibar know the custom search engine keywords.
+    port.postMessage
+      handler: "customSearchEngineKeywords"
+      keywords: key for own key of @searchEngines
+
   filter: (queryTerms, onComplete) ->
     suggestions = []
 
@@ -366,9 +382,7 @@ class SearchEngineCompleter
 
     queryTerms = queryTerms[1..] if custom
     query = queryTerms.join " "
-
-    if queryTerms.length == 0
-      return onComplete []
+    return onComplete [] if queryTerms.length == 0
 
     # For custom search engines, we add an auto-selected suggestion.
     if custom
@@ -382,9 +396,29 @@ class SearchEngineCompleter
         autoSelect: true
         # Always reset the selection to this suggestion on query change.  The UX is weird otherwise.
         forceAutoSelect: true
+        # Suppress the "w" from "w query terms" in the vomnibar input.
+        suppressLeadingKeyword: true
+
+    # We filter out the empty strings late so that we can distinguish between, for example, "w" and "w ".
+    queryTerms = queryTerms.filter (t) -> 0 < t.length
+    # NOTE(smblott) I'm having difficulty figuring out to do the filtering, here.  Exclusive should mean
+    # exclusive to what?
+    exclusive = if custom and CompletionEngines.haveCompletionEngine searchUrl then description else null
+    # exclusive =
+    #   if custom and CompletionEngines.haveCompletionEngine searchUrl
+    #     suggestions[0].getHostname suggestions[0].url
+    #   else
+    #     null
+    # exclusive =
+    #   if custom and CompletionEngines.haveCompletionEngine searchUrl
+    #     searchUrl.split("%s")?[0]
+    #   else
+    #     null
+    if queryTerms.length == 0
+      return onComplete suggestions, { exclusive }
 
     onComplete suggestions,
-      exclusive: if custom and CompletionEngines.haveCompletionEngine searchUrl then description else null
+      exclusive: exclusive
       continuation: (existingSuggestions, onComplete) =>
         suggestions = []
         # For custom search-engine queries, this adds suggestions only if we have a completer.  For other queries,
@@ -402,6 +436,7 @@ class SearchEngineCompleter
         characterCount = query.length - queryTerms.length + 1
         relavancy = 0.6 * (Math.min(characterCount, 10.0)/10.0)
 
+        queryTerms = queryTerms.filter (t) -> 0 < t.length
         if 0 < existingSuggestions.length
           existingSuggestionsMinScore = existingSuggestions[existingSuggestions.length-1].relevancy
           if relavancy < existingSuggestionsMinScore and MultiCompleter.maxResults <= existingSuggestions.length
@@ -418,7 +453,7 @@ class SearchEngineCompleter
               title: suggestion
               relevancy: relavancy *= 0.9
               highlightTerms: false
-              insertText: if custom then "#{keyword} #{suggestion}" else suggestion
+              insertText: suggestion
 
           # We keep at least three suggestions (if possible) and at most six.  We keep more than three only if
           # there are enough slots.  The idea is that these suggestions shouldn't wholly displace suggestions
@@ -426,9 +461,6 @@ class SearchEngineCompleter
           # between the relevancy scores produced here and those produced by other completers.
           count = Math.min 6, Math.max 3, MultiCompleter.maxResults - existingSuggestions.length
           onComplete suggestions[...count]
-
-  refresh: ->
-    @searchEngines = SearchEngineCompleter.getSearchEngines()
 
   getSearchEngineMatches: (queryTerms) ->
     (1 < queryTerms.length and @searchEngines[queryTerms[0]]) or {}
@@ -464,22 +496,22 @@ class MultiCompleter
   constructor: (@completers) ->
     @maxResults = MultiCompleter.maxResults
 
-  refresh: ->
-    completer.refresh?() for completer in @completers
+  refresh: (port) ->
+    completer.refresh? port for completer in @completers
 
-  cancel: ->
-    completer.cancel?() for completer in @completers
+  cancel: (port) ->
+    completer.cancel? port for completer in @completers
 
   filter: do ->
     defaultCallbackOptions =
       # At most one of the completers (SearchEngineCompleter) may pass a continuation function, which will be
       # called after the results of all of the other completers have been posted.  Any additional results
       # from this continuation will be added to the existing results and posted later.  We don't call the
-      # continuation if another query is already waiting.
+      # continuation if another query is already waiting.  This is for slow tasks which should be done
+      # asynchronously (e.g. HTTP GET).
       continuation: null
-      # If truthy, completions from other completers should be discarded.  The truthy value should be the type
-      # of the completer (e.g. "custom search").
-      exclusive: false
+      # If truthy, non-matching completions from other completers should be suppressed.
+      exclusive: null
 
     (queryTerms, onComplete) ->
       # Allow only one query to run at a time.
@@ -504,8 +536,8 @@ class MultiCompleter
               console.log completer
             activeCompleters = activeCompleters.filter (i) -> i != index
             suggestions.push newSuggestions...
-            continuation = continuation ? options.continuation
-            exclusive = options.exclusive if options.exclusive?
+            continuation ?= options.continuation
+            exclusive ?= options.exclusive
 
             if activeCompleters.length == 0
               # All the completers have now returned; we combine the results, post them and call any

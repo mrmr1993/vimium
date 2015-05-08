@@ -209,6 +209,7 @@ Function::curry = ->
 Array.copy = (array) -> Array.prototype.slice.call(array, 0)
 
 String::startsWith = (str) -> @indexOf(str) == 0
+String::ltrim = () -> @replace /^\s+/, ""
 
 globalRoot = window ? global
 globalRoot.extend = (hash1, hash2) ->
