@@ -8,6 +8,9 @@ Vomnibar =
   getUI: -> @vomnibarUI
   completers: {}
 
+  getCompleter: (name) ->
+    @completers[name] ?= new BackgroundCompleter name
+
   activate: (userOptions) ->
     options =
       completer: "omni"
@@ -17,7 +20,7 @@ Vomnibar =
     extend options, userOptions
     extend options, refreshInterval: if options.completer == "omni" then 100 else 0
 
-    completer = @completers[options.completer] ?= new BackgroundCompleter options.completer
+    completer = @getCompleter options.completer
     @vomnibarUI ?= new VomnibarUI()
     completer.refresh()
     @vomnibarUI.setInitialSelectionValue if options.selectFirst then 0 else -1
@@ -157,6 +160,7 @@ class VomnibarUI
     @completionList.innerHTML = completions.map((completion) -> "<li>#{completion.html}</li>").join("")
     @completionList.style.display = if completions.length > 0 then "block" else ""
     @selection = Math.min completions.length - 1, Math.max @initialSelectionValue, @selection
+    @previousAutoSelect = null if completions[0]?.autoSelect and completions[0]?.forceAutoSelect
     @updateSelection()
 
   updateOnInput: =>
@@ -211,6 +215,7 @@ class BackgroundCompleter
   constructor: (@name) ->
     @port = chrome.runtime.connect name: "completions"
     @messageId = null
+    @cache ?= new SimpleCache 1000 * 60 * 5
     @reset()
 
     @port.onMessage.addListener (msg) =>
@@ -260,9 +265,9 @@ class BackgroundCompleter
     @port.postMessage name: @name, handler: "refresh"
 
   reset: ->
-    # We only cache results for the duration of a single vomnibar activation.
+    # We only cache results for the duration of a single vomnibar activation, so clear the cache now.
     console.log "cache reset." if @debug
-    @cache = new SimpleCache 1000 * 60 * 5
+    @cache.clear()
     @mostRecentQuery = null
 
   cancel: ->
