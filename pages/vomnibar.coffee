@@ -261,6 +261,7 @@ class BackgroundCompleter
 
   reset: ->
     # We only cache results for the duration of a single vomnibar activation.
+    console.log "cache reset." if @debug
     @cache = new SimpleCache 1000 * 60 * 5
     @mostRecentQuery = null
 
