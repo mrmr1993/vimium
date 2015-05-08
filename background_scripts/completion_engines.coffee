@@ -24,7 +24,7 @@ class RegexpEngine
 
 # Several Google completion engines package XML responses in this way.
 class GoogleXMLRegexpEngine extends RegexpEngine
-  doNotCache: true
+  doNotCache: false # true (disbaled, experimental)
   parse: (xhr) ->
     for suggestion in xhr.responseXML.getElementsByTagName "suggestion"
       continue unless suggestion = suggestion.getAttribute "data"
@@ -51,7 +51,7 @@ class Youtube extends GoogleXMLRegexpEngine
     "http://suggestqueries.google.com/complete/search?client=youtube&ds=yt&xml=t&q=#{Utils.createSearchQuery queryTerms}"
 
 class Wikipedia extends RegexpEngine
-  doNotCache: true
+  doNotCache: false # true (disbaled, experimental)
   # Example search URL: http://www.wikipedia.org/w/index.php?title=Special:Search&search=%s
   constructor: ->
     super [ new RegExp "^https?://[a-z]+\.wikipedia\.org/" ]
@@ -125,7 +125,7 @@ CompletionEngines =
 
   # The amount of time to wait for new requests before launching the HTTP request.  The intention is to cut
   # down on the number of HTTP requests we issue.
-  delay: 250
+  delay: 200
 
   get: (searchUrl, url, callback) ->
     xhr = new XMLHttpRequest()
@@ -177,9 +177,8 @@ CompletionEngines =
     @completionCache ?= new SimpleCache 60 * 60 * 1000, 2000 # One hour, 2000 entries.
     if @completionCache.has completionCacheKey
       # We add a short delay, even for a cache hit.  This avoids an ugly flicker when the additional
-      # suggestions are posted.  It also makes the vomnibar behave similarly regardless of whether there's a
-      # cache hit.
-      Utils.setTimeout @delay, =>
+      # suggestions are posted.
+      Utils.setTimeout 75, =>
         console.log "hit", completionCacheKey if @debug
         callback @completionCache.get completionCacheKey
       return
@@ -210,9 +209,13 @@ CompletionEngines =
 
     # We pause in case the user is still typing.
     Utils.setTimeout @delay, handler = @mostRecentHandler = =>
-      if handler != @mostRecentHandler # Bail if another completion has begun, or the user is typing.
+      if handler != @mostRecentHandler
+        # Bail! Another completion has begun, or the user is typing.
+        # NOTE: We do *not* call the callback (because we are not providing results, and we don't want allow
+        # any higher-level component to cache the results -- specifically, the vomnibar itself, via
+        # callerMayCacheResults).
         console.log "bail", completionCacheKey if @debug
-        return callback []
+        return
       @mostRecentHandler = null
       # Don't allow duplicate identical active requests.  This can happen, for example, when the user enters or
       # removes a space, or when they enter a character and immediately delete it.
@@ -227,6 +230,7 @@ CompletionEngines =
           console.log "callbacks", queue.length, completionCacheKey if @debug and 0 < queue.length
           callback suggestions for callback in queue
 
+  # Cancel any pending (ie. blocked on @delay) queries.  Does not cancel in-flight queries.
   cancel: ->
     if @mostRecentHandler?
       @mostRecentHandler = null

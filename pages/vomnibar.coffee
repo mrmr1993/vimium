@@ -8,9 +8,6 @@ Vomnibar =
   getUI: -> @vomnibarUI
   completers: {}
 
-  #
-  # Activate the Vomnibox.
-  #
   activate: (userOptions) ->
     options =
       completer: "omni"
@@ -18,19 +15,16 @@ Vomnibar =
       newTab: false
       selectFirst: false
     extend options, userOptions
+    extend options, refreshInterval: if options.completer == "omni" then 100 else 0
 
-    options.refreshInterval =
-      if options.completer == "omni" then 125 else 0
-
-    name = options.completer
-    completer = @completers[name] ?= new BackgroundCompleter name
+    completer = @completers[options.completer] ?= new BackgroundCompleter options.completer
     @vomnibarUI ?= new VomnibarUI()
     completer.refresh()
-    @vomnibarUI.setInitialSelectionValue(if options.selectFirst then 0 else -1)
-    @vomnibarUI.setCompleter(completer)
-    @vomnibarUI.setRefreshInterval(options.refreshInterval)
-    @vomnibarUI.setForceNewTab(options.newTab)
-    @vomnibarUI.setQuery(options.query)
+    @vomnibarUI.setInitialSelectionValue if options.selectFirst then 0 else -1
+    @vomnibarUI.setCompleter completer
+    @vomnibarUI.setRefreshInterval options.refreshInterval
+    @vomnibarUI.setForceNewTab options.newTab
+    @vomnibarUI.setQuery options.query
     @vomnibarUI.update true
 
   hide: -> @vomnibarUI?.hide()
@@ -43,17 +37,10 @@ class VomnibarUI
     @initDom()
 
   setQuery: (query) -> @input.value = query
-
-  setInitialSelectionValue: (initialSelectionValue) ->
-    @initialSelectionValue = initialSelectionValue
-
-  setCompleter: (completer) ->
-    @completer = completer
-    @reset()
-
-  setRefreshInterval: (refreshInterval) -> @refreshInterval = refreshInterval
-
-  setForceNewTab: (forceNewTab) -> @forceNewTab = forceNewTab
+  setInitialSelectionValue: (@initialSelectionValue) ->
+  setRefreshInterval: (@refreshInterval) ->
+  setForceNewTab: (@forceNewTab) ->
+  setCompleter: (@completer) -> @reset()
 
   # The sequence of events when the vomnibar is hidden is as follows:
   # 1. Post a "hide" message to the host page.
@@ -73,8 +60,9 @@ class VomnibarUI
   reset: ->
     @completionList.style.display = ""
     @input.value = ""
-    @updateTimer = null
     @completions = []
+    window.clearTimeout @updateTimer if @updateTimer?
+    @updateTimer = null
     @previousAutoSelect = null
     @previousInputValue = null
     @selection = @initialSelectionValue
@@ -152,9 +140,7 @@ class VomnibarUI
             url: query
       else
         completion = @completions[@selection]
-        @update true, =>
-          # Shift+Enter will open the result in a new tab instead of the current tab.
-          @hide -> completion.performAction openInNewTab
+        @hide -> completion.performAction openInNewTab
 
     # It seems like we have to manually suppress the event here and still return true.
     event.stopImmediatePropagation()
@@ -162,12 +148,12 @@ class VomnibarUI
     true
 
   updateCompletions: (callback = null) ->
-    @completer.filter @input.value.trim(), (@completions) =>
+    @completer.filter @input.value, (@completions) =>
       @populateUiWithCompletions @completions
       callback?()
 
   populateUiWithCompletions: (completions) ->
-    # update completion list with the new data
+    # Update completion list with the new suggestions.
     @completionList.innerHTML = completions.map((completion) -> "<li>#{completion.html}</li>").join("")
     @completionList.style.display = if completions.length > 0 then "block" else ""
     @selection = Math.min completions.length - 1, Math.max @initialSelectionValue, @selection
@@ -180,7 +166,7 @@ class VomnibarUI
       @previousInputValue = null
       @previousAutoSelect = null
       @selection = -1
-    @update()
+    @update false
 
   update: (updateSynchronously = false, callback = null) =>
     if updateSynchronously
@@ -219,48 +205,83 @@ class VomnibarUI
 # Sends requests to a Vomnibox completer on the background page.
 #
 class BackgroundCompleter
+  debug: true
+
   # name is background-page completer to connect to: "omni", "tabs", or "bookmarks".
   constructor: (@name) ->
-    @messageId = null
     @port = chrome.runtime.connect name: "completions"
-    @port.onMessage.addListener handler = @messageHandler
+    @messageId = null
+    @reset()
 
-  messageHandler: (msg) =>
-    # We ignore messages which arrive too late.
-    if msg.id == @messageId
+    @port.onMessage.addListener (msg) =>
       # The result objects coming from the background page will be of the form:
       #   { html: "", type: "", url: "" }
-      # type will be one of [tab, bookmark, history, domain].
-      results = msg.results.map (result) =>
-        functionToCall = if  result.type == "tab"
-          @completionActions.switchToTab.curry result.tabId
-        else
-          @completionActions.navigateToUrl.curry result.url
-        result.performAction = functionToCall
-        result
-      @mostRecentCallback results
+      # Type will be one of [tab, bookmark, history, domain, search], or a custom search engine description.
+      for result in msg.results
+        result.performAction =
+          if result.type == "tab"
+            @completionActions.switchToTab.curry result.tabId
+          else
+            @completionActions.navigateToUrl.curry result.url
+
+      # Cache the results (but only if the background completer tells us that it's ok to do so).
+      if msg.callerMayCacheResults
+        console.log "cache set:", msg.query if @debug
+        @cache.set msg.query, msg.results
+      else
+        console.log "not setting cache:", msg.query if @debug
+
+      # We ignore messages which arrive too late.
+      if msg.id == @messageId
+        @mostRecentCallback msg.results
 
   filter: (query, @mostRecentCallback) ->
-    @messageId = Utils.createUniqueId()
-    @port.postMessage name: @name, handler: "filter", id: @messageId, query: query
+    queryTerms = query.trim().split(/\s+/).filter (term) -> 0 < term.length
+    query = queryTerms.join " "
+    if @cache.has query
+      console.log "cache hit:", query if @debug
+      @mostRecentCallback @cache.get query
+    else
+      # Silently drop identical consecutive queries.  This can happen, for example, if the user adds
+      # whitespace to the query.
+      unless @mostRecentQuery? and query == @mostRecentQuery
+        @mostRecentQuery = query
+        @messageId = Utils.createUniqueId()
+        @port.postMessage
+          name: @name
+          handler: "filter"
+          id: @messageId
+          query: query
+          queryTerms: queryTerms
 
   refresh: ->
+    @reset()
+    # Inform the background completer that we have a new vomnibar activation.
     @port.postMessage name: @name, handler: "refresh"
 
+  reset: ->
+    # We only cache results for the duration of a single vomnibar activation.
+    @cache = new SimpleCache 1000 * 60 * 5
+    @mostRecentQuery = null
+
   cancel: ->
+    # Inform the background completer that it may (should it choose to do so) abandon any pending query
+    # (because the user is typing, and there'll be another query along soon).
     @port.postMessage name: @name, handler: "cancel"
 
-  # These are the actions we can perform when the user selects a result in the Vomnibox.
+  # These are the actions we can perform when the user selects a result.
   completionActions:
     navigateToUrl: (url, openInNewTab) ->
-      # If the URL is a bookmarklet prefixed with javascript:, we shouldn't open that in a new tab.
-      openInNewTab = false if url.startsWith("javascript:")
-      chrome.runtime.sendMessage(
+      # If the URL is a bookmarklet (so, prefixed with "javascript:"), then we always open it in the current
+      # tab.
+      openInNewTab &&= not Utils.hasJavascriptPrefix url
+      chrome.runtime.sendMessage
         handler: if openInNewTab then "openUrlInNewTab" else "openUrlInCurrentTab"
-        url: url,
-        selected: openInNewTab)
+        url: url
+        selected: openInNewTab
 
-    switchToTab: (tabId) -> chrome.runtime.sendMessage({ handler: "selectSpecificTab", id: tabId })
+    switchToTab: (tabId) ->
+      chrome.runtime.sendMessage handler: "selectSpecificTab", id: tabId
 
 UIComponentServer.registerHandler (event) ->
   switch event.data
