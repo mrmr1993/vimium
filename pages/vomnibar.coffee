@@ -200,12 +200,14 @@ class VomnibarUI
       window.clearTimeout @updateTimer
       @updateTimer = null
 
+  isCustomSearch: ->
+    queryTerms = @input.value.ltrim().split /\s+/
+    1 < queryTerms.length and queryTerms[0] in @keywords
+
   update: (updateSynchronously = false, callback = null) =>
-    # If the query text is a custom search keyword, then we need to force a synchronous update (so that the
+    # If the query text becomes a custom search, then we need to force a synchronous update (so that the
     # interface is snappy).
-    if @keywords? and not @suppressedLeadingKeyword?
-      queryTerms = @input.value.ltrim().split /\s+/
-      updateSynchronously ||= 1 < queryTerms.length and queryTerms[0] in @keywords
+    updateSynchronously ||= @isCustomSearch() and not @suppressedLeadingKeyword?
     if updateSynchronously
       @updateCompletions callback
     else if not @updateTimer?
@@ -242,13 +244,17 @@ class BackgroundCompleter
   constructor: (@name) ->
     @port = chrome.runtime.connect name: "completions"
     @messageId = null
-    @cache ?= new SimpleCache 1000 * 60 * 5
+    # @keywords and @cache are both reset in @reset().
+    # We only cache for the duration of a single vomnibar activation.
+    @keywords = []
+    @cache = {}
     @reset()
 
     @port.onMessage.addListener (msg) =>
       switch msg.handler
         when "customSearchEngineKeywords"
-          @lastUI.setKeywords msg.keywords
+          @keywords = msg.keywords
+          @lastUI.setKeywords @keywords
         when "completions"
           # The result objects coming from the background page will be of the form:
           #   { html: "", type: "", url: "" }
@@ -260,43 +266,44 @@ class BackgroundCompleter
               else
                 @completionActions.navigateToUrl.curry result.url
 
-          # Cache the results (but only if the background completer tells us that it's ok to do so).
-          if msg.callerMayCacheResults
-            console.log "cache set:", msg.query if @debug
-            @cache.set msg.query, msg.results
+          # Cache the result -- if we have been told it's ok to do so (it could be that more results will be
+          # posted shortly).  We cache the result even if it arrives late.
+          if msg.mayCacheResult
+            console.log "cache set:", "-#{msg.cacheKey}-" if @debug
+            @cache[msg.cacheKey] = msg.results
           else
-            console.log "not setting cache:", msg.query if @debug
+            console.log "not setting cache:", "-#{msg.cacheKey}-" if @debug
 
-          # We ignore messages which arrive too late.
-          if msg.id == @messageId
-            @mostRecentCallback msg.results
+          # Handle the message, but only if it hasn't arrived too late.
+          @mostRecentCallback msg.results if msg.id == @messageId
 
   filter: (query, @mostRecentCallback) ->
-    # We retain trailing whitespace so that we can tell the difference between "w" and "w " (for custom search
-    # engines).
-    queryTerms = query.ltrim().split(/\s+/)
-    query = queryTerms.join " "
-    if @cache.has query
-      console.log "cache hit:", query if @debug
-      @mostRecentCallback @cache.get query
+    queryTerms = query.trim().split(/\s+/).filter (s) -> 0 < s.length
+    cacheKey = queryTerms.join " "
+    cacheKey += " " if 0 < queryTerms.length and queryTerms[0] in @keywords and /\s$/.test query
+
+    if cacheKey of @cache
+      console.log "cache hit:", "-#{cacheKey}-" if @debug
+      @mostRecentCallback @cache[cacheKey]
     else
-      @messageId = Utils.createUniqueId()
+      console.log "cache miss:", "-#{cacheKey}-" if @debug
       @port.postMessage
-        name: @name
         handler: "filter"
-        id: @messageId
-        query: query
+        name: @name
+        id: @messageId = Utils.createUniqueId()
         queryTerms: queryTerms
+        query: query
+        cacheKey: cacheKey
+
+  reset: ->
+    console.log "cache reset." if @debug
+    @keywords = []
+    @cache = {}
 
   refresh: (@lastUI) ->
     @reset()
     # Inform the background completer that we have a new vomnibar activation.
     @port.postMessage name: @name, handler: "refresh"
-
-  reset: ->
-    # We only cache results for the duration of a single vomnibar activation, so clear the cache now.
-    console.log "cache reset." if @debug
-    @cache.clear()
 
   cancel: ->
     # Inform the background completer that it may (should it choose to do so) abandon any pending query
