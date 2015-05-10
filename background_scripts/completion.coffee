@@ -360,6 +360,7 @@ class SearchEngineCompleter
   cancel: ->
     CompletionSearch.cancel()
 
+  # Look up the search engine and, if one is found, then note it and remove its keyword from the query terms.
   triageRequest: (request) ->
     @searchEngines.use (engines) =>
       { queryTerms, query } = request
@@ -448,6 +449,7 @@ class SearchEngineCompleter
         # We suppress the leading keyword, for example "w something" becomes "something" in the vomnibar.
         suppressLeadingKeyword: true
         selectCommonMatches: false
+        custonSearchEnginePrimarySuggestion: true
         # Toggles for the legacy behaviour.
         autoSelect: not useExclusiveVomnibar
         forceAutoSelect: not useExclusiveVomnibar
@@ -464,6 +466,7 @@ class SearchEngineCompleter
           insertText: suggestion
           highlightTerms: false
           selectCommonMatches: true
+          customSearchEngineCompletionSuggestion: true
 
     # If we have cached suggestions, then we can bundle them immediately (otherwise we'll have to fetch them
     # asynchronously).
@@ -501,9 +504,10 @@ class MultiCompleter
     return @mostRecentQuery = arguments if @filterInProgress
 
     # Provide each completer with an opportunity to see (and possibly alter) the request before it is
-    # launched.
-    for completer in @completers
-      completer.triageRequest? request
+    # launched.  This is primarily for SearchEngineCompleter, which notes a search query and removes any
+    # keyword from the queryTerms.  Then, other completers don't include keywords in their matching and
+    # relevancy scores.
+    completer.triageRequest? request for completer in @completers
 
     RegexpCache.clear()
     { queryTerms } = request

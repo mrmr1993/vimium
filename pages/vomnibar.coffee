@@ -116,7 +116,6 @@ class VomnibarUI
   # text to the input and selects it. Tab (or just Enter) can then be used to accept the new text, or the user
   # can just continue typing.
   selectCommonMatches: (response) ->
-    #
     # Bail if we don't yet have the background completer's final word on the current query.
     return unless response.mayCacheResults
 
@@ -187,6 +186,46 @@ class VomnibarUI
     @input.value = query + completion
     @input.setSelectionRange query.length, query.length + completion.length
 
+  selectFirstSuggestion: (response) ->
+    # Bail if we don't yet have the background completer's final word on the current query.
+    return unless response.mayCacheResults
+
+    # Bail if there's an update pending (because then @input and the completion state are out of sync).
+    return if @updateTimer?
+
+    @previousLength ?= @input.value.length
+    previousLength = @previousLength
+    currentLength = @input.value.length
+    @previousLength = currentLength
+
+    # We only highlight matches when the query gets longer (so, not on deletions).
+    return unless previousLength < currentLength
+
+    completion = do (completion) =>
+      for completion in @completions
+        continue if completion.custonSearchEnginePrimarySuggestion
+        return completion if completion.customSearchEngineCompletionSuggestion
+      null
+
+    return unless completion
+
+    # Fetch the query and suggestion.
+    query = @input.value.ltrim().split(/\s+/).join(" ").toLowerCase()
+    suggestion = completion.title
+
+    index = suggestion.toLowerCase().indexOf query
+    return unless 0 <= index
+
+    suggestion = suggestion[index..]
+    return unless query.length < suggestion.length
+
+    # If the typed text is all lower case, then make the completion lower case too.
+    suggestion = suggestion.toLowerCase() unless /[A-Z]/.test @getInputWithoutSelectionRange()
+
+    suggestion = suggestion[query.length..]
+    @input.value = query + suggestion
+    @input.setSelectionRange query.length, query.length + suggestion.length
+
   # Returns the user's action ("up", "down", "tab", "enter", "dismiss", "delete" or null) based on their
   # keypress.  We support the arrow keys and various other shortcuts for moving. This method hides that
   # complexity.
@@ -220,11 +259,13 @@ class VomnibarUI
     else if action in [ "tab", "down" ]
       if action == "tab"
         if @inputContainsASelectionRange()
-          # The first tab collapses the selection to the end.
-          window.getSelection()?.collapseToEnd()
-          @updateOnInput()
+          # Tab moves the start of the selection to the end of the current word.
+          text = @input.value[@input.selectionStart..]
+          length = text.length
+          text = text.replace /^\s*\S+/, ""
+          @input.setSelectionRange @input.selectionStart + (length - text.length), @input.selectionEnd
         else
-          # Subsequent tabs behave the same as "down".
+          # Other tabs behave the same as "down".
           action = "down"
       if action == "down"
         @selection += 1
@@ -314,7 +355,7 @@ class VomnibarUI
       @selection = Math.min @completions.length - 1, Math.max @initialSelectionValue, @selection
       @previousAutoSelect = null if @completions[0]?.autoSelect and @completions[0]?.forceAutoSelect
       @updateSelection()
-      @selectCommonMatches response
+      @selectFirstSuggestion response
       callback?()
 
   updateOnInput: =>
