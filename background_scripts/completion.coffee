@@ -5,26 +5,41 @@
 # The Vomnibox frontend script makes a "filterCompleter" request to the background page, which in turn calls
 # filter() on each these completers.
 #
-# A completer is a class which has two functions:
+# A completer is a class which has three functions:
 #  - filter(query, onComplete): "query" will be whatever the user typed into the Vomnibox.
 #  - refresh(): (optional) refreshes the completer's data source (e.g. refetches the list of bookmarks).
-
-# A Suggestion is a bookmark or history entry which matches the current query.
-# It also has an attached "computeRelevancyFunction" which determines how well this item matches the given
-# query terms.
+#  - cancel(): (optional) cancels any pending, cancelable action.
 class Suggestion
-  showRelevancy: false # Set this to true to render relevancy when debugging the ranking scores.
+  showRelevancy: true # Set this to true to render relevancy when debugging the ranking scores.
 
-  # - type: one of [bookmark, history, tab].
-  # - computeRelevancyFunction: a function which takes a Suggestion and returns a relevancy score
-  #   between [0, 1]
-  # - extraRelevancyData: data (like the History item itself) which may be used by the relevancy function.
-  constructor: (@queryTerms, @type, @url, @title, @computeRelevancyFunction, @extraRelevancyData) ->
-    @title ||= ""
-    # When @autoSelect is truthy, the suggestion is automatically pre-selected in the vomnibar.
+  constructor: (@options) ->
+    # Required options.
+    @queryTerms = null
+    @type = null
+    @url = null
+    @relevancyFunction = null
+    # Other options.
+    @title = ""
+    # Extra data which will be available to the relevancy function.
+    @relevancyData = null
+    # If @autoSelect is truthy, then this suggestion is automatically pre-selected in the vomnibar.  There may
+    # be at most one such suggestion.
     @autoSelect = false
+    # If truthy (and @autoSelect is truthy too), then this suggestion is always pre-selected when the query
+    # changes.  There may be at most one such suggestion.
+    @forceAutoSelect = false
+    # If @highlightTerms is true, then we highlight matched terms in the title and URL.
+    @highlightTerms = true
+    # If @insertText is a string, then the indicated text is inserted into the vomnibar input when the
+    # suggestion is selected.
+    @insertText = null
 
-  computeRelevancy: -> @relevancy = @computeRelevancyFunction(this)
+    extend this, @options
+
+  computeRelevancy: ->
+    # We assume that, once the relevancy has been set, it won't change.  Completers must set either @relevancy
+    # or @relevancyFunction.
+    @relevancy ?= @relevancyFunction this
 
   generateHtml: ->
     return @html if @html
@@ -34,10 +49,10 @@ class Suggestion
       """
       <div class="vimiumReset vomnibarTopHalf">
          <span class="vimiumReset vomnibarSource">#{@type}</span>
-         <span class="vimiumReset vomnibarTitle">#{@highlightTerms(Utils.escapeHtml(@title))}</span>
+         <span class="vimiumReset vomnibarTitle">#{@highlightQueryTerms Utils.escapeHtml @title}</span>
        </div>
        <div class="vimiumReset vomnibarBottomHalf">
-        <span class="vimiumReset vomnibarUrl">#{@shortenUrl(@highlightTerms(Utils.escapeHtml(@url)))}</span>
+        <span class="vimiumReset vomnibarUrl">#{@highlightQueryTerms Utils.escapeHtml @shortenUrl()}</span>
         #{relevancyHtml}
       </div>
       """
@@ -48,7 +63,10 @@ class Suggestion
     a.href = url
     a.protocol + "//" + a.hostname
 
-  shortenUrl: (url) -> @stripTrailingSlash(url).replace(/^https?:\/\//, "")
+  getHostname: (url) ->
+    a = document.createElement 'a'
+    a.href = url
+    a.hostname
 
   stripTrailingSlash: (url) ->
     url = url.substring(url, url.length - 1) if url[url.length - 1] == "/"
@@ -77,7 +95,8 @@ class Suggestion
       textPosition += matchedText.length
 
   # Wraps each occurence of the query terms in the given string in a <span>.
-  highlightTerms: (string) ->
+  highlightQueryTerms: (string) ->
+    return string unless @highlightTerms
     ranges = []
     escapedTerms = @queryTerms.map (term) -> Utils.escapeHtml(term)
     for term in escapedTerms
@@ -108,6 +127,33 @@ class Suggestion
         previous = range
     mergedRanges
 
+  # Simplify a suggestion's URL (by removing those parts which aren't useful for display or comparison).
+  shortenUrl: () ->
+    return @shortUrl if @shortUrl?
+    url = @url
+    for [ filter, replacements ] in @stripPatterns
+      if new RegExp(filter).test url
+        for replace in replacements
+          url = url.replace replace, ""
+    @shortUrl = url
+
+  # Patterns to strip from URLs; of the form [ [ filter, replacements ], [ filter, replacements ], ... ]
+  #   - filter is a regexp string; a URL must match this regexp first.
+  #   - replacements (itself a list) is a list of regexp objects, each of which is removed from URLs matching
+  #     the filter.
+  #
+  # Note. This includes site-specific patterns for very-popular sites with URLs which don't work well in the
+  # vomnibar.
+  #
+  stripPatterns: [
+    # Google search specific replacements; this replaces query parameters which are known to not be helpful.
+    # There's some additional information here: http://www.teknoids.net/content/google-search-parameters-2012
+    [ "^https?://www\.google\.(com|ca|com\.au|co\.uk|ie)/.*[&?]q="
+      "ei gws_rd url ved usg sa usg sig2 bih biw cd".split(/\s+/).map (param) -> new RegExp "\&#{param}=[^&]+" ]
+
+    # General replacements; replaces leading and trailing fluff.
+    [ '.', [ "^https?://", "\\W+$" ].map (re) -> new RegExp re ]
+  ]
 
 class BookmarkCompleter
   folderSeparator: "/"
@@ -115,7 +161,7 @@ class BookmarkCompleter
   # These bookmarks are loaded asynchronously when refresh() is called.
   bookmarks: null
 
-  filter: (@queryTerms, @onComplete) ->
+  filter: ({ @queryTerms }, @onComplete) ->
     @currentSearch = { queryTerms: @queryTerms, onComplete: @onComplete }
     @performSearch() if @bookmarks
 
@@ -133,11 +179,15 @@ class BookmarkCompleter
       else
         []
     suggestions = results.map (bookmark) =>
-      suggestionTitle = if usePathAndTitle then bookmark.pathAndTitle else bookmark.title
-      new Suggestion(@currentSearch.queryTerms, "bookmark", bookmark.url, suggestionTitle, @computeRelevancy)
+      new Suggestion
+        queryTerms: @currentSearch.queryTerms
+        type: "bookmark"
+        url: bookmark.url
+        title: if usePathAndTitle then bookmark.pathAndTitle else bookmark.title
+        relevancyFunction: @computeRelevancy
     onComplete = @currentSearch.onComplete
     @currentSearch = null
-    onComplete(suggestions)
+    onComplete suggestions
 
   refresh: ->
     @bookmarks = null
@@ -172,7 +222,7 @@ class BookmarkCompleter
     RankingUtils.wordRelevancy(suggestion.queryTerms, suggestion.url, suggestion.title)
 
 class HistoryCompleter
-  filter: (queryTerms, onComplete) ->
+  filter: ({ queryTerms }, onComplete) ->
     @currentSearch = { queryTerms: @queryTerms, onComplete: @onComplete }
     results = []
     HistoryCache.use (history) =>
@@ -181,18 +231,21 @@ class HistoryCompleter
           history.filter (entry) -> RankingUtils.matches(queryTerms, entry.url, entry.title)
         else
           []
-      suggestions = results.map (entry) =>
-        new Suggestion(queryTerms, "history", entry.url, entry.title, @computeRelevancy, entry)
-      onComplete(suggestions)
+      onComplete results.map (entry) =>
+        new Suggestion
+          queryTerms: queryTerms
+          type: "history"
+          url: entry.url
+          title: entry.title
+          relevancyFunction: @computeRelevancy
+          relevancyData: entry
 
   computeRelevancy: (suggestion) ->
-    historyEntry = suggestion.extraRelevancyData
+    historyEntry = suggestion.relevancyData
     recencyScore = RankingUtils.recencyScore(historyEntry.lastVisitTime)
     wordRelevancy = RankingUtils.wordRelevancy(suggestion.queryTerms, suggestion.url, suggestion.title)
     # Average out the word score and the recency. Recency has the ability to pull the score up, but not down.
-    score = (wordRelevancy + Math.max(recencyScore, wordRelevancy)) / 2
-
-  refresh: ->
+    (wordRelevancy + Math.max recencyScore, wordRelevancy) / 2
 
 # The domain completer is designed to match a single-word query which looks like it is a domain. This supports
 # the user experience where they quickly type a partial domain, hit tab -> enter, and expect to arrive there.
@@ -203,8 +256,9 @@ class DomainCompleter
   #     If `referenceCount` goes to zero, the domain entry can and should be deleted.
   domains: null
 
-  filter: (queryTerms, onComplete) ->
-    return onComplete([]) if queryTerms.length > 1
+  filter: ({ queryTerms, query }, onComplete) ->
+    # Do not offer completions if the query is empty, or if the user has finished typing the first word.
+    return onComplete [] if queryTerms.length == 0 or /\S\s/.test query
     if @domains
       @performSearch(queryTerms, onComplete)
     else
@@ -212,20 +266,24 @@ class DomainCompleter
 
   performSearch: (queryTerms, onComplete) ->
     query = queryTerms[0]
-    domainCandidates = (domain for domain of @domains when domain.indexOf(query) >= 0)
-    domains = @sortDomainsByRelevancy(queryTerms, domainCandidates)
-    return onComplete([]) if domains.length == 0
-    topDomain = domains[0][0]
-    onComplete([new Suggestion(queryTerms, "domain", topDomain, null, @computeRelevancy)])
+    domains = (domain for domain of @domains when 0 <= domain.indexOf query)
+    domains = @sortDomainsByRelevancy queryTerms, domains
+    onComplete [
+      new Suggestion
+        queryTerms: queryTerms
+        type: "domain"
+        url: domains[0]?[0] ? "" # This is the URL or an empty string, but not null.
+        relevancy: 1
+      ].filter (s) -> 0 < s.url.length
 
   # Returns a list of domains of the form: [ [domain, relevancy], ... ]
   sortDomainsByRelevancy: (queryTerms, domainCandidates) ->
-    results = []
-    for domain in domainCandidates
-      recencyScore = RankingUtils.recencyScore(@domains[domain].entry.lastVisitTime || 0)
-      wordRelevancy = RankingUtils.wordRelevancy(queryTerms, domain, null)
-      score = (wordRelevancy + Math.max(recencyScore, wordRelevancy)) / 2
-      results.push([domain, score])
+    results =
+      for domain in domainCandidates
+        recencyScore = RankingUtils.recencyScore(@domains[domain].entry.lastVisitTime || 0)
+        wordRelevancy = RankingUtils.wordRelevancy queryTerms, domain, null
+        score = (wordRelevancy + Math.max(recencyScore, wordRelevancy)) / 2
+        [domain, score]
     results.sort (a, b) -> b[1] - a[1]
     results
 
@@ -257,9 +315,6 @@ class DomainCompleter
   # Return something like "http://www.example.com" or false.
   parseDomainAndScheme: (url) ->
       Utils.hasFullUrlPrefix(url) and not Utils.hasChromePrefix(url) and url.split("/",3).join "/"
-
-  # Suggestions from the Domain completer have the maximum relevancy. They should be shown first in the list.
-  computeRelevancy: -> 1
 
 # TabRecency associates a logical timestamp with each tab id.  These are used to provide an initial
 # recency-based ordering in the tabs vomnibar (which allows jumping quickly between recently-visited tabs).
@@ -304,16 +359,20 @@ tabRecency = new TabRecency()
 
 # Searches through all open tabs, matching on title and URL.
 class TabCompleter
-  filter: (queryTerms, onComplete) ->
+  filter: ({ queryTerms }, onComplete) ->
     # NOTE(philc): We search all tabs, not just those in the current window. I'm not sure if this is the
     # correct UX.
     chrome.tabs.query {}, (tabs) =>
       results = tabs.filter (tab) -> RankingUtils.matches(queryTerms, tab.url, tab.title)
       suggestions = results.map (tab) =>
-        suggestion = new Suggestion(queryTerms, "tab", tab.url, tab.title, @computeRelevancy)
-        suggestion.tabId = tab.id
-        suggestion
-      onComplete(suggestions)
+        new Suggestion
+          queryTerms: queryTerms
+          type: "tab"
+          url: tab.url
+          title: tab.title
+          relevancyFunction: @computeRelevancy
+          tabId: tab.id
+      onComplete suggestions
 
   computeRelevancy: (suggestion) ->
     if suggestion.queryTerms.length
@@ -321,66 +380,241 @@ class TabCompleter
     else
       tabRecency.recencyScore(suggestion.tabId)
 
-# A completer which will return your search engines
 class SearchEngineCompleter
-  searchEngines: {}
+  @debug: false
+  searchEngines: null
 
-  filter: (queryTerms, onComplete) ->
-    {url: url, description: description} = @getSearchEngineMatches queryTerms
-    suggestions = []
-    if url
-      url = url.replace(/%s/g, Utils.createSearchQuery queryTerms[1..])
-      if description
-        type = description
-        query = queryTerms[1..].join " "
+  cancel: ->
+    CompletionSearch.cancel()
+
+  # This looks up the custom search engine and, if one is found, notes it and removes its keyword from the
+  # query terms.
+  triageRequest: (request) ->
+    @searchEngines.use (engines) =>
+      { queryTerms, query } = request
+      keyword = queryTerms[0]
+      # Note. For a keyword "w", we match "w search terms" and "w ", but not "w" on its own.
+      if keyword and engines[keyword] and (1 < queryTerms.length or /\s$/.test query)
+        extend request,
+          queryTerms: queryTerms[1..]
+          keyword: keyword
+          engine: engines[keyword]
+
+  refresh: (port) ->
+    # Parse the search-engine configuration.
+    @searchEngines = new AsyncDataFetcher (callback) ->
+      engines = {}
+      for line in Settings.get("searchEngines").split "\n"
+        line = line.trim()
+        continue if /^[#"]/.test line
+        tokens = line.split /\s+/
+        continue unless 2 <= tokens.length
+        keyword = tokens[0].split(":")[0]
+        url = tokens[1]
+        description = tokens[2..].join(" ") || "search (#{keyword})"
+        continue unless Utils.hasFullUrlPrefix url
+        engines[keyword] =
+          keyword: keyword
+          searchUrl: url
+          description: description
+          searchUrlPrefix: url.split("%s")[0]
+
+      callback engines
+
+      # Let the front-end vomnibar know the search-engine keywords.  It needs to know them so that, when the
+      # query goes from "w" to "w ", the vomnibar can synchronously launch the next filter() request (which
+      # avoids an ugly delay/flicker).
+      port.postMessage
+        handler: "keywords"
+        keywords: key for own key of engines
+
+  filter: (request, onComplete) ->
+    { queryTerms, query, engine } = request
+
+    { custom, searchUrl, description } =
+      if engine
+        { keyword, searchUrl, description } = engine
+        extend request, { searchUrl, customSearchMode: true }
+        custom: true
+        searchUrl: searchUrl
+        description: description
       else
-        type = "search"
-        query = queryTerms[0] + ": " + queryTerms[1..].join(" ")
-      suggestion = new Suggestion(queryTerms, type, url, query, @computeRelevancy)
-      suggestion.autoSelect = true
-      suggestions.push(suggestion)
-    onComplete(suggestions)
+        custom: false
+        searchUrl: Settings.get "searchUrl"
+        description: "search"
 
-  computeRelevancy: -> 1
+    return onComplete [] unless custom or 0 < queryTerms.length
 
-  refresh: ->
-    this.searchEngines = root.Settings.getSearchEngines()
+    factor = Math.max 0.0, Math.min 1.0, Settings.get "omniSearchWeight"
+    haveCompletionEngine = (0.0 < factor or custom) and CompletionSearch.haveCompletionEngine searchUrl
 
-  getSearchEngineMatches: (queryTerms) ->
-    (1 < queryTerms.length and @searchEngines[queryTerms[0]]) or {}
+    # Relevancy:
+    #   - Relevancy does not depend upon the actual suggestion (so, it does not depend upon word
+    #     relevancy, say).  We assume that the completion engine has already factored that in.  Also,
+    #     completion engines sometimes handle spelling mistakes, in which case we wouldn't find the query
+    #     terms in the suggestion anyway.
+    #   - Scores are weighted such that they retain the order provided by the completion engine.
+    #   - The relavancy is higher if the query term is longer.  The idea is that search suggestions are more
+    #     likely to be relevant if, after typing some number of characters, the user hasn't yet found
+    #     a useful suggestion from another completer.
+    #
+    characterCount = query.length - queryTerms.length + 1
+    relevancy = (if custom then 0.5 else factor) * 12.0 / Math.max 12.0, characterCount
+
+    # This filter is applied to all of the suggestions from all of the completers, after they have been
+    # aggregated by the MultiCompleter.
+    filter = (suggestions) ->
+      return suggestions unless custom and haveCompletionEngine
+
+      # We only accept suggestions:
+      #   - from this completer, or
+      #   - from other completers, but then only if their URL matches this search engine and matches this
+      #   query (that is only if their URL could have been generated by this search engine).
+      suggestions.filter (suggestion) ->
+        suggestion.type == description or
+          # This is a suggestion for the same search engine.
+          (suggestion.url.startsWith(engine.searchUrlPrefix) and
+            # And the URL suffix (which must contain the query part) matches the current query.
+            RankingUtils.matches queryTerms, suggestion.url[engine.searchUrlPrefix.length..])
+
+    primarySuggestion = new Suggestion
+      queryTerms: queryTerms
+      type: description
+      url: Utils.createSearchUrl queryTerms, searchUrl
+      title: queryTerms.join " "
+      relevancy: 1
+      autoSelect: custom
+      forceAutoSelect: custom
+      highlightTerms: not haveCompletionEngine
+
+    mkSuggestion = (suggestion) ->
+      new Suggestion
+        queryTerms: queryTerms
+        type: description
+        url: Utils.createSearchUrl suggestion, searchUrl
+        title: suggestion
+        relevancy: relevancy *= 0.9
+        insertText: suggestion
+        highlightTerms: false
+
+    cachedSuggestions =
+      if haveCompletionEngine then CompletionSearch.complete searchUrl, queryTerms else null
+
+    suggestions = []
+    suggestions.push primarySuggestion if custom
+    suggestions.push cachedSuggestions.map(mkSuggestion)... if custom and cachedSuggestions?
+
+    if queryTerms.length == 0 or cachedSuggestions? or not haveCompletionEngine
+      # There is no prospect of adding further completions.
+      suggestions.push cachedSuggestions.map(mkSuggestion)... if cachedSuggestions?
+      onComplete suggestions, { filter, continuation: null }
+    else
+      # Post the initial suggestions, but then deliver any further completions asynchronously, as a
+      # continuation.
+      onComplete suggestions,
+        filter: filter
+        continuation: (suggestions, onComplete) =>
+          # Fetch completion suggestions from suggestion engines.
+
+          # We can skip this if any new suggestions we propose cannot score highly enough to make the list
+          # anyway.
+          if 10 <= suggestions.length and relevancy < suggestions[suggestions.length-1].relevancy
+            console.log "skip (cannot make the grade):", suggestions.length, query if SearchEngineCompleter.debug
+            return onComplete []
+
+          CompletionSearch.complete searchUrl, queryTerms, (suggestions = []) =>
+            console.log "fetched suggestions:", suggestions.length, query if SearchEngineCompleter.debug
+            onComplete suggestions.map mkSuggestion
 
 # A completer which calls filter() on many completers, aggregates the results, ranks them, and returns the top
-# 10. Queries from the vomnibar frontend script come through a multi completer.
+# 10. All queries from the vomnibar come through a multi completer.
 class MultiCompleter
-  constructor: (@completers) -> @maxResults = 10
+  maxResults: 10
+  filterInProgress: false
+  mostRecentQuery: null
 
-  refresh: -> completer.refresh() for completer in @completers when completer.refresh
+  constructor: (@completers) ->
+  refresh: (port) -> completer.refresh? port for completer in @completers
+  cancel: (port) -> completer.cancel? port for completer in @completers
 
-  filter: (queryTerms, onComplete) ->
+  filter: (request, onComplete) ->
     # Allow only one query to run at a time.
-    if @filterInProgress
-      @mostRecentQuery = { queryTerms: queryTerms, onComplete: onComplete }
-      return
-    RegexpCache.clear()
-    @mostRecentQuery = null
-    @filterInProgress = true
-    suggestions = []
-    completersFinished = 0
-    for completer in @completers
-      # Call filter() on every source completer and wait for them all to finish before returning results.
-      completer.filter queryTerms, (newSuggestions) =>
-        suggestions = suggestions.concat(newSuggestions)
-        completersFinished += 1
-        if completersFinished >= @completers.length
-          results = @sortSuggestions(suggestions)[0...@maxResults]
-          result.generateHtml() for result in results
-          onComplete(results)
-          @filterInProgress = false
-          @filter(@mostRecentQuery.queryTerms, @mostRecentQuery.onComplete) if @mostRecentQuery
+    return @mostRecentQuery = arguments if @filterInProgress
 
-  sortSuggestions: (suggestions) ->
-    suggestion.computeRelevancy(@queryTerms) for suggestion in suggestions
+    # Provide each completer with an opportunity to see (and possibly alter) the request before it is
+    # launched.
+    completer.triageRequest? request for completer in @completers
+
+    RegexpCache.clear()
+    { queryTerms } = request
+
+    [ @mostRecentQuery, @filterInProgress ] = [ null, true ]
+    [ suggestions, continuations, filters ] = [ [], [], [] ]
+
+    # Run each of the completers (asynchronously).
+    jobs = new JobRunner @completers.map (completer) ->
+      (callback) ->
+        completer.filter request, (newSuggestions = [], { continuation, filter } = {}) ->
+          suggestions.push newSuggestions...
+          continuations.push continuation if continuation?
+          filters.push filter if filter?
+          callback()
+
+    # Once all completers have finished, process the results and post them, and run any continuations or a
+    # pending query.
+    jobs.onReady =>
+      suggestions = filter suggestions for filter in filters
+      shouldRunContinuations = 0 < continuations.length and not @mostRecentQuery?
+
+      # Post results, unless there are none and we will be running a continuation.  This avoids
+      # collapsing the vomnibar briefly before expanding it again, which looks ugly.
+      unless suggestions.length == 0 and shouldRunContinuations
+        suggestions = @prepareSuggestions queryTerms, suggestions
+        onComplete
+          results: suggestions
+          mayCacheResults: continuations.length == 0
+
+      # Run any continuations (asynchronously); for example, the search-engine completer
+      # (SearchEngineCompleter) uses a continuation to fetch suggestions from completion engines
+      # asynchronously.
+      if shouldRunContinuations
+        jobs = new JobRunner continuations.map (continuation) ->
+          (callback) ->
+            continuation suggestions, (newSuggestions) ->
+              suggestions.push newSuggestions...
+              callback()
+
+        jobs.onReady =>
+          suggestions = filter suggestions for filter in filters
+          suggestions = @prepareSuggestions queryTerms, suggestions
+          # We post these results even if a new query has started.  The vomnibar will not display them
+          # (because they're arriving too late), but it will cache them.
+          onComplete
+            results: suggestions
+            mayCacheResults: true
+
+      # Admit subsequent queries and launch any pending query.
+      @filterInProgress = false
+      if @mostRecentQuery
+        @filter @mostRecentQuery...
+
+  prepareSuggestions: (queryTerms, suggestions) ->
+    # Compute suggestion relevancies and sort.
+    suggestion.computeRelevancy queryTerms for suggestion in suggestions
     suggestions.sort (a, b) -> b.relevancy - a.relevancy
+
+    # Simplify URLs and remove duplicates (duplicate simplified URLs, that is).
+    count = 0
+    seenUrls = {}
+    suggestions =
+      for suggestion in suggestions
+        url = suggestion.shortenUrl()
+        continue if seenUrls[url]
+        break if count++ == @maxResults
+        seenUrls[url] = suggestion
+
+    # Generate HTML for the remaining suggestions and return them.
+    suggestion.generateHtml() for suggestion in suggestions
     suggestions
 
 # Utilities which help us compute a relevancy score for a given item.
@@ -529,8 +763,7 @@ HistoryCache =
     @callbacks = null
 
   use: (callback) ->
-    return @fetchHistory(callback) unless @history?
-    callback(@history)
+    if @history? then callback @history else @fetchHistory callback
 
   fetchHistory: (callback) ->
     return @callbacks.push(callback) if @callbacks

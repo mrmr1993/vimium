@@ -45,6 +45,7 @@ Navigating the current page:
     yy      copy the current url to the clipboard
     yf      copy a link url to the clipboard
     gf      cycle forward to the next frame
+    gF      focus the main/top frame
 
 Navigating to new pages:
 
@@ -89,7 +90,7 @@ Additional advanced browsing commands:
     zH      scroll all the way left
     zL      scroll all the way right
 
-Vimium supports command repetition so, for example, hitting '5t' will open 5 tabs in rapid succession. `<ESC>` (or
+Vimium supports command repetition so, for example, hitting `5t` will open 5 tabs in rapid succession. `<ESC>` (or
 `<c-[>`) will clear any partial commands in the queue and will also exit insert and find modes.
 
 There are some advanced commands which aren't documented here; refer to the help dialog (type `?`) for a full
@@ -140,6 +141,29 @@ Please see [CONTRIBUTING.md](https://github.com/philc/vimium/blob/master/CONTRIB
 
 Release Notes
 -------------
+1.52 (not yet released)
+
+- Search engine completion for selected search engines (including Google, Youtube, Bing, DuckDuckGo, Wikipedia and Amazon).
+- Much improved custom search engine experience (including completion, where available).
+- Bug fixes: bookmarklets accessed from the vomnibar.
+
+1.51 (2015-05-02)
+
+- Bug [fixes](https://github.com/philc/vimium/pulls?utf8=%E2%9C%93&q=is%3Apr+sort%3Aupdated-desc+is%3Aclosed+merged%3A%3E%3D2015-04-26+merged%3A%3C2015-05-02+state%3Amerged).
+
+1.50 (2015-04-26)
+
+- Visual mode (in beta): use `v` and then vim-like keystrokes to select text on the page. Use `y` to yank or
+  `p` and `P` to search with your default search engine.. Please provide feedback on Github.
+- Added the option to prevent pages from stealing focus from Vimium when loaded.
+- Many bugfixes for custom search engines, and search engines can now have a description.
+- Better support for frames: key exclusion rules are much improved and work within frames; the Vomnibar is
+  always activated in the main frame; and a new command (`gF`) focuses the main frame.
+- Find mode now has history. Use the up arrow to select previous searches.
+- Ctrl and Shift when using link hints changes the tab in which links are opened in (reinstated feature).
+- Focus input (`gi`) remembers previously-visited inputs.
+- Bug fixes.
+
 1.49 (2014-12-16)
 
 - An option to toggle smooth scrolling.
@@ -171,10 +195,10 @@ Release Notes
 1.43 (2013-05-18)
 
 - Relevancy improvements to the Vomnibar's domain & history search.
-- Added gU, which goes to the root of the current URL.
-- Added yt, which duplicates the current tab.
-- Added W, which moves the current tab to a new window.
-- Added marks for saving and jumping to sections of a page. mX to set a mark and `X to return to it.
+- Added `gU`, which goes to the root of the current URL.
+- Added `yt`, which duplicates the current tab.
+- Added `W`, which moves the current tab to a new window.
+- Added marks for saving and jumping to sections of a page. `mX` to set a mark and `` `X`` to return to it.
 - Added "LinkHints.activateModeToOpenIncognito", currently an advanced, unbound command.
 - Disallowed repeat tab closings, since this causes trouble for many people.
 - Update our Chrome APIs so Vimium works on Chrome 28+.
@@ -212,7 +236,7 @@ Release Notes
 
 1.36 (2012-07-07)
 
-- 'b' brings up a bookmark-only Vomnibar.
+- `b` brings up a bookmark-only Vomnibar.
 - Better support for some bookmarklets.
 
 1.35 (2012-07-05)
@@ -225,7 +249,7 @@ Release Notes
 
 1.33 (2012-07-02)
 
-- A Vomnibar, which allows you to open sites from history, bookmarks, and tabs using Vimium's UI. Type "o" to try it.
+- A Vomnibar, which allows you to open sites from history, bookmarks, and tabs using Vimium's UI. Type `o` to try it.
 
 1.32 (2012-03-05)
 
@@ -237,8 +261,8 @@ Release Notes
 - Improve style of link hints, and use fewer characters for hints.
 - Add an option to hide the heads up display (HUD). Notably, the HUD obscures Facebook Chat's textbox.
 - Detection and following of next / previous links has been improved.
-- Addition of g0 and g$ commands, for switching tabs.
-- Addition of p/P commands for URL pasting.
+- Addition of `g0` and `g$` commands, for switching tabs.
+- Addition of `p`/`P` commands for URL pasting.
 - A new find mode which optionally supports case sensitivity and regular expressions.
 - Bug fixes.
 
@@ -246,7 +270,7 @@ Release Notes
 
 - Support for image maps in link hints.
 - Counts now work with forward & backward navigation.
-- Tab & shift-tab to navigate bookmarks dialog.
+- `Tab` & `shift-tab` to navigate bookmarks dialog.
 - An alternate link hints mode: type the title of a link to select it. You can enable it in Vimium's Advanced Preferences.
 - Bug fixes.
 
@@ -315,16 +339,16 @@ does not support command repetition.
 
 1.17 (2010-04-18)
 
--  'u' now restores tabs that were closed by the mouse or with native shortcuts. Tabs are also restored in
+-  `u` now restores tabs that were closed by the mouse or with native shortcuts. Tabs are also restored in
    their prior position.
--  New 'unmapAll' command in the key mappings interface to remove all default mappings.
+-  New `unmapAll` command in the key mappings interface to remove all default mappings.
 -  Link hints are now faster and more reliable.
 -  Bug fixes.
 
 1.16 (2010-03-09)
 
 -  Add support for configurable key mappings under Advanced Options.
--  A help dialog which shows all currently bound keyboard shortcuts. Type "?" to see it.
+-  A help dialog which shows all currently bound keyboard shortcuts. Type `?` to see it.
 -  Bug fixes related to key stroke handling.
 
 1.15 (2010-01-31)
@@ -332,7 +356,7 @@ does not support command repetition.
 -  Make the CSS used by the link hints configurable. It's under Advanced Options.
 -  Add a notification linking to the changelog when Vimium is updated in the background.
 -  Link-hinting performance improvements and bug fixes.
--  Ctrl+D and Ctrl+U now scroll by 1/2 page instead of a fixed amount, to mirror Vim's behavior.
+-  `Ctrl+D` and `Ctrl+U` now scroll by 1/2 page instead of a fixed amount, to mirror Vim's behavior.
 
 1.14 (2010-01-21)
 
@@ -343,18 +367,18 @@ does not support command repetition.
 - `<c-f>` and `<c-b>` are now mapped to scroll a full page up or down respectively.
 -  Bug fixes related to entering insert mode when the page first loads, and when focusing Flash embeds.
 -  Added command listing to the Options page for easy reference.
--  J & K have reversed for tab switching: J goes left and K goes right.
+-  `J` & `K` have reversed for tab switching: `J` goes left and `K` goes right.
 -  `<c-[>` is now equivalent to ESC, to match the behavior of VIM.
 -  `<c-e>` and `<c-y>` are now mapped to scroll down and up respectively.
 -  The characters used for link hints are now configurable under Advanced Options.
 
 1.11, 1.12 (2010-01-08)
 
--  Commands 'gt' & 'gT' to move to the next & previous tab.
--  Command 'yy' to yank (copy) the current tab's url to the clipboard.
+-  Commands `gt` & `gT` to move to the next & previous tab.
+-  Command `yy` to yank (copy) the current tab's url to the clipboard.
 -  Better Linux support.
--  Fix for Shift+F link hints.
--  ESC now clears the keyQueue. So, for example, hitting 'g', 'ESC', 'g' will no longer scroll the page.
+-  Fix for `Shift+F` link hints.
+-  `ESC` now clears the keyQueue. So, for example, hitting `g`, `ESC`, `g` will no longer scroll the page.
 
 1.1 (2010-01-03)
 

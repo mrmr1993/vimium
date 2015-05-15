@@ -1,6 +1,6 @@
 
 # Install frontend event handlers.
-initializeWhenEnabled()
+installListeners()
 
 installListener = (element, event, callback) ->
   element.addEventListener event, (-> callback.apply(this, arguments)), true
@@ -84,6 +84,47 @@ createGeneralHintTests = (isFilteredMode) ->
 createGeneralHintTests false
 createGeneralHintTests true
 
+inputs = []
+context "Test link hints for focusing input elements correctly",
+
+  setup ->
+    initializeModeState()
+    testDiv = document.getElementById("test-div")
+    testDiv.innerHTML = ""
+
+    stub settings.values, "filterLinkHints", false
+    stub settings.values, "linkHintCharacters", "ab"
+
+    # Every HTML5 input type except for hidden. We should be able to activate all of them with link hints.
+    inputTypes = ["button", "checkbox", "color", "date", "datetime", "datetime-local", "email", "file",
+      "image", "month", "number", "password", "radio", "range", "reset", "search", "submit", "tel", "text",
+      "time", "url", "week"]
+
+    for type in inputTypes
+      input = document.createElement "input"
+      input.type = type
+      testDiv.appendChild input
+      inputs.push input
+
+  tearDown ->
+    document.getElementById("test-div").innerHTML = ""
+
+  should "Focus each input when its hint text is typed", ->
+    for input in inputs
+      input.scrollIntoView() # Ensure the element is visible so we create a link hint for it.
+
+      activeListener = ensureCalled (event) ->
+        input.blur() if event.type == "focus"
+      input.addEventListener "focus", activeListener, false
+      input.addEventListener "click", activeListener, false
+
+      LinkHints.activateMode()
+      [hint] = getHintMarkers().filter (hint) -> input == hint.clickableItem
+      sendKeyboardEvent char for char in hint.hintString
+
+      input.removeEventListener "focus", activeListener, false
+      input.removeEventListener "click", activeListener, false
+
 context "Alphabetical link hints",
 
   setup ->
@@ -115,6 +156,9 @@ context "Alphabetical link hints",
     assert.equal "", hintMarkers[0].style.display
 
 context "Filtered link hints",
+  # Note.  In all of these tests, the order of the elements returned by getHintMarkers() may be different from
+  # the order they are listed in the test HTML content.  This is because LinkHints.activateMode() sorts the
+  # elements.
 
   setup ->
     stub settings.values, "filterLinkHints", true
@@ -164,8 +208,8 @@ context "Filtered link hints",
     should "label the images", ->
       hintMarkers = getHintMarkers()
       assert.equal "1: alt text", hintMarkers[0].textContent.toLowerCase()
-      assert.equal "2: alt text", hintMarkers[1].textContent.toLowerCase()
-      assert.equal "3: some title", hintMarkers[2].textContent.toLowerCase()
+      assert.equal "2: some title", hintMarkers[1].textContent.toLowerCase()
+      assert.equal "3: alt text", hintMarkers[2].textContent.toLowerCase()
       assert.equal "4", hintMarkers[3].textContent.toLowerCase()
 
   context "Input hints",
@@ -187,9 +231,9 @@ context "Filtered link hints",
       hintMarkers = getHintMarkers()
       assert.equal "1", hintMarkers[0].textContent.toLowerCase()
       assert.equal "2", hintMarkers[1].textContent.toLowerCase()
-      assert.equal "3", hintMarkers[2].textContent.toLowerCase()
+      assert.equal "3: a label", hintMarkers[2].textContent.toLowerCase()
       assert.equal "4: a label", hintMarkers[3].textContent.toLowerCase()
-      assert.equal "5: a label", hintMarkers[4].textContent.toLowerCase()
+      assert.equal "5", hintMarkers[4].textContent.toLowerCase()
 
 context "Input focus",
 
@@ -354,24 +398,24 @@ context "Triggering insert mode",
     document.getElementById("test-div").innerHTML = ""
 
   should "trigger insert mode on focus of text input", ->
-    assert.isTrue Mode.top().name == "insert" and not Mode.top().isActive()
+    assert.isFalse InsertMode.permanentInstance.isActive()
     document.getElementById("first").focus()
-    assert.isTrue Mode.top().name == "insert" and Mode.top().isActive()
+    assert.isTrue InsertMode.permanentInstance.isActive()
 
   should "trigger insert mode on focus of password input", ->
-    assert.isTrue Mode.top().name == "insert" and not Mode.top().isActive()
+    assert.isFalse InsertMode.permanentInstance.isActive()
     document.getElementById("third").focus()
-    assert.isTrue Mode.top().name == "insert" and Mode.top().isActive()
+    assert.isTrue InsertMode.permanentInstance.isActive()
 
   should "trigger insert mode on focus of contentEditable elements", ->
-    assert.isTrue Mode.top().name == "insert" and not Mode.top().isActive()
+    assert.isFalse InsertMode.permanentInstance.isActive()
     document.getElementById("fourth").focus()
-    assert.isTrue Mode.top().name == "insert" and Mode.top().isActive()
+    assert.isTrue InsertMode.permanentInstance.isActive()
 
   should "not trigger insert mode on other elements", ->
-    assert.isTrue Mode.top().name == "insert" and not Mode.top().isActive()
+    assert.isFalse InsertMode.permanentInstance.isActive()
     document.getElementById("fifth").focus()
-    assert.isTrue Mode.top().name == "insert" and not Mode.top().isActive()
+    assert.isFalse InsertMode.permanentInstance.isActive()
 
 context "Mode utilities",
   setup ->
@@ -466,7 +510,7 @@ context "PostFindMode",
 
   should "suppress unmapped printable keys", ->
     sendKeyboardEvent "m"
-    assert.equal pageKeyboardEventCount, 0
+    assert.equal 0, pageKeyboardEventCount
 
   should "be deactivated on click events", ->
     handlerStack.bubbleEvent "click", target: document.activeElement
@@ -481,54 +525,4 @@ context "PostFindMode",
     sendKeyboardEvent "a"
     sendKeyboardEvent "escape"
     assert.isTrue @postFindMode.modeIsActive
-
-context "Mode badges",
-  setup ->
-    initializeModeState()
-    testContent = "<input type='text' id='first'/>"
-    document.getElementById("test-div").innerHTML = testContent
-
-  tearDown ->
-    document.getElementById("test-div").innerHTML = ""
-
-  should "have no badge in normal mode", ->
-    Mode.updateBadge()
-    assert.isTrue chromeMessages[0].badge == ""
-
-  should "have an I badge in insert mode by focus", ->
-    document.getElementById("first").focus()
-    assert.isTrue chromeMessages[0].badge == "I"
-
-  should "have no badge after leaving insert mode by focus", ->
-    document.getElementById("first").focus()
-    document.getElementById("first").blur()
-    assert.isTrue chromeMessages[0].badge == ""
-
-  should "have an I badge in global insert mode", ->
-    new InsertMode global: true
-    assert.isTrue chromeMessages[0].badge == "I"
-
-  should "have no badge after leaving global insert mode", ->
-    mode = new InsertMode global: true
-    mode.exit()
-    assert.isTrue chromeMessages[0].badge == ""
-
-  should "have a ? badge in PostFindMode (immediately)", ->
-    document.getElementById("first").focus()
-    new PostFindMode
-    assert.isTrue chromeMessages[0].badge == "?"
-
-  should "have no badge in PostFindMode (subsequently)", ->
-    document.getElementById("first").focus()
-    new PostFindMode
-    sendKeyboardEvent "a"
-    assert.isTrue chromeMessages[0].badge == ""
-
-  should "have no badge when disabled", ->
-    handlerStack.bubbleEvent "registerStateChange",
-      enabled: false
-      passKeys: ""
-
-    document.getElementById("first").focus()
-    assert.isTrue chromeMessages[0].badge == ""
 

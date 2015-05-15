@@ -8,16 +8,15 @@
 # In 'filter' mode, our link hints are numbers, and the user can narrow down the range of possibilities by
 # typing the text of the link itself.
 #
-# The "name" property below is a short-form name to appear in the link-hints mode name.  Debugging only.  The
-# key appears in the mode's badge.
+# The "name" property below is a short-form name to appear in the link-hints mode's name.  It's for debug only.
 #
-OPEN_IN_CURRENT_TAB = { name: "curr-tab", key: "" }
-OPEN_IN_NEW_BG_TAB = { name: "bg-tab", key: "B" }
-OPEN_IN_NEW_FG_TAB = { name: "fg-tab", key: "F" }
-OPEN_WITH_QUEUE = { name: "queue", key: "Q" }
-COPY_LINK_URL = { name: "link", key: "C" }
-OPEN_INCOGNITO = { name: "incognito", key: "I" }
-DOWNLOAD_LINK_URL = { name: "download", key: "D" }
+OPEN_IN_CURRENT_TAB = name: "curr-tab"
+OPEN_IN_NEW_BG_TAB = name: "bg-tab"
+OPEN_IN_NEW_FG_TAB = name: "fg-tab"
+OPEN_WITH_QUEUE = name: "queue"
+COPY_LINK_URL = name: "link"
+OPEN_INCOGNITO = name: "incognito"
+DOWNLOAD_LINK_URL = name: "download"
 
 LinkHints =
   hintMarkerContainingDiv: null
@@ -33,6 +32,8 @@ LinkHints =
     if settings.get("filterLinkHints") then filterHints else alphabetHints
   # lock to ensure only one instance runs at a time
   isActive: false
+  # Call this function on exit (if defined).
+  onExit: null
 
   #
   # To be called after linkHints has been generated from linkHintsBase.
@@ -55,9 +56,29 @@ LinkHints =
       return
     @isActive = true
 
-    @setOpenLinkMode(mode)
-    hintMarkers = (@createMarkerFor(el) for el in @getVisibleClickableElements())
+    elements = @getVisibleClickableElements()
+    # For these modes, we filter out those elements which don't have an HREF (since there's nothing we can do
+    # with them).
+    elements = (el for el in elements when el.element.href?) if mode in [ COPY_LINK_URL, OPEN_INCOGNITO ]
+    if settings.get "filterLinkHints"
+      # When using text filtering, we sort the elements such that we visit descendants before their ancestors.
+      # This allows us to exclude the text used for matching descendants from that used for matching their
+      # ancestors.
+      length = (el) -> el.element.innerHTML?.length ? 0
+      elements.sort (a,b) -> length(a) - length b
+    hintMarkers = (@createMarkerFor(el) for el in elements)
     @getMarkerMatcher().fillInMarkers(hintMarkers)
+
+    @hintMode = new Mode
+      name: "hint/#{mode.name}"
+      indicator: false
+      passInitialKeyupEvents: true
+      keydown: @onKeyDownInMode.bind this, hintMarkers
+      # Trap all other key events.
+      keypress: -> false
+      keyup: -> false
+
+    @setOpenLinkMode mode
 
     # Note(philc): Append these markers as top level children instead of as child nodes to the link itself,
     # because some clickable elements cannot contain children, e.g. submit buttons. This has the caveat
@@ -65,50 +86,42 @@ LinkHints =
     @hintMarkerContainingDiv = DomUtils.addElementList(hintMarkers,
       { id: "vimiumHintMarkerContainer", className: "vimiumReset" })
 
-    @hintMode = new Mode
-      name: "hint/#{mode.name}"
-      badge: "#{mode.key}?"
-      keydown: @onKeyDownInMode.bind(this, hintMarkers),
-      # trap all key events
-      keypress: -> false
-      keyup: -> false
-
   setOpenLinkMode: (@mode) ->
     if @mode is OPEN_IN_NEW_BG_TAB or @mode is OPEN_IN_NEW_FG_TAB or @mode is OPEN_WITH_QUEUE
       if @mode is OPEN_IN_NEW_BG_TAB
-        HUD.show("Open link in new tab")
+        @hintMode.setIndicator "Open link in new tab"
       else if @mode is OPEN_IN_NEW_FG_TAB
-        HUD.show("Open link in new tab and switch to it")
+        @hintMode.setIndicator "Open link in new tab and switch to it"
       else
-        HUD.show("Open multiple links in a new tab")
+        @hintMode.setIndicator "Open multiple links in a new tab"
       @linkActivator = (link) ->
         # When "clicking" on a link, dispatch the event with the appropriate meta key (CMD on Mac, CTRL on
         # windows) to open it in a new tab if necessary.
-        DomUtils.simulateClick(link, {
-          shiftKey: @mode is OPEN_IN_NEW_FG_TAB,
-          metaKey: KeyboardUtils.platform == "Mac",
-          ctrlKey: KeyboardUtils.platform != "Mac",
-          altKey: false})
+        DomUtils.simulateClick link,
+          shiftKey: @mode is OPEN_IN_NEW_FG_TAB
+          metaKey: KeyboardUtils.platform == "Mac"
+          ctrlKey: KeyboardUtils.platform != "Mac"
+          altKey: false
     else if @mode is COPY_LINK_URL
-      HUD.show("Copy link URL to Clipboard")
-      @linkActivator = (link) ->
-        chrome.runtime.sendMessage({handler: "copyToClipboard", data: link.href})
+      @hintMode.setIndicator "Copy link URL to Clipboard"
+      @linkActivator = (link) =>
+        if link.href?
+          chrome.runtime.sendMessage handler: "copyToClipboard", data: link.href
+          url = link.href
+          url = url[0..25] + "...." if 28 < url.length
+          @onExit = -> HUD.showForDuration "Yanked #{url}", 2000
+        else
+          @onExit = -> HUD.showForDuration "No link to yank.", 2000
     else if @mode is OPEN_INCOGNITO
-      HUD.show("Open link in incognito window")
-
+      @hintMode.setIndicator "Open link in incognito window"
       @linkActivator = (link) ->
-        chrome.runtime.sendMessage(
-          handler: 'openUrlInIncognito'
-          url: link.href)
+        chrome.runtime.sendMessage handler: 'openUrlInIncognito', url: link.href
     else if @mode is DOWNLOAD_LINK_URL
-      HUD.show("Download link URL")
+      @hintMode.setIndicator "Download link URL"
       @linkActivator = (link) ->
-        DomUtils.simulateClick(link, {
-          altKey: true,
-          ctrlKey: false,
-          metaKey: false })
+        DomUtils.simulateClick link, altKey: true, ctrlKey: false, metaKey: false
     else # OPEN_IN_CURRENT_TAB
-      HUD.show("Open link in current tab")
+      @hintMode.setIndicator "Open link in current tab"
       @linkActivator = (link) -> DomUtils.simulateClick.bind(DomUtils, link)()
 
   #
@@ -190,7 +203,7 @@ LinkHints =
       isClickable = onlyHasTabIndex = true
 
     if isClickable
-      clientRect = DomUtils.getVisibleClientRect element
+      clientRect = DomUtils.getVisibleClientRect element, true
       if clientRect != null
         visibleElements.push {element: element, rect: clientRect, secondClassCitizen: onlyHasTabIndex}
 
@@ -253,7 +266,7 @@ LinkHints =
   # Handles shift and esc keys. The other keys are passed to getMarkerMatcher().matchHintsByKey.
   #
   onKeyDownInMode: (hintMarkers, event) ->
-    return if @delayMode
+    return if @delayMode or event.repeat
 
     if ((event.keyCode == keyCodes.shiftKey or event.keyCode == keyCodes.ctrlKey) and
         (@mode == OPEN_IN_CURRENT_TAB or
@@ -273,8 +286,8 @@ LinkHints =
       handlerStack.push
         keyup: (event) =>
           if event.keyCode == keyCode
-            @setOpenLinkMode previousMode if @isActive
             handlerStack.remove()
+            @setOpenLinkMode previousMode if @isActive
           true
 
     # TODO(philc): Ignore keys that have modifiers.
@@ -307,7 +320,7 @@ LinkHints =
       @deactivateMode(delay, -> LinkHints.delayMode = false)
     else
       # TODO figure out which other input elements should not receive focus
-      if (clickEl.nodeName.toLowerCase() == "input" && clickEl.type != "button")
+      if (clickEl.nodeName.toLowerCase() == "input" and clickEl.type not in ["button", "submit"])
         clickEl.focus()
       DomUtils.flashRect(matchedLink.rect)
       @linkActivator(clickEl)
@@ -344,7 +357,8 @@ LinkHints =
         DomUtils.removeElement LinkHints.hintMarkerContainingDiv
       LinkHints.hintMarkerContainingDiv = null
       @hintMode.exit()
-      HUD.hide()
+      @onExit?()
+      @onExit = null
       @isActive = false
 
     # we invoke the deactivate() function directly instead of using setTimeout(callback, 0) so that
@@ -469,7 +483,7 @@ filterHints =
       linkText = element.firstElementChild.alt || element.firstElementChild.title
       showLinkText = true if (linkText)
     else
-      linkText = element.textContent || element.innerHTML
+      linkText = DomUtils.textContent.get element
 
     { text: linkText, show: showLinkText }
 
@@ -479,6 +493,7 @@ filterHints =
 
   fillInMarkers: (hintMarkers) ->
     @generateLabelMap()
+    DomUtils.textContent.reset()
     for marker, idx in hintMarkers
       marker.hintString = @generateHintString(idx)
       linkTextObject = @generateLinkText(marker.clickableItem)

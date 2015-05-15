@@ -19,11 +19,15 @@ class InsertMode extends Mode
         # the right thing to do for most common use cases.  However, it could also cripple flash-based sites and
         # games.  See discussion in #1211 and #1194.
         target.blur()
+      else if target?.shadowRoot and @insertModeLock
+        # An editable element in a shadow DOM is focused; blur it.
+        @insertModeLock.blur()
       @exit event, event.srcElement
       @suppressEvent
 
     defaults =
       name: "insert"
+      indicator: if @permanent then null else "Insert mode"
       keypress: handleKeyEvent
       keyup: handleKeyEvent
       keydown: handleKeyEvent
@@ -52,6 +56,23 @@ class InsertMode extends Mode
       "focus": (event) => @alwaysContinueBubbling =>
         if @insertModeLock != event.target and DomUtils.isFocusable event.target
           @activateOnElement event.target
+        else if event.target.shadowRoot
+          # A focusable element inside the shadow DOM might have been selected. If so, we can catch the focus
+          # event inside the shadow DOM. This fixes #853.
+          shadowRoot = event.target.shadowRoot
+          eventListeners = {}
+          for type in [ "focus", "blur" ]
+            eventListeners[type] = do (type) ->
+              (event) -> handlerStack.bubbleEvent type, event
+            shadowRoot.addEventListener type, eventListeners[type], true
+
+          handlerStack.push
+            _name: "shadow-DOM-input-mode"
+            blur: (event) ->
+              if event.target.shadowRoot == shadowRoot
+                handlerStack.remove()
+                for type, listener of eventListeners
+                  shadowRoot.removeEventListener type, listener, true
 
     # Only for tests.  This gives us a hook to test the status of the permanently-installed instance.
     InsertMode.permanentInstance = @ if @permanent
@@ -68,18 +89,13 @@ class InsertMode extends Mode
   activateOnElement: (element) ->
     @log "#{@id}: activating (permanent)" if @debug and @permanent
     @insertModeLock = element
-    Mode.updateBadge()
 
   exit: (_, target)  ->
     if (target and target == @insertModeLock) or @global or target == undefined
       @log "#{@id}: deactivating (permanent)" if @debug and @permanent and @insertModeLock
       @insertModeLock = null
       # Exit, but only if this isn't the permanently-installed instance.
-      if @permanent then Mode.updateBadge() else super()
-
-  updateBadge: (badge) ->
-    badge.badge ||= @badge if @badge
-    badge.badge ||= "I" if @isActive badge
+      super() unless @permanent
 
   # Static stuff. This allows PostFindMode to suppress the permanently-installed InsertMode instance.
   @suppressedEvent: null

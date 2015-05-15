@@ -2,6 +2,7 @@ root = exports ? window
 
 RegexpCache =
   cache: {}
+  clear: -> @cache = {}
   get: (pattern) ->
     if regexp = @cache[pattern]
       regexp
@@ -31,9 +32,11 @@ root.Exclusions = Exclusions =
     # An absolute exclusion rule (with no passKeys) takes priority.
     for rule in matches
       return rule unless rule.passKeys
+    # Strip whitespace from all matching passKeys strings, and join them together.
+    passKeys = (rule.passKeys.split(/\s+/).join "" for rule in matches).join ""
     if 0 < matches.length
       pattern: (rule.pattern for rule in matches).join " | " # Not used; for debugging only.
-      passKeys: Utils.distinctCharacters (rule.passKeys for rule in matches).join ""
+      passKeys: Utils.distinctCharacters passKeys
     else
       null
 
@@ -42,8 +45,8 @@ root.Exclusions = Exclusions =
     @rules = rules.filter (rule) -> rule and rule.pattern
     Settings.set("exclusionRules", @rules)
 
-  postUpdateHook: (rules) ->
-    @rules = rules
+  postUpdateHook: (@rules) ->
+    RegexpCache.clear()
 
 # Development and debug only.
 # Enable this (temporarily) to restore legacy exclusion rules from backup.

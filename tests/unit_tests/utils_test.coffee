@@ -42,11 +42,12 @@ context "convertToUrl",
     assert.equal "http://127.0.0.1:8080", Utils.convertToUrl("127.0.0.1:8080")
     assert.equal "http://[::]:8080", Utils.convertToUrl("[::]:8080")
     assert.equal "view-source:    0.0.0.0", Utils.convertToUrl("view-source:    0.0.0.0")
+    assert.equal "javascript:alert('25 % 20 * 25 ');", Utils.convertToUrl "javascript:alert('25 % 20 * 25%20');"
 
   should "convert non-URL terms into search queries", ->
-    assert.equal "http://www.google.com/search?q=google", Utils.convertToUrl("google")
-    assert.equal "http://www.google.com/search?q=go+ogle.com", Utils.convertToUrl("go ogle.com")
-    assert.equal "http://www.google.com/search?q=%40twitter", Utils.convertToUrl("@twitter")
+    assert.equal "https://www.google.com/search?q=google", Utils.convertToUrl("google")
+    assert.equal "https://www.google.com/search?q=go+ogle.com", Utils.convertToUrl("go ogle.com")
+    assert.equal "https://www.google.com/search?q=%40twitter", Utils.convertToUrl("@twitter")
 
 context "hasChromePrefix",
   should "detect chrome prefixes of URLs", ->
@@ -61,6 +62,17 @@ context "hasChromePrefix",
     assert.isFalse Utils.hasChromePrefix "chrome-extension"
     assert.isFalse Utils.hasChromePrefix "data"
     assert.isFalse Utils.hasChromePrefix "data :foobar"
+
+context "hasJavascriptPrefix",
+  should "detect javascript: URLs", ->
+    assert.isTrue Utils.hasJavascriptPrefix "javascript:foobar"
+    assert.isFalse Utils.hasJavascriptPrefix "http:foobar"
+
+context "decodeJavascriptURI",
+  should "decode javascript: URLs", ->
+    assert.equal "foobar", Utils.decodeJavascriptURI "foobar"
+    assert.equal " ", Utils.decodeJavascriptURI "%20"
+    assert.equal "25 % 20 25 ", Utils.decodeJavascriptURI "25 % 20 25%20"
 
 context "isUrl",
   should "identify URLs as URLs", ->

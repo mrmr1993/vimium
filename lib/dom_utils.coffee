@@ -27,6 +27,12 @@ DomUtils =
   removeElement: (el) -> el.parentNode.removeChild el
 
   #
+  # Test whether the current frame is the top/main frame.
+  #
+  isTopFrame: ->
+    window.top == window.self
+
+  #
   # Takes an array of XPath selectors, adds the necessary namespaces (currently only XHTML), and applies them
   # to the document root. The namespaceResolver in evaluateXPath should be kept in sync with the namespaces
   # here.
@@ -49,21 +55,25 @@ DomUtils =
   #
   # Returns the first visible clientRect of an element if it exists. Otherwise it returns null.
   #
-  getVisibleClientRect: (element) ->
+  # WARNING: If testChildren = true then the rects of visible (eg. floated) children may be returned instead.
+  # This is used for LinkHints and focusInput, **BUT IS UNSUITABLE FOR MOST OTHER PURPOSES**.
+  #
+  getVisibleClientRect: (element, testChildren = false) ->
     # Note: this call will be expensive if we modify the DOM in between calls.
     clientRects = (Rect.copy clientRect for clientRect in element.getClientRects())
 
     for clientRect in clientRects
-      # If the link has zero dimensions, it may be wrapping visible
-      # but floated elements. Check for this.
-      if (clientRect.width == 0 || clientRect.height == 0)
+      # If the link has zero dimensions, it may be wrapping visible but floated elements. Check for this.
+      if (clientRect.width == 0 or clientRect.height == 0) and testChildren
         for child in element.children
           computedStyle = window.getComputedStyle(child, null)
           # Ignore child elements which are not floated and not absolutely positioned for parent elements with
           # zero width/height
+          # NOTE(mrmr1993): This ignores floated/absolutely positioned descendants nested within inline
+          # children.
           continue if (computedStyle.getPropertyValue('float') == 'none' &&
             computedStyle.getPropertyValue('position') != 'absolute')
-          childClientRect = @getVisibleClientRect(child)
+          childClientRect = @getVisibleClientRect child, true
           continue if childClientRect == null or childClientRect.width < 3 or childClientRect.height < 3
           return childClientRect
 
@@ -74,9 +84,7 @@ DomUtils =
 
         # eliminate invisible elements (see test_harnesses/visibility_test.html)
         computedStyle = window.getComputedStyle(element, null)
-        if (computedStyle.getPropertyValue('visibility') != 'visible' ||
-            computedStyle.getPropertyValue('display') == 'none')
-          continue
+        continue if computedStyle.getPropertyValue('visibility') != 'visible'
 
         return clientRect
 
@@ -167,15 +175,20 @@ DomUtils =
       node = node.parentNode
     false
 
-  # True if element contains the active selection range.
+  # True if element is editable and contains the active selection range.
   isSelected: (element) ->
+    selection = document.getSelection()
     if element.isContentEditable
-      node = document.getSelection()?.anchorNode
+      node = selection.anchorNode
       node and @isDOMDescendant element, node
     else
-      # Note.  This makes the wrong decision if the user has placed the caret at the start of element.  We
-      # cannot distinguish that case from the user having made no selection.
-      element.selectionStart? and element.selectionEnd? and element.selectionEnd != 0
+      if selection.type == "Range" and selection.isCollapsed
+	      # The selection is inside the Shadow DOM of a node. We can check the node it registers as being
+	      # before, since this represents the node whose Shadow DOM it's inside.
+        containerNode = selection.anchorNode.childNodes[selection.anchorOffset]
+        element == containerNode # True if the selection is inside the Shadow DOM of our element.
+      else
+        false
 
   simulateSelect: (element) ->
     # If element is already active, then we don't move the selection.  However, we also won't get a new focus
@@ -185,11 +198,17 @@ DomUtils =
       handlerStack.bubbleEvent "click", target: element
     else
       element.focus()
-      unless @isSelected element
-        # When focusing a textbox (without an existing selection), put the selection caret at the end of the
-        # textbox's contents.  For some HTML5 input types (eg. date) we can't position the caret, so we wrap
-        # this with a try.
-        try element.setSelectionRange(element.value.length, element.value.length)
+      # If the cursor is at the start of the element's contents, send it to the end. Motivation:
+      # * the end is a more useful place to focus than the start,
+      # * this way preserves the last used position (except when it's at the beginning), so the user can
+      #   'resume where they left off'.
+      # NOTE(mrmr1993): Some elements throw an error when we try to access their selection properties, so
+      # wrap this with a try.
+      try
+        if element.selectionStart == 0 and element.selectionEnd == 0
+          element.setSelectionRange element.value.length, element.value.length
+
+
 
   simulateClick: (element, modifiers) ->
     modifiers ||= {}
@@ -294,6 +313,25 @@ DomUtils =
 
       document.body.removeChild div
       coordinates
+
+  # Get the text content of an element (and its descendents), but omit the text content of previously-visited
+  # nodes.  See #1514.
+  # NOTE(smblott).  This is currently O(N^2) (when called on N elements).  An alternative would be to mark
+  # each node visited, and then clear the marks when we're done.
+  textContent: do ->
+    visitedNodes = null
+    reset: -> visitedNodes = []
+    get: (element) ->
+      nodes = document.createTreeWalker element, NodeFilter.SHOW_TEXT
+      texts =
+        while node = nodes.nextNode()
+          continue unless node.nodeType == 3
+          continue if node in visitedNodes
+          text = node.data.trim()
+          continue unless 0 < text.length
+          visitedNodes.push node
+          text
+      texts.join " "
 
 root = exports ? window
 root.DomUtils = DomUtils

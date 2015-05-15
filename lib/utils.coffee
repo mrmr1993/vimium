@@ -26,15 +26,29 @@ Utils =
     -> id += 1
 
   hasChromePrefix: do ->
-    chromePrefixes = [ "about:", "view-source:", "extension:", "chrome-extension:", "data:", "javascript:" ]
+    chromePrefixes = [ "about:", "view-source:", "extension:", "chrome-extension:", "data:" ]
     (url) ->
       for prefix in chromePrefixes
         return true if url.startsWith prefix
       false
 
+  hasJavascriptPrefix: (url) ->
+    url.startsWith "javascript:"
+
   hasFullUrlPrefix: do ->
     urlPrefix = new RegExp "^[a-z]{3,}://."
     (url) -> urlPrefix.test url
+
+  # Decode valid escape sequences in a Javascript URI.  This is intended to mimic the best-effort decoding
+  # Chrome itself seems to apply when a Javascript URI is enetered into the omnibox (or clicked).
+  # See https://code.google.com/p/chromium/issues/detail?id=483000, #1611 and #1636.
+  decodeJavascriptURI: (uri) ->
+    uri.split(/(?=%)/).map((uriComponent) ->
+      try
+        decodeURIComponent uriComponent
+      catch
+        uriComponent
+    ).join ""
 
   # Completes a partial URL (without scheme)
   createFullUrl: (partialUrl) ->
@@ -93,11 +107,12 @@ Utils =
     query = query.split(/\s+/) if typeof(query) == "string"
     query.map(encodeURIComponent).join "+"
 
-  # Creates a search URL from the given :query.
-  createSearchUrl: (query) ->
-    # It would be better to pull the default search engine from chrome itself.  However, unfortunately chrome
-    # does not provide an API for doing so.
-    Settings.get("searchUrl") + @createSearchQuery query
+  # Create a search URL from the given :query (using either the provided search URL, or the default one).
+  # It would be better to pull the default search engine from chrome itself.  However, chrome does not provide
+  # an API for doing so.
+  createSearchUrl: (query, searchUrl = Settings.get("searchUrl")) ->
+    searchUrl += "%s" unless 0 <= searchUrl.indexOf "%s"
+    searchUrl.replace /%s/g, @createSearchQuery query
 
   # Converts :string into a Google search if it's not already a URL. We don't bother with escaping characters
   # as Chrome will do that for us.
@@ -107,6 +122,8 @@ Utils =
     # Special-case about:[url], view-source:[url] and the like
     if Utils.hasChromePrefix string
       string
+    else if Utils.hasJavascriptPrefix string
+      Utils.decodeJavascriptURI string
     else if Utils.isUrl string
       Utils.createFullUrl string
     else
@@ -169,6 +186,29 @@ Utils =
     delete obj[property] for property in properties
     obj
 
+  # Does string match any of these regexps?
+  matchesAnyRegexp: (regexps, string) ->
+    for re in regexps
+      return true if re.test string
+    false
+
+  # Calculate the length of the longest shared prefix of a list of strings.
+  longestCommonPrefix: (strings) ->
+    return 0 unless 0 < strings.length
+    strings.sort (a,b) -> a.length - b.length
+    [ shortest, strings... ] = strings
+    for ch, index in shortest.split ""
+      for str in strings
+        return index if ch != str[index]
+    return shortest.length
+
+  # Convenience wrapper for setTimeout (with the arguments around the other way).
+  setTimeout: (ms, func) -> setTimeout func, ms
+
+  # Like Nodejs's nextTick.
+  nextTick: (func) -> @setTimeout 0, func
+
+
 # This creates a new function out of an existing function, where the new function takes fewer arguments. This
 # allows us to pass around functions instead of functions + a partial list of arguments.
 Function::curry = ->
@@ -179,6 +219,8 @@ Function::curry = ->
 Array.copy = (array) -> Array.prototype.slice.call(array, 0)
 
 String::startsWith = (str) -> @indexOf(str) == 0
+String::ltrim = -> @replace /^\s+/, ""
+String::rtrim = -> @replace /\s+$/, ""
 
 globalRoot = window ? global
 globalRoot.extend = (hash1, hash2) ->
@@ -186,5 +228,83 @@ globalRoot.extend = (hash1, hash2) ->
     hash1[key] = hash2[key]
   hash1
 
+# A simple cache. Entries used within two expiry periods are retained, otherwise they are discarded.
+# At most 2 * @entries entries are retained.
+class SimpleCache
+  # expiry: expiry time in milliseconds (default, one hour)
+  # entries: maximum number of entries in @cache (there may be up to this many entries in @previous, too)
+  constructor: (@expiry = 60 * 60 * 1000, @entries = 1000) ->
+    @cache = {}
+    @previous = {}
+    @lastRotation = new Date()
+
+  has: (key) ->
+    @rotate()
+    (key of @cache) or key of @previous
+
+  # Set value, and return that value.  If value is null, then delete key.
+  set: (key, value = null) ->
+    @rotate()
+    delete @previous[key]
+    if value?
+      @cache[key] = value
+    else
+      delete @cache[key]
+      null
+
+  get: (key) ->
+    @rotate()
+    if key of @cache
+      @cache[key]
+    else if key of @previous
+      @cache[key] = @previous[key]
+      delete @previous[key]
+      @cache[key]
+    else
+      null
+
+  rotate: (force = false) ->
+    if force or @entries < Object.keys(@cache).length or @expiry < new Date() - @lastRotation
+      @lastRotation = new Date()
+      @previous = @cache
+      @cache = {}
+
+  clear: ->
+    @rotate true
+    @rotate true
+
+# This is a simple class for the common case where we want to use some data value which may be immediately
+# available, or for which we may have to wait.  It implements a use-immediately-or-wait queue, and calls the
+# fetch function to fetch the data asynchronously.
+class AsyncDataFetcher
+  constructor: (fetch) ->
+    @data = null
+    @queue = []
+    Utils.nextTick =>
+      fetch (@data) =>
+        callback @data for callback in @queue
+        @queue = null
+
+  use: (callback) ->
+    if @data? then callback @data else @queue.push callback
+
+# This takes a list of jobs (functions) and runs them, asynchronously.  Functions queued with @onReady() are
+# run once all of the jobs have completed.
+class JobRunner
+  constructor: (@jobs) ->
+    @fetcher = new AsyncDataFetcher (callback) =>
+      for job in @jobs
+        do (job) =>
+          Utils.nextTick =>
+            job =>
+              @jobs = @jobs.filter (j) -> j != job
+              callback true if @jobs.length == 0
+
+  onReady: (callback) ->
+    @fetcher.use callback
+
 root = exports ? window
 root.Utils = Utils
+root.SimpleCache = SimpleCache
+root.AsyncDataFetcher = AsyncDataFetcher
+root.JobRunner = JobRunner

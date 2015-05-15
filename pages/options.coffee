@@ -118,8 +118,8 @@ class ExclusionRulesOption extends Option
   readValueFromElement: ->
     rules =
       for element in @element.getElementsByClassName "exclusionRuleTemplateInstance"
-        pattern: @getPattern(element).value.split(/\s+/).join ""
-        passKeys: @getPassKeys(element).value.split(/\s+/).join ""
+        pattern: @getPattern(element).value.trim()
+        passKeys: @getPassKeys(element).value.trim()
     rules.filter (rule) -> rule.pattern
 
   areEqual: (a,b) ->
@@ -257,9 +257,11 @@ initOptionsPage = ->
     regexFindMode: CheckBoxOption
     scrollStepSize: NumberOption
     smoothScroll: CheckBoxOption
+    grabBackFocus: CheckBoxOption
     searchEngines: TextOption
     searchUrl: NonEmptyTextOption
     userDefinedLinkHintCss: TextOption
+    omniSearchWeight: NumberOption
 
   # Populate options. The constructor adds each new object to "Option.all".
   for name, type of options
@@ -270,8 +272,12 @@ initPopupPage = ->
     exclusions = null
     document.getElementById("optionsLink").setAttribute "href", chrome.runtime.getURL("pages/options.html")
 
+    # As the active URL, we choose the most recently registered URL from a frame in the tab, or the tab's own
+    # URL.
+    url = chrome.extension.getBackgroundPage().urlForTab[tab.id] || tab.url
+
     updateState = ->
-      rule = bgExclusions.getRule tab.url, exclusions.readValueFromElement()
+      rule = bgExclusions.getRule url, exclusions.readValueFromElement()
       $("state").innerHTML = "Vimium will " +
         if rule and rule.passKeys
           "exclude <span class='code'>#{rule.passKeys}</span>"
@@ -290,8 +296,6 @@ initPopupPage = ->
       Option.saveOptions()
       $("saveOptions").innerHTML = "Saved"
       $("saveOptions").disabled = true
-      chrome.tabs.query { windowId: chrome.windows.WINDOW_ID_CURRENT, active: true }, (tabs) ->
-        chrome.extension.getBackgroundPage().updateActiveState(tabs[0].id)
 
     $("saveOptions").addEventListener "click", saveOptions
 
@@ -301,7 +305,7 @@ initPopupPage = ->
         window.close()
 
     # Populate options. Just one, here.
-    exclusions = new ExclusionRulesOnPopupOption(tab.url, "exclusionRules", onUpdated)
+    exclusions = new ExclusionRulesOnPopupOption url, "exclusionRules", onUpdated
 
     updateState()
     document.addEventListener "keyup", updateState

@@ -129,6 +129,7 @@ Commands =
       "goPrevious",
       "goNext",
       "nextFrame",
+      "mainFrame",
       "Marks.activateCreateMode",
       "Vomnibar.activateEditUrl",
       "Vomnibar.activateEditUrlInNewTab",
@@ -255,6 +256,7 @@ defaultKeyMappings =
   "gE": "Vomnibar.activateEditUrlInNewTab"
 
   "gf": "nextFrame"
+  "gF": "mainFrame"
 
   "m": "Marks.activateCreateMode"
   "`": "Marks.activateGotoMode"
@@ -289,8 +291,8 @@ commandDescriptions =
   openCopiedUrlInNewTab: ["Open the clipboard's URL in a new tab", { background: true, repeatLimit: 20 }]
 
   enterInsertMode: ["Enter insert mode", { noRepeat: true }]
-  enterVisualMode: ["Enter visual mode (not yet implemented)", { noRepeat: true }]
-  enterVisualLineMode: ["Enter visual line mode (not yet implemented)", { noRepeat: true }]
+  enterVisualMode: ["Enter visual mode (beta feature)", { noRepeat: true }]
+  enterVisualLineMode: ["Enter visual line mode (beta feature)", { noRepeat: true }]
   enterEditMode: ["Enter vim-like edit mode (not yet implemented)", { noRepeat: true }]
 
   focusInput: ["Focus the first text box on the page. Cycle between them using tab",
@@ -350,6 +352,7 @@ commandDescriptions =
   "Vomnibar.activateEditUrlInNewTab": ["Edit the current URL and open in a new tab", { noRepeat: true }]
 
   nextFrame: ["Cycle forward to the next frame on the page", { background: true, passCountToFunction: true }]
+  mainFrame: ["Select the tab's main/top frame", { background: true, noRepeat: true }]
 
   "Marks.activateCreateMode": ["Create a new mark", { noRepeat: true }]
   "Marks.activateGotoMode": ["Go to a mark", { noRepeat: true }]

@@ -16,6 +16,8 @@ exports.chrome =
       addListener: () -> true
     onMessage:
       addListener: () -> true
+    onInstalled:
+      addListener: ->
 
   tabs:
     onSelectionChanged:
@@ -35,6 +37,12 @@ exports.chrome =
     onReplaced:
       addListener: () -> true
     query: () -> true
+
+  webNavigation:
+    onHistoryStateUpdated:
+      addListener: () ->
+    onReferenceFragmentUpdated:
+      addListener: () ->
 
   windows:
     onRemoved:

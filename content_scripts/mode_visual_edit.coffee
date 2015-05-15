@@ -347,7 +347,7 @@ class Movement extends CountPrefix
     unless @options.parentMode or options.oneMovementOnly
       do =>
         executeFind = (count, findBackwards) =>
-          if query = getFindModeQuery()
+          if query = getFindModeQuery findBackwards
             initialRange = @selection.getRangeAt(0).cloneRange()
             for [0...count]
               unless window.find query, Utils.hasUpperCase(query), findBackwards, true, false, true, false
@@ -361,30 +361,30 @@ class Movement extends CountPrefix
         @movements.n = (count) -> executeFind count, false
         @movements.N = (count) -> executeFind count, true
         @movements["/"] = ->
-          @findMode = window.enterFindMode()
+          @findMode = window.enterFindMode returnToViewport: true
           @findMode.onExit => @changeMode VisualMode
     #
     # End of Movement constructor.
 
-  # Yank the selection; always exits; either deletes the selection or removes it; set @yankedText and return
+  # Yank the selection; always exits; either deletes the selection or collapses it; set @yankedText and return
   # it.
   yank: (args = {}) ->
     @yankedText = @selection.toString()
     @selection.deleteFromDocument() if @options.deleteFromDocument or args.deleteFromDocument
-    @selection.removeAllRanges() unless @options.parentMode
+    @selection.collapseToStart() unless @options.parentMode
 
     message = @yankedText.replace /\s+/g, " "
     message = message[...12] + "..." if 15 < @yankedText.length
     plural = if @yankedText.length == 1 then "" else "s"
-    HUD.showForDuration "Yanked #{@yankedText.length} character#{plural}: \"#{message}\".", 2500
 
     @options.onYank?.call @, @yankedText
     @exit()
+    HUD.showForDuration "Yanked #{@yankedText.length} character#{plural}: \"#{message}\".", 2500
     @yankedText
 
   exit: (event, target) ->
     unless @options.parentMode or @options.oneMovementOnly
-      @selection.removeAllRanges() if event?.type == "keydown" and KeyboardUtils.isEscape event
+      @selection.collapseToStart() if event?.type == "keydown" and KeyboardUtils.isEscape event
 
       # Disabled, pending discussion of fine-tuning the UX.  Simpler alternative is implemented above.
       # # If we're exiting on escape and there is a range selection, then we leave it in place.  However, an
@@ -456,8 +456,9 @@ class Movement extends CountPrefix
             coords = DomUtils.getCaretCoordinates @element, position
             Scroller.scrollToPosition @element, coords.top, coords.left
       else
-        elementWithFocus = DomUtils.getElementWithFocus @selection, @getDirection() == backward
-        Scroller.scrollIntoView elementWithFocus if elementWithFocus
+        unless @selection.type == "None"
+          elementWithFocus = DomUtils.getElementWithFocus @selection, @getDirection() == backward
+          Scroller.scrollIntoView elementWithFocus if elementWithFocus
 
 class VisualMode extends Movement
   constructor: (options = {}) ->
@@ -465,7 +466,7 @@ class VisualMode extends Movement
 
     defaults =
       name: "visual"
-      badge: "V"
+      indicator: if options.indicator? then options.indicator else "Visual mode"
       singleton: VisualMode
       exitOnEscape: true
     super extend defaults, options
@@ -488,8 +489,8 @@ class VisualMode extends Movement
             @selection.removeAllRanges()
 
         if @selection.type != "Range"
-          HUD.showForDuration "No usable selection, entering caret mode...", 2500
           @changeMode CaretMode
+          HUD.showForDuration "No usable selection, entering caret mode...", 2500
           return
 
     @push
@@ -566,7 +567,7 @@ class VisualMode extends Movement
 
 class VisualLineMode extends VisualMode
   constructor: (options = {}) ->
-    super extend { name: "visual/line" }, options
+    super extend { name: "visual/line", indicator: "Visual mode (line)" }, options
     @extendSelection()
     @commands.v = -> @changeMode VisualMode
 
@@ -586,7 +587,7 @@ class CaretMode extends Movement
 
     defaults =
       name: "caret"
-      badge: "C"
+      indicator: "Caret mode"
       singleton: VisualMode
       exitOnEscape: true
     super extend defaults, options
@@ -596,8 +597,8 @@ class CaretMode extends Movement
       when "None"
         @establishInitialSelectionAnchor()
         if @selection.type == "None"
-          HUD.showForDuration "Create a selection before entering visual mode.", 2500
           @exit()
+          HUD.showForDuration "Create a selection before entering visual mode.", 2500
           return
       when "Range"
         @collapseSelectionToAnchor()
@@ -649,9 +650,9 @@ class EditMode extends Movement
     @element = document.activeElement
     return unless @element and DomUtils.isEditable @element
 
+    options.indicator = "Edit mode"
     defaults =
       name: "edit"
-      badge: "E"
       exitOnEscape: true
       exitOnBlur: @element
     super extend defaults, options
@@ -747,7 +748,6 @@ class EditMode extends Movement
   # and (possibly) deletes it.
   enterVisualModeForMovement: (count, options = {}) ->
     @launchSubMode VisualMode, extend options,
-      badge: "M"
       initialCountPrefix: count
       oneMovementOnly: true
 

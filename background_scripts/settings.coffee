@@ -32,9 +32,6 @@ root.Settings = Settings =
       root.Commands.parseCustomKeyMappings value
       root.refreshCompletionKeysAfterMappingSave()
 
-    searchEngines: (value) ->
-      root.Settings.parseSearchEngines value
-
     exclusionRules: (value) ->
       root.Exclusions.postUpdateHook value
 
@@ -42,31 +39,11 @@ root.Settings = Settings =
   performPostUpdateHook: (key, value) ->
     @postUpdateHooks[key] value if @postUpdateHooks[key]
 
-  # Here we have our functions that parse the search engines
-  # this is a map that we use to store our search engines for use.
-  searchEnginesMap: {}
-
-  # Parse the custom search engines setting and cache it.
-  parseSearchEngines: (searchEnginesText) ->
-    @searchEnginesMap = {}
-    for line in searchEnginesText.split /\n/
-      tokens = line.trim().split /\s+/
-      continue if tokens.length < 2 or tokens[0].startsWith('"') or tokens[0].startsWith("#")
-      keywords = tokens[0].split ":"
-      continue unless keywords.length == 2 and not keywords[1] # So, like: [ "w", "" ].
-      @searchEnginesMap[keywords[0]] =
-        url: tokens[1]
-        description: tokens[2..].join(" ")
-
-  # Fetch the search-engine map, building it if necessary.
-  getSearchEngines: ->
-    this.parseSearchEngines(@get("searchEngines") || "") if Object.keys(@searchEnginesMap).length == 0
-    @searchEnginesMap
-
   # options.coffee and options.html only handle booleans and strings; therefore all defaults must be booleans
   # or strings
   defaults:
     scrollStepSize: 60
+    omniSearchWeight: 0.4
     smoothScroll: true
     keyMappings: "# Insert your preferred key mappings here."
     linkHintCharacters: "sadfjklewcmpgh"
@@ -109,10 +86,28 @@ root.Settings = Settings =
     # "\bnext\b,\bmore\b,>,→,»,≫,>>"
     nextPatterns: "next,more,>,\u2192,\xbb,\u226b,>>"
     # default/fall back search engine
-    searchUrl: "http://www.google.com/search?q="
+    searchUrl: "https://www.google.com/search?q="
     # put in an example search engine
-    searchEngines: "w: http://www.wikipedia.org/w/index.php?title=Special:Search&search=%s wikipedia"
+    searchEngines: [
+      "w: http://www.wikipedia.org/w/index.php?title=Special:Search&search=%s Wikipedia"
+      ""
+      "# More examples."
+      "#"
+      "# (Vimium has built-in completion for these.)"
+      "#"
+      "# g: http://www.google.com/search?q=%s Google"
+      "# l: http://www.google.com/search?q=%s&btnI I'm feeling lucky..."
+      "# y: http://www.youtube.com/results?search_query=%s Youtube"
+      "# b: https://www.bing.com/search?q=%s Bing"
+      "# d: https://duckduckgo.com/?q=%s DuckDuckGo"
+      "# az: http://www.amazon.com/s/?field-keywords=%s Amazon"
+      "#"
+      "# Another example (for Vimium does not have completion)."
+      "#"
+      "# m: https://www.google.com/maps/search/%s Google Maps"
+      ].join "\n"
     newTabUrl: "chrome://newtab"
+    grabBackFocus: false
 
     settingsVersion: Utils.getCurrentVersion()
 
