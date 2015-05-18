@@ -462,10 +462,6 @@ class SearchEngineCompleter
     factor = Math.max 0.0, Math.min 1.0, Settings.get "omniSearchWeight"
     haveCompletionEngine = (0.0 < factor or custom) and CompletionSearch.haveCompletionEngine searchUrl
 
-    # We weight the relevancy factor by the length of the query (exponentially).  The idea is that, the
-    # more the user has typed, the less likely it is that another completer has proven fruitful.
-    factor *= 1 - Math.pow 0.8, query.length
-
     # This filter is applied to all of the suggestions from all of the completers, after they have been
     # aggregated by the MultiCompleter.
     filter = (suggestions) ->
@@ -501,10 +497,8 @@ class SearchEngineCompleter
         insertText: suggestion
         highlightTerms: false
         relevancyFunction: @computeRelevancy
-        # We reduce the relevancy factor as suggestions are added. This respects, to some extent, the
-        # order provided by the completion engine.
-        relevancyData: factor *= 0.95
         isSearchSuggestion: true
+        relevancyData: factor
 
     cachedSuggestions =
       if haveCompletionEngine then CompletionSearch.complete searchUrl, queryTerms else null
