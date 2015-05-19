@@ -400,7 +400,7 @@ class TabCompleter
       tabRecency.recencyScore(suggestion.tabId)
 
 class SearchEngineCompleter
-  @debug: false
+  @debug: true
   searchEngines: null
   previousSuggestions: null
 
