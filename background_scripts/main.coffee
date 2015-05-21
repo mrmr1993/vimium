@@ -61,6 +61,7 @@ completers =
 
 completionHandlers =
   filter: (completer, request, port) ->
+    console.log "handle:", request.query
     completer.filter request, (response) ->
       # We use try here because this may fail if the sender has already navigated away from the original page.
       # This can happen, for example, when posting completion suggestions from the SearchEngineCompleter

@@ -452,6 +452,7 @@ class SearchEngineCompleter
 
   filter: (request, onComplete) ->
     { queryTerms, query, engine } = request
+    console.log "search:", query
 
     { custom, searchUrl, description } =
       if engine

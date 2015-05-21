@@ -179,6 +179,7 @@ class VomnibarUI
     (if @customSearchMode? then @customSearchMode + " " else "") + @input.value
 
   updateCompletions: (callback = null) ->
+    console.log "update:", @getInputValueAsQuery()
     @completer.filter
       query: @getInputValueAsQuery()
       seenTabToOpenCompletionList: @seenTabToOpenCompletionList
