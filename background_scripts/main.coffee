@@ -745,5 +745,5 @@ chrome.windows.getAll { populate: true }, (windows) ->
       chrome.tabs.sendMessage(tab.id, { name: "getScrollPosition" }, createScrollPositionHandler())
 
 # Start pulling changes from synchronized storage.
-Sync.init()
+Settings.init()
 showUpgradeMessage()
