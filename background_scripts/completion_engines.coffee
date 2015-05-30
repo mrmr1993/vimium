@@ -55,11 +55,23 @@ class GoogleWithPrefix
       .filter (suggestion) => suggestion.startsWith @prefix
       .map (suggestion) => suggestion[@prefix.length..].ltrim()
 
-# For Google Maps, we add the prefix "map of" to the query, and send it to Google's general search engine,
-# then strip "map of" from the resulting suggestions.
-class GoogleMaps extends GoogleWithPrefix
+# # For Google Maps, we add the prefix "map of" to the query, and send it to Google's general search engine,
+# # then strip "map of" from the resulting suggestions.
+# class GoogleMaps extends GoogleWithPrefix
+#   # Example search URL: https://www.google.com/maps?q=%s
+#   constructor: -> super "map of", "https?://[a-z]+\.google\.(com|ie|co\.uk|ca|com\.au)/maps"
+
+class GoogleMaps extends RegexpEngine
   # Example search URL: https://www.google.com/maps?q=%s
-  constructor: -> super "map of", "https?://[a-z]+\.google\.(com|ie|co\.uk|ca|com\.au)/maps"
+  constructor: -> super "https?://[a-z]+\.google\.(com|ie|co\.uk|ca|com\.au)/maps"
+
+  getUrl: (queryTerms) ->
+    Utils.createSearchUrl queryTerms,
+      "https://www.google.com/s?tbm=map&fp=1&gs_ri=maps&q=%s"
+
+  parse: (xhr) ->
+    # Note(smblott). This is shockingly brittle.
+    JSON.parse(xhr.responseText[5..])[0][1].map (a) -> a[22][14][0]
 
 class Youtube extends GoogleXMLRegexpEngine
   # Example search URL: http://www.youtube.com/results?search_query=%s
