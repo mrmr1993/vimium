@@ -62,6 +62,7 @@ settings =
     helpDialog_showAdvancedCommands: null
     smoothScroll: null
     grabBackFocus: null
+    searchEngines: null
 
   init: ->
     @port = chrome.runtime.connect name: "settings"
@@ -307,14 +308,14 @@ executePageCommand = (request) ->
     if DomUtils.isTopFrame()
       # We pass the frameId from request.  That's the frame which originated the request, so that's the frame
       # which should receive the focus when the vomnibar closes.
-      Utils.invokeCommandString request.command, [ request.frameId ]
+      Utils.invokeCommandString request.command, [ request.frameId, request.registryEntry ]
       refreshCompletionKeys request
     return
 
   # All other commands are handled in their frame (but only if Vimium is enabled).
   return unless frameId == request.frameId and isEnabledForUrl
 
-  if (request.passCountToFunction)
+  if request.registryEntry.passCountToFunction
     Utils.invokeCommandString(request.command, [request.count])
   else
     Utils.invokeCommandString(request.command) for i in [0...request.count]
@@ -1120,6 +1121,8 @@ window.showHelpDialog = (html, fid) ->
       chrome.runtime.sendMessage({handler: "openOptionsPageInNewTab"})
     false)
 
+  # Simulating a click on the help dialog makes it the active element for scrolling.
+  DomUtils.simulateClick document.getElementById "vimiumHelpDialog"
 
 hideHelpDialog = (clickEvent) ->
   isShowingHelpDialog = false
