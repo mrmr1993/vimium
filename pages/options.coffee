@@ -1,7 +1,12 @@
 
 $ = (id) -> document.getElementById id
-Settings.init()
 bgExclusions = chrome.extension.getBackgroundPage().Exclusions
+
+# We have to use Settings from the background page here (not Settings, directly) to avoid a race condition for
+# the page popup.  Specifically, we must ensure that the settings have been updated on the background page
+# *before* the popup closes.  This ensures that any exclusion-rule changes are in place before the page
+# regains the focus.
+bgSettings = chrome.extension.getBackgroundPage().Settings
 
 #
 # Class hierarchy for various types of option.
@@ -21,20 +26,17 @@ class Option
   # Fetch a setting from localStorage, remember the @previous value and populate the DOM element.
   # Return the fetched value.
   fetch: ->
-    @populateElement @previous = Settings.get @field
+    @populateElement @previous = bgSettings.get @field
     @previous
 
   # Write this option's new value back to localStorage, if necessary.
   save: ->
     value = @readValueFromElement()
-    if not @areEqual value, @previous
-      Settings.set @field, @previous = value
-
-  # Compare values; this is overridden by sub-classes.
-  areEqual: (a,b) -> a == b
+    if JSON.stringify(value) != JSON.stringify @previous
+      bgSettings.set @field, @previous = value
 
   restoreToDefault: ->
-    Settings.clear @field
+    bgSettings.clear @field
     @fetch()
 
   # Static method.
@@ -119,12 +121,6 @@ class ExclusionRulesOption extends Option
         pattern: @getPattern(element).value.trim()
         passKeys: @getPassKeys(element).value.trim()
     rules.filter (rule) -> rule.pattern
-
-  areEqual: (a,b) ->
-    # Flatten each list of rules to a newline-separated string representation, and then use string equality.
-    # This is correct because patterns and passKeys cannot themselves contain newlines.
-    flatten = (rule) -> if rule and rule.pattern then rule.pattern + "\n" + rule.passKeys else ""
-    a.map(flatten).join("\n") == b.map(flatten).join("\n")
 
   # Accessors for the three main sub-elements of an "exclusionRuleTemplateInstance".
   getPattern: (element) -> element.querySelector(".pattern")
@@ -258,7 +254,6 @@ initOptionsPage = ->
     searchEngines: TextOption
     searchUrl: NonEmptyTextOption
     userDefinedLinkHintCss: TextOption
-    omniSearchWeight: NumberOption
 
   # Populate options. The constructor adds each new object to "Option.all".
   for name, type of options
