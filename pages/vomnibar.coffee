@@ -17,6 +17,7 @@ Vomnibar =
       query: ""
       newTab: false
       selectFirst: false
+      keyword: null
     extend options, userOptions
     extend options, refreshInterval: if options.completer == "omni" then 150 else 0
 
@@ -28,6 +29,7 @@ Vomnibar =
     @vomnibarUI.setRefreshInterval options.refreshInterval
     @vomnibarUI.setForceNewTab options.newTab
     @vomnibarUI.setQuery options.query
+    @vomnibarUI.setKeyword options.keyword
     @vomnibarUI.update true
 
   hide: -> @vomnibarUI?.hide()
@@ -40,6 +42,7 @@ class VomnibarUI
     @initDom()
 
   setQuery: (query) -> @input.value = query
+  setKeyword: (keyword) -> @customSearchMode = keyword
   setInitialSelectionValue: (@initialSelectionValue) ->
   setRefreshInterval: (@refreshInterval) ->
   setForceNewTab: (@forceNewTab) ->
@@ -166,14 +169,14 @@ class VomnibarUI
         completion = @completions[@selection]
         @hide -> completion.performAction openInNewTab
     else if action == "delete"
-      inputIsEmpty = @input.value.length == 0
-      if inputIsEmpty and @customSearchMode?
+      if @customSearchMode? and @input.selectionEnd == 0
         # Normally, with custom search engines, the keyword (e,g, the "w" of "w query terms") is suppressed.
-        # If the input is empty, then reinstate the keyword (the "w").
-        @input.value = @customSearchMode
+        # If the cursor is at the start of the input, then reinstate the keyword (the "w").
+        @input.value = @customSearchMode + @input.value.ltrim()
+        @input.selectionStart = @input.selectionEnd = @customSearchMode.length
         @customSearchMode = null
         @update true
-      else if inputIsEmpty and @seenTabToOpenCompletionList
+      else if @seenTabToOpenCompletionList and @input.value.trim().length == 0
         @seenTabToOpenCompletionList = false
         @update true
       else

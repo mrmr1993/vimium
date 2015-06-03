@@ -3,7 +3,6 @@
     <title>Vimium Options</title>
     <link rel="stylesheet" type="text/css" href="options.css">
     <script src="content_script_loader.js"></script>
-    <script type="text/javascript" src="../lib/settings.js"></script>
     <script type="text/javascript" src="options.js"></script>
   </head>
 
@@ -66,9 +65,6 @@ b: http://b.com/?q=%s description
               </div>
               <textarea id="searchEngines"></textarea>
           </td>
-        </tr>
-        <tr>
-           <td colspan="2"><a href="#" id="advancedOptionsLink">Show advanced options&hellip;</a></td>
         </tr>
         <tbody id='advancedOptions'>
           <tr>
@@ -280,12 +276,13 @@ b: http://b.com/?q=%s description
           <tr>
             <td id="footerTableData">
               <span id="helpText">
-                Type <strong>?</strong> to show the Vimium help dialog.
+                Type <strong>?</strong> to show the help dialog.
                 <br/>
                 Type <strong>Ctrl-Enter</strong> to save <i>all</i> options.
               </span>
             </td>
-            <td id="saveOptionsTableData">
+            <td id="saveOptionsTableData" nowrap>
+              <button id="advancedOptionsButton">Show Advanced Options</button>
               <button id="saveOptions" disabled="true">No Changes</button>
             </td>
           </tr>

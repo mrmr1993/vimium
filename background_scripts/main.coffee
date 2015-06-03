@@ -218,20 +218,6 @@ selectSpecificTab = (request) ->
     chrome.windows.update(tab.windowId, { focused: true })
     chrome.tabs.update(request.id, { selected: true }))
 
-#
-# Used by the content scripts to get settings from the local storage.
-#
-handleSettings = (request, port) ->
-  switch request.operation
-    when "get" # Get a single settings value.
-      port.postMessage key: request.key, value: Settings.get request.key
-    when "set" # Set a single settings value.
-      Settings.set request.key, request.value
-    when "fetch" # Fetch multiple settings values.
-      values = request.values
-      values[key] = Settings.get key for own key of values
-      port.postMessage { values }
-
 chrome.tabs.onSelectionChanged.addListener (tabId, selectionInfo) ->
   if (selectionChangedHandlers.length > 0)
     selectionChangedHandlers.pop().call()
@@ -559,13 +545,13 @@ checkKeyQueue = (keysToCheck, tabId, frameId) ->
 
     if runCommand
       if not registryEntry.isBackgroundCommand
-        chrome.tabs.sendMessage(tabId,
-          name: "executePageCommand",
-          command: registryEntry.command,
-          frameId: frameId,
-          count: count,
-          passCountToFunction: registryEntry.passCountToFunction,
-          completionKeys: generateCompletionKeys(""))
+        chrome.tabs.sendMessage tabId,
+          name: "executePageCommand"
+          command: registryEntry.command
+          frameId: frameId
+          count: count
+          completionKeys: generateCompletionKeys ""
+          registryEntry: registryEntry
         refreshedCompletionKeys = true
       else
         if registryEntry.passCountToFunction
@@ -651,7 +637,6 @@ bgLog = (request, sender) ->
 # Port handler mapping
 portHandlers =
   keyDown: handleKeyDown,
-  settings: handleSettings,
   completions: handleCompletions
 
 sendRequestHandlers =
@@ -744,6 +729,4 @@ chrome.windows.getAll { populate: true }, (windows) ->
         (response) -> updateScrollPosition(tab, response.scrollX, response.scrollY) if response?
       chrome.tabs.sendMessage(tab.id, { name: "getScrollPosition" }, createScrollPositionHandler())
 
-# Start pulling changes from synchronized storage.
-Settings.init()
 showUpgradeMessage()

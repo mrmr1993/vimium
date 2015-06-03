@@ -89,6 +89,8 @@ Additional advanced browsing commands:
     gU      go up to root of the URL hierarchy
     zH      scroll all the way left
     zL      scroll all the way right
+    v       enter visual mode; use p/P to paste-and-go, use y to yank
+    V       enter visual line mode
 
 Vimium supports command repetition so, for example, hitting `5t` will open 5 tabs in rapid succession. `<ESC>` (or
 `<c-[>`) will clear any partial commands in the queue and will also exit insert and find modes.
@@ -127,6 +129,7 @@ The following special keys are available for mapping:
 - `<c-*>`, `<a-*>`, `<m-*>` for ctrl, alt, and meta (command on Mac) respectively with any key. Replace `*`
   with the key of choice.
 - `<left>`, `<right>`, `<up>`, `<down>` for the arrow keys
+- `<space>` for the space key
 - `<f1>` through `<f12>` for the function keys
 
 Shifts are automatically detected so, for example, `<c-&>` corresponds to ctrl+shift+7 on an English keyboard.
@@ -143,8 +146,10 @@ Release Notes
 -------------
 1.52 (not yet released)
 
-- Search engine completion for selected search engines (including Google, Youtube, Bing, DuckDuckGo, Wikipedia and Amazon).
-- Much improved custom search engine experience (including completion, where available).
+- Search completion for selected popular search engines; for details, see the wiki
+  ([here](https://github.com/philc/vimium/wiki/Search-Completion) and
+  [here](https://github.com/philc/vimium/wiki/Tips-and-Tricks#repeat-recent-queries)).
+- A much improved interface for custom search engines.
 - Bug fixes: bookmarklets accessed from the vomnibar.
 
 1.51 (2015-05-02)
