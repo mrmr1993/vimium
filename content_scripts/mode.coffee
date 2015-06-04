@@ -47,6 +47,14 @@ class Mode
     @id = "#{@name}-#{@count}"
     @log "activate:", @id
 
+    # If options.suppressAllKeyboardEvents is truthy, then all keyboard events are suppressed.  This avoids
+    # the need for modes which block all keyboard events 1) to provide handlers for all keyboard events,
+    # and 2) to worry about their return values.
+    if @options.suppressAllKeyboardEvents
+      for type in [ "keydown", "keypress", "keyup" ]
+        do (handler = @options[type]) =>
+          @options[type] = (event) => handler? event; @stopBubblingAndFalse
+
     @push
       keydown: @options.keydown || null
       keypress: @options.keypress || null
