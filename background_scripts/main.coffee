@@ -730,4 +730,13 @@ chrome.windows.getAll { populate: true }, (windows) ->
         (response) -> updateScrollPosition(tab, response.scrollX, response.scrollY) if response?
       chrome.tabs.sendMessage(tab.id, { name: "getScrollPosition" }, createScrollPositionHandler())
 
+if true
+  chrome.storage.sync.get null, (items) ->
+    total = 0
+    for key, value of items
+      value = JSON.stringify value
+      console.log key, key.length, value.length, key.length + value.length
+      total += key.length + value.length
+    console.log "total", total
+
 showUpgradeMessage()
