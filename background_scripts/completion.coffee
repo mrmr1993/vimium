@@ -455,7 +455,7 @@ class SearchEngineCompleter
     { keyword, searchUrl, description } = engine
     extend request, searchUrl, customSearchMode: true
 
-    factor = 0.5
+    @previousSuggestions[searchUrl] ?= []
     haveCompletionEngine = CompletionSearch.haveCompletionEngine searchUrl
 
     # This filter is applied to all of the suggestions from all of the completers, after they have been
@@ -471,13 +471,14 @@ class SearchEngineCompleter
           )
 
     # If a previous suggestion still matches the query, then we keep it (even if the completion engine may not
-    # return it for the current query).  This allows the user to pick suggestions by typing fragments of their
-    # text, without regard to whether the completion engine can complete the actual text of the query.
+    # return it for the current query).  This allows the user to pick suggestions they've previously seen by
+    # typing fragments of their text, without regard to whether the completion engine can continue to complete
+    # the actual text of the query.
     previousSuggestions =
       if queryTerms.length == 0
         []
       else
-        for url, suggestion of @previousSuggestions
+        for url, suggestion of @previousSuggestions[searchUrl]
           continue unless RankingUtils.matches queryTerms, suggestion.title
           # Reset various fields, they may not be correct wrt. the current query.
           extend suggestion, relevancy: null, html: null, queryTerms: queryTerms
@@ -502,7 +503,7 @@ class SearchEngineCompleter
       count = 0
       (suggestion) =>
         url = Utils.createSearchUrl suggestion, searchUrl
-        @previousSuggestions[url] = new Suggestion
+        @previousSuggestions[searchUrl][url] = new Suggestion
           queryTerms: queryTerms
           type: description
           url: url
