@@ -169,5 +169,13 @@ if Utils.isBackgroundPage()
       rawQuery = Settings.get "findModeRawQuery"
       chrome.storage.local.set findModeRawQueryList: (if rawQuery then [ rawQuery ] else [])
 
+  # Historical bug fix; see #1731 (after 1.51, 2015/6/14).
+  # Thie ensures that the "regexFindMode" setting is propagated to chrome.storage.sync, if necessary.
+  if Settings.get("regexFindMode") != Settings.defaults.regexFindMode
+    chrome.storage.sync.get [ "regexFindMode", "regexFindModeBugFix1731" ], (items) ->
+      unless chrome.runtime.lastError or items.regexFindModeBugFix1731? or items.regexFindMode?
+        Settings.set "regexFindMode", Settings.get "regexFindMode"
+        chrome.storage.sync.set regexFindModeBugFix1731: true
+
 root = exports ? window
 root.Settings = Settings
