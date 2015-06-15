@@ -55,11 +55,11 @@ exports.chrome =
   browserAction:
     setBadgeBackgroundColor: ->
   storage:
-    # chrome.storage.local
+    # chrome.storage.local (we just re-use the chrome.storage.sync stubs, below).
     local:
-      get: ->
-      set: ->
-      remove: ->
+      get: (args...) -> chrome.storage.sync.get args...
+      set: (args...) -> chrome.storage.sync.set args...
+      remove: (args...) -> chrome.storage.sync.remove args...
 
     # chrome.storage.onChanged
     onChanged:

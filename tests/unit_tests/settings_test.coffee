@@ -74,7 +74,7 @@ context "synced settings",
   should "trigger a postUpdateHook", ->
     message = "Hello World"
     receivedMessage = ""
-    Settings.postUpdateHooks['scrollStepSize'] = (value) -> receivedMessage = value
+    Settings.addPostUpdateHook 'scrollStepSize', (value) -> receivedMessage = value
     chrome.storage.sync.set { scrollStepSize: JSON.stringify(message) }
     assert.equal message, receivedMessage
 

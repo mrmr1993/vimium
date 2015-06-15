@@ -75,5 +75,5 @@ if not Settings.has("exclusionRules") and Settings.has("excludedUrls")
   Settings.clear("excludedUrls")
 
 # Register postUpdateHook for exclusionRules setting.
-Settings.postUpdateHooks["exclusionRules"] = (value) ->
+Settings.addPostUpdateHook "exclusionRules", (value) ->
   Exclusions.postUpdateHook value

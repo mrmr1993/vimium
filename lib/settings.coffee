@@ -11,14 +11,18 @@ Settings =
       @cache = if Utils.isBackgroundPage() then localStorage else extend {}, localStorage
       @onLoaded()
 
-    @storage.get null, (items) =>
-      unless chrome.runtime.lastError
-        @handleUpdateFromChromeStorage key, value for own key, value of items
+    # We store settings in various storage areas (always JSONified).  They take priority (lowest to highest):
+    # localStorage, chrome.storage.local, chrome.storage.sync.
+    chrome.storage.local.get null, (localItems) =>
+      @storage.get null, (syncedItems) =>
+        unless chrome.runtime.lastError
+          # Items from synced storage take priority.
+          @handleUpdateFromChromeStorage key, value for own key, value of extend localItems, syncedItems
 
-      chrome.storage.onChanged.addListener (changes, area) =>
-        @propagateChangesFromChromeStorage changes if area == "sync"
+        chrome.storage.onChanged.addListener (changes, area) =>
+          @propagateChangesFromChromeStorage changes, area if area == "sync"
 
-      @onLoaded()
+        @onLoaded()
 
   # Called after @cache has been initialized.  On extension pages, this will be called twice, but that does
   # not matter because it's idempotent.
@@ -78,7 +82,9 @@ Settings =
 
   # For settings which require action when their value changes, add hooks to this object.
   postUpdateHooks: {}
-  performPostUpdateHook: (key, value) -> @postUpdateHooks[key]? value
+  addPostUpdateHook: (key, callback) -> (@postUpdateHooks[key] ?= []).push callback
+  performPostUpdateHook: (key, value) ->
+    callback value for callback in (@postUpdateHooks[key] ? [])
 
   # Default values for all settings.
   defaults:
@@ -168,6 +174,18 @@ if Utils.isBackgroundPage()
     unless chrome.runtime.lastError or items.findModeRawQueryList
       rawQuery = Settings.get "findModeRawQuery"
       chrome.storage.local.set findModeRawQueryList: (if rawQuery then [ rawQuery ] else [])
+
+  # Migration; see #1731 (after 1.51, 2015/6/14).
+  # We place a copy in chrome.storage.local of all settings values which have been changed from their default
+  # value, but not since synced settings were introduced.
+  unless localStorage.migrateChangedSettingsToChromeStorage1731
+    chrome.storage.sync.get null, (items) ->
+      unless chrome.runtime.lastError
+        localStorage.migrateChangedSettingsToChromeStorage1731 = true
+        for own key, value of localStorage
+          if Settings.shouldSyncKey(key) and not items[key]? and Settings.get(key) != Settings.defaults[key]
+            obj = {}; obj[key] = value
+            chrome.storage.local.set obj
 
 root = exports ? window
 root.Settings = Settings
