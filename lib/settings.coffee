@@ -10,7 +10,6 @@ Settings =
       # On extension pages, we use localStorage (or a copy of it) as the cache.
       @cache = if Utils.isBackgroundPage() then localStorage else extend {}, localStorage
       @onLoaded()
-      @activateChromeStorageLocalMaintainer()
 
     # We store settings in various storage areas (always JSONified).  They take priority (lowest to highest):
     # localStorage, chrome.storage.local, chrome.storage.sync.
@@ -24,6 +23,7 @@ Settings =
           @propagateChangesFromChromeStorage changes, area if area == "sync"
 
         @onLoaded()
+        @activateChromeStorageLocalMaintainer()
 
   # Called after @cache has been initialized.  On extension pages, this will be called twice, but that does
   # not matter because it's idempotent.
@@ -45,7 +45,6 @@ Settings =
         defaultValue = @defaults[key]
         defaultValueJSON = JSON.stringify defaultValue
 
-        console.log "update:", key, value
         if value and value != defaultValueJSON
           # Key/value has been changed to a non-default value.
           @cache[key] = value
@@ -61,7 +60,7 @@ Settings =
 
   set: (key, value) ->
     # Don't store the value if it is equal to the default, so we can change the defaults in the future.
-    if JSON.stringify(value) == JSON.stringify @defaults[key]
+    if @isDefaultValue key
       @clear key
     else
       jsonValue = JSON.stringify value
@@ -81,6 +80,9 @@ Settings =
   use: (key, callback) ->
     invokeCallback = => callback @get key
     if @isLoaded then invokeCallback() else @onLoadedCallbacks.push invokeCallback
+
+  isDefaultValue: (key) ->
+    JSON.stringify(@get key) == JSON.stringify @defaults[key]
 
   # For settings which require action when their value changes, add hooks to this object.
   postUpdateHooks: {}
@@ -166,7 +168,7 @@ Settings =
   activateChromeStorageLocalMaintainer: ->
     if Utils.isBackgroundPage()
       for own key, value of localStorage
-        if @shouldSyncKey(key) and JSON.stringify(Settings.get(key)) != JSON.stringify Settings.defaults[key]
+        if @shouldSyncKey(key) and not @isDefaultValue key
           # This setting should be synced, and it's not set to its default value.
           do (key, value) =>
             @storage.get key, (items) =>
@@ -183,22 +185,15 @@ Settings =
                   chrome.storage.local.remove key
                   # Deactivate this post-update hook; its done its job and we don't need it any more.
                   postUpdateHook = ->
-                  if JSON.stringify(value) == JSON.stringify @defaults[key]
+                  if @isDefaultValue key
                     # The setting has been reset to its default value. This will not cause a change to synced
                     # storage, so the update will not (otherwise) be propagated to active tabs.  We need to
                     # force an update in synced storage (in fact, we force two updates).
                     obj = {}; obj[key] = JSON.stringify @defaults[key]
-                    console.log "force:", key
                     @storage.set obj, => @storage.remove key
 
                 @addPostUpdateHook key, (value) -> postUpdateHook value
-              null
-            null
-          null
-        null
-      null
 
-localStorage.nextPatterns = "xxx" if Utils.isBackgroundPage()
 Settings.init()
 
 # Perform migration from old settings versions, if this is the background page.
