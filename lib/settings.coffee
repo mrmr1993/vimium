@@ -10,6 +10,7 @@ Settings =
       # On extension pages, we use localStorage (or a copy of it) as the cache.
       @cache = if Utils.isBackgroundPage() then localStorage else extend {}, localStorage
       @onLoaded()
+      @activateChromeStorageLocalMaintainer()
 
     # We store settings in various storage areas (always JSONified).  They take priority (lowest to highest):
     # localStorage, chrome.storage.local, chrome.storage.sync.
@@ -44,6 +45,7 @@ Settings =
         defaultValue = @defaults[key]
         defaultValueJSON = JSON.stringify defaultValue
 
+        console.log "update:", key, value
         if value and value != defaultValueJSON
           # Key/value has been changed to a non-default value.
           @cache[key] = value
@@ -157,6 +159,46 @@ Settings =
     settingsVersion: Utils.getCurrentVersion()
     helpDialog_showAdvancedCommands: false
 
+  # Ideally, each setting is either set to its default value and not in synced storage, or set to some other
+  # value and in synced storage.  However, settings which have not been changed since synced storage was
+  # introduced may have a non-default value and nevertheless *not* be in synced storage.  We use
+  # chrome.storage.local to push such settings values out to content pages.
+  activateChromeStorageLocalMaintainer: ->
+    if Utils.isBackgroundPage()
+      for own key, value of localStorage
+        if @shouldSyncKey(key) and JSON.stringify(Settings.get(key)) != JSON.stringify Settings.defaults[key]
+          # This setting should be synced, and it's not set to its default value.
+          do (key, value) =>
+            @storage.get key, (items) =>
+              unless chrome.runtime.lastError or items[key]
+                # This key should be synced, it's not set to its default value, AND it's not in synced
+                # storage.  We set its value in chrome.storage.local; content pages will have access to it
+                # there.
+                obj = {}; obj[key] = JSON.stringify value
+                chrome.storage.local.set obj
+
+                postUpdateHook = (value) =>
+                  # The setting is now either restored to its default value, or it's in synced storage.  We
+                  # no longer need it in chrome.storage.local.
+                  chrome.storage.local.remove key
+                  # Deactivate this post-update hook; its done its job and we don't need it any more.
+                  postUpdateHook = ->
+                  if JSON.stringify(value) == JSON.stringify @defaults[key]
+                    # The setting has been reset to its default value. This will not cause a change to synced
+                    # storage, so the update will not (otherwise) be propagated to active tabs.  We need to
+                    # force an update in synced storage (in fact, we force two updates).
+                    obj = {}; obj[key] = JSON.stringify @defaults[key]
+                    console.log "force:", key
+                    @storage.set obj, => @storage.remove key
+
+                @addPostUpdateHook key, (value) -> postUpdateHook value
+              null
+            null
+          null
+        null
+      null
+
+localStorage.nextPatterns = "xxx" if Utils.isBackgroundPage()
 Settings.init()
 
 # Perform migration from old settings versions, if this is the background page.
@@ -174,18 +216,6 @@ if Utils.isBackgroundPage()
     unless chrome.runtime.lastError or items.findModeRawQueryList
       rawQuery = Settings.get "findModeRawQuery"
       chrome.storage.local.set findModeRawQueryList: (if rawQuery then [ rawQuery ] else [])
-
-  # Migration; see #1731 (after 1.51, 2015/6/14).
-  # We place a copy in chrome.storage.local of all settings values which have been changed from their default
-  # value, but not since synced settings were introduced.
-  unless localStorage.migrateChangedSettingsToChromeStorage1731
-    chrome.storage.sync.get null, (items) ->
-      unless chrome.runtime.lastError
-        localStorage.migrateChangedSettingsToChromeStorage1731 = true
-        for own key, value of localStorage
-          if Settings.shouldSyncKey(key) and not items[key]? and Settings.get(key) != Settings.defaults[key]
-            obj = {}; obj[key] = value
-            chrome.storage.local.set obj
 
 root = exports ? window
 root.Settings = Settings
