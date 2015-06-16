@@ -346,7 +346,7 @@ commandDescriptions =
 Commands.init()
 
 # Register postUpdateHook for keyMappings setting.
-Settings.postUpdateHooks["keyMappings"] = (value) ->
+Settings.addPostUpdateHook "keyMappings", (value) ->
   Commands.clearKeyMappingsAndSetDefaults()
   Commands.parseCustomKeyMappings value
   refreshCompletionKeysAfterMappingSave()
