@@ -20,7 +20,7 @@ Settings =
           @handleUpdateFromChromeStorage key, value for own key, value of extend localItems, syncedItems
 
         chrome.storage.onChanged.addListener (changes, area) =>
-          @propagateChangesFromChromeStorage changes, area if area == "sync"
+          @propagateChangesFromChromeStorage changes if area == "sync"
 
         @onLoaded()
         @activateChromeStorageLocalMaintainer()
