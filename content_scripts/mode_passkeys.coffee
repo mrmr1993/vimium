@@ -12,7 +12,7 @@ class PassKeysMode extends Mode
   # passKey, then 'gt' and '99t' will neverthless be handled by Vimium.
   handleKeyChar: (event, keyChar) ->
     return @continueBubbling if event.altKey or event.ctrlKey or event.metaKey
-    if keyChar and not @keyQueue and 0 <= @passKeys.indexOf keyChar
+    if keyChar and @keyQueue.length == 0 and 0 <= @passKeys.indexOf keyChar
       @stopBubblingAndTrue
     else
       @continueBubbling
