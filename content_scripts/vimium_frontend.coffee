@@ -112,6 +112,8 @@ window.initializeModes = ->
         keypress: (event) => onKeypress.call @, event
         keyup: (event) => onKeyup.call @, event
 
+    isCommandKey: (key) -> currentCompletionKeys.indexOf(key) != -1 or isValidFirstKey(key)
+
   # Install the permanent modes.  The permanently-installed insert mode tracks focus/blur events, and
   # activates/deactivates itself accordingly.
   new NormalMode
@@ -499,7 +501,7 @@ onKeypress = (event) ->
     keyChar = String.fromCharCode(event.charCode)
 
     if (keyChar)
-      if currentCompletionKeys.indexOf(keyChar) != -1 or isValidFirstKey(keyChar)
+      if @isCommandKey keyChar
         DomUtils.suppressEvent(event)
         keyPort.postMessage({ keyChar:keyChar, frameId:frameId })
         return @stopBubblingAndTrue
@@ -545,7 +547,7 @@ onKeydown = (event) ->
 
   else
     if (keyChar)
-      if (currentCompletionKeys.indexOf(keyChar) != -1 or isValidFirstKey(keyChar))
+      if (@isCommandKey keyChar)
         DomUtils.suppressEvent event
         KeydownEvents.push event
         keyPort.postMessage({ keyChar:keyChar, frameId:frameId })
@@ -563,9 +565,7 @@ onKeydown = (event) ->
   # Subject to internationalization issues since we're using keyIdentifier instead of charCode (in keypress).
   #
   # TOOD(ilya): Revisit this. Not sure it's the absolute best approach.
-  if keyChar == "" &&
-     (currentCompletionKeys.indexOf(KeyboardUtils.getKeyChar(event)) != -1 ||
-      isValidFirstKey(KeyboardUtils.getKeyChar(event)))
+  if keyChar == "" && @isCommandKey KeyboardUtils.getKeyChar(event)
     DomUtils.suppressPropagation(event)
     KeydownEvents.push event
     return @stopBubblingAndTrue
