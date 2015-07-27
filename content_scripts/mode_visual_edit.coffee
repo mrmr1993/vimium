@@ -322,14 +322,14 @@ class Movement extends SuppressPrintable
                 @runMovementKeyChar command, @getCountPrefix()
                 return @suppressEvent
 
-        @alwaysContinueBubbling =>
-          unless event.metaKey or event.ctrlKey or event.altKey
-            keyChar = String.fromCharCode event.charCode
-            @countPrefix =
-              if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
-                @countPrefix + keyChar
-              else
-                ""
+          keyChar = String.fromCharCode event.charCode
+          @countPrefix =
+            if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
+              @countPrefix + keyChar
+            else
+              ""
+
+        @continueBubbling
 
     # Install basic bindings for find mode, "n" and "N".  We do not install these bindings if this is a
     # sub-mode of edit mode (because we cannot guarantee that the selection will remain within the active
