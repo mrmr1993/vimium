@@ -278,7 +278,7 @@ class Movement extends SuppressPrintable
   constructor: (options) ->
     @selection = window.getSelection()
     @movements = extend {}, @movements
-    @commands = {}
+    @commands = extend {}, @movements
     @keyQueue = ""
     @countPrefix = ""
     # This is an initial multiplier for the first count.  It allows edit mode to implement both "d3w" and
@@ -307,9 +307,6 @@ class Movement extends SuppressPrintable
           @keyQueue = @keyQueue.slice Math.max 0, @keyQueue.length - 2
           for command in [ @keyQueue, @keyQueue[1..] ]
             if command and (@movements[command] or @commands[command])
-              @selection = window.getSelection()
-              @keyQueue = ""
-
               # We need to treat "0" specially.  It can be either a movement, or a continutation of a count
               # prefix.  Don't treat it as a movement if we already have an initial count prefix.
               return @continueBubbling if command == "0" and 0 < @countPrefix.length
@@ -355,9 +352,11 @@ class Movement extends SuppressPrintable
     count
 
   matchedKeyHandler: (command, count) =>
+    @selection = window.getSelection()
+    @keyQueue = ""
+
     if @movements[command]
       @runMovementKeyChar command, count
-
     else
       @commands[command].call @, count
       @scrollIntoView()
