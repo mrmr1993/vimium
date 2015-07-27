@@ -301,7 +301,8 @@ class Movement extends SuppressPrintable
       _name: "#{@id}/keypress"
       keypress: (event) =>
         unless event.metaKey or event.ctrlKey or event.altKey
-          @keyQueue += String.fromCharCode event.charCode
+          keyChar = String.fromCharCode event.charCode
+          @keyQueue += keyChar
           # Keep at most two keyChars in the queue.
           @keyQueue = @keyQueue.slice Math.max 0, @keyQueue.length - 2
           for command in [ @keyQueue, @keyQueue[1..] ]
@@ -322,7 +323,6 @@ class Movement extends SuppressPrintable
                 @runMovementKeyChar command, @getCountPrefix()
                 return @suppressEvent
 
-          keyChar = String.fromCharCode event.charCode
           @countPrefix =
             if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
               @countPrefix + keyChar
