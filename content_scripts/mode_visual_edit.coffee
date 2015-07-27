@@ -280,7 +280,6 @@ class Movement extends SuppressPrintable
     @movements = extend {}, @movements
     @commands = extend {}, @movements
     @keyQueue = []
-    @countPrefix = ""
     # This is an initial multiplier for the first count.  It allows edit mode to implement both "d3w" and
     # "3dw". Also, "3d2w" deletes six words.
     @countPrefixFactor = options.initialCountPrefix || 1
@@ -292,7 +291,7 @@ class Movement extends SuppressPrintable
 
     if @options.immediateMovement
       # This instance has been created to execute a single, given movement.
-      @runMovementKeyChar @options.immediateMovement, @getCountPrefix()
+      @runMovementKeyChar @options.immediateMovement, 1
       return
 
     # This is the main keyboard-event handler for movements and commands for all user modes (visual,
@@ -330,11 +329,6 @@ class Movement extends SuppressPrintable
           @findMode.onExit => @changeMode VisualMode
     #
     # End of Movement constructor.
-
-  getCountPrefix: ->
-    count = @countPrefixFactor * (if 0 < @countPrefix.length then parseInt @countPrefix else 1)
-    @countPrefix = ""; @countPrefixFactor = 1
-    count
 
   getCommandKeys: ->
     KeyboardUtils.splitByKeys key for own key of @commands
