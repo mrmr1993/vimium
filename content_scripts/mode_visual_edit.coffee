@@ -302,23 +302,8 @@ class Movement extends SuppressPrintable
       keypress: (event) =>
         unless event.metaKey or event.ctrlKey or event.altKey
           keyChar = String.fromCharCode event.charCode
-          @keyQueue.push keyChar
-          # Keep at most two keyChars in the queue.
-          @keyQueue = @keyQueue.slice Math.max 0, @keyQueue.length - 2
-          for command in ([ @keyQueue, @keyQueue[1..] ].map (queue) -> queue.join(""))
-            if command and (@movements[command] or @commands[command])
-              # We need to treat "0" specially.  It can be either a movement, or a continutation of a count
-              # prefix.  Don't treat it as a movement if we already have an initial count prefix.
-              return @continueBubbling if command == "0" and 0 < @countPrefix.length
-
-              @matchedKeyHandler command, @getCountPrefix()
-              return @suppressEvent
-
-          @countPrefix =
-            if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
-              @countPrefix + keyChar
-            else
-              ""
+          if MappingMode::pushKeyToKeyQueue.call this, keyChar
+            return @suppressEvent
 
         @continueBubbling
 
