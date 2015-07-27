@@ -12,6 +12,9 @@ global.document =
   createElement: -> {}
   addEventListener: ->
 
+global.navigator =
+  userAgent: ""
+
 exports.chrome =
   runtime:
     getManifest: () ->

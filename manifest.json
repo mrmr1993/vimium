@@ -9,6 +9,7 @@
   "background": {
     "scripts": [
       "lib/utils.js",
+      "lib/keyboard_utils.js",
       "lib/settings.js",
       "background_scripts/commands.js",
       "lib/clipboard.js",

@@ -66,6 +66,22 @@ KeyboardUtils =
         @getKeyChar event
     keyChar.length == 1
 
+  splitByKeys: (key) ->
+    returnArray = []
+    while key
+      if (key.search(namedKeyRegex) == 0)
+        returnArray.push RegExp.$1
+        key = RegExp.$2
+      else
+        returnArray.push key[0]
+        key = key[1..]
+    returnArray
+
+# Keys are either literal characters, or "named" - for example <a-b> (alt+b), <left> (left arrow) or <f12>
+# This regular expression captures two groups: the first is a named key, the second is the remainder of
+# the string.
+namedKeyRegex = /^(<(?:[amc]-.|(?:[amc]-)?[a-z0-9]{2,5})>)(.*)$/
+
 KeyboardUtils.init()
 
 root = exports ? window

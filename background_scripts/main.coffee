@@ -26,11 +26,6 @@ focusedFrame = null
 frameIdsForTab = {}
 root.urlForTab = {}
 
-# Keys are either literal characters, or "named" - for example <a-b> (alt+b), <left> (left arrow) or <f12>
-# This regular expression captures two groups: the first is a named key, the second is the remainder of
-# the string.
-namedKeyRegex = /^(<(?:[amc]-.|(?:[amc]-)?[a-z0-9]{2,5})>)(.*)$/
-
 # Event handlers
 selectionChangedHandlers = []
 # Note. tabLoadedHandlers handlers is exported for use also by "marks.coffee".
@@ -452,19 +447,8 @@ updatePositionsAndWindowsForAllTabsInWindow = (windowId) ->
         openTabInfo.positionIndex = tab.index
         openTabInfo.windowId = tab.windowId)
 
-splitByKeys = (key) ->
-  returnArray = []
-  while key
-    if (key.search(namedKeyRegex) == 0)
-      returnArray.push RegExp.$1
-      key = RegExp.$2
-    else
-      returnArray.push key[0]
-      key = key[1..]
-  returnArray
-
 populateCommandKeys = ->
-  commandKeys = (splitByKeys key for key of Commands.keyToCommandRegistry)
+  commandKeys = (KeyboardUtils.splitByKeys key for key of Commands.keyToCommandRegistry)
 
 # Invoked by options.coffee.
 root.refreshCompletionKeysAfterMappingSave = ->
