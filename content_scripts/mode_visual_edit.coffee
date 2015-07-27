@@ -43,24 +43,7 @@ class SuppressPrintable extends Mode
 # This monitors keypresses and maintains the count prefix.
 class CountPrefix extends SuppressPrintable
   constructor: (options) ->
-    @countPrefix = ""
-    # This is an initial multiplier for the first count.  It allows edit mode to implement both "d3w" and
-    # "3dw". Also, "3d2w" deletes six words.
-    @countPrefixFactor = options.initialCountPrefix || 1
     super options
-
-    @push
-      _name: "#{@id}/count-prefix"
-      keypress: (event) =>
-        @alwaysContinueBubbling =>
-          unless event.metaKey or event.ctrlKey or event.altKey
-            keyChar = String.fromCharCode event.charCode
-            @countPrefix =
-              if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
-                @countPrefix + keyChar
-              else
-                ""
-
   getCountPrefix: ->
     count = @countPrefixFactor * (if 0 < @countPrefix.length then parseInt @countPrefix else 1)
     @countPrefix = ""; @countPrefixFactor = 1
@@ -306,7 +289,24 @@ class Movement extends CountPrefix
     @movements = extend {}, @movements
     @commands = {}
     @keyQueue = ""
+    @countPrefix = ""
+    # This is an initial multiplier for the first count.  It allows edit mode to implement both "d3w" and
+    # "3dw". Also, "3d2w" deletes six words.
+    @countPrefixFactor = options.initialCountPrefix || 1
     super options
+
+    @push
+      _name: "#{@id}/count-prefix"
+      keypress: (event) =>
+        @alwaysContinueBubbling =>
+          unless event.metaKey or event.ctrlKey or event.altKey
+            keyChar = String.fromCharCode event.charCode
+            @countPrefix =
+              if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
+                @countPrefix + keyChar
+              else
+                ""
+
 
     # Aliases.
     @movements.B = @movements.b
