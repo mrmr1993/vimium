@@ -44,10 +44,6 @@ class SuppressPrintable extends Mode
 class CountPrefix extends SuppressPrintable
   constructor: (options) ->
     super options
-  getCountPrefix: ->
-    count = @countPrefixFactor * (if 0 < @countPrefix.length then parseInt @countPrefix else 1)
-    @countPrefix = ""; @countPrefixFactor = 1
-    count
 
 # Symbolic names for some common strings.
 forward = "forward"
@@ -369,6 +365,11 @@ class Movement extends CountPrefix
           @findMode.onExit => @changeMode VisualMode
     #
     # End of Movement constructor.
+
+  getCountPrefix: ->
+    count = @countPrefixFactor * (if 0 < @countPrefix.length then parseInt @countPrefix else 1)
+    @countPrefix = ""; @countPrefixFactor = 1
+    count
 
   # Yank the selection; always exits; either deletes the selection or collapses it; set @yankedText and return
   # it.
