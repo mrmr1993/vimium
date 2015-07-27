@@ -351,6 +351,9 @@ class Movement extends SuppressPrintable
     @countPrefix = ""; @countPrefixFactor = 1
     count
 
+  getCommandKeys: ->
+    KeyboardUtils.splitByKeys key for own key of @commands
+
   matchedKeyHandler: (command, count) =>
     @selection = window.getSelection()
     @keyQueue = ""
