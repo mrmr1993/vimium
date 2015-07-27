@@ -10,8 +10,8 @@
 # Movement is a shared vim-like movement base class.
 #
 # The class inheritance hierarchy is:
-# - Mode, SuppressPrintable, CountPrefix, Movement, [ VisualMode | CaretMode | EditMode ]
-# - Mode, SuppressPrintable, CountPrefix, Movement, VisualMode, VisualLineMode
+# - Mode, SuppressPrintable, Movement, [ VisualMode | CaretMode | EditMode ]
+# - Mode, SuppressPrintable, Movement, VisualMode, VisualLineMode
 #
 # The possible mode states are:
 # - ..., VisualMode
@@ -40,11 +40,6 @@ class SuppressPrintable extends Mode
 
     super extend options, keydown: handler, keypress: handler, keyup: handler
 
-# This monitors keypresses and maintains the count prefix.
-class CountPrefix extends SuppressPrintable
-  constructor: (options) ->
-    super options
-
 # Symbolic names for some common strings.
 forward = "forward"
 backward = "backward"
@@ -57,7 +52,7 @@ vimword = "vimword"
 lineboundary= "lineboundary"
 
 # This implements vim-like movements, and includes quite a number of gereral utility methods.
-class Movement extends CountPrefix
+class Movement extends SuppressPrintable
   opposite: forward: backward, backward: forward
 
   # Paste from clipboard.
