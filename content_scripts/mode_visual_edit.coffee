@@ -314,14 +314,16 @@ class Movement extends SuppressPrintable
               # prefix.  Don't treat it as a movement if we already have an initial count prefix.
               return @continueBubbling if command == "0" and 0 < @countPrefix.length
 
-              if @commands[command]
-                @commands[command].call @, @getCountPrefix()
-                @scrollIntoView()
-                return @suppressEvent
+              count = @getCountPrefix()
 
-              else if @movements[command]
-                @runMovementKeyChar command, @getCountPrefix()
-                return @suppressEvent
+              if @movements[command]
+                @runMovementKeyChar command, count
+
+              else
+                @commands[command].call @, count
+                @scrollIntoView()
+
+              return @suppressEvent
 
           @countPrefix =
             if keyChar.length == 1 and "0" <= keyChar <= "9" and @countPrefix + keyChar != "0"
