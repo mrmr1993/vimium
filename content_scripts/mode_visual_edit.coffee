@@ -279,7 +279,7 @@ class Movement extends SuppressPrintable
     @selection = window.getSelection()
     @movements = extend {}, @movements
     @commands = extend {}, @movements
-    @keyQueue = ""
+    @keyQueue = []
     @countPrefix = ""
     # This is an initial multiplier for the first count.  It allows edit mode to implement both "d3w" and
     # "3dw". Also, "3d2w" deletes six words.
@@ -302,10 +302,10 @@ class Movement extends SuppressPrintable
       keypress: (event) =>
         unless event.metaKey or event.ctrlKey or event.altKey
           keyChar = String.fromCharCode event.charCode
-          @keyQueue += keyChar
+          @keyQueue.push keyChar
           # Keep at most two keyChars in the queue.
           @keyQueue = @keyQueue.slice Math.max 0, @keyQueue.length - 2
-          for command in [ @keyQueue, @keyQueue[1..] ]
+          for command in ([ @keyQueue, @keyQueue[1..] ].map (queue) -> queue.join(""))
             if command and (@movements[command] or @commands[command])
               # We need to treat "0" specially.  It can be either a movement, or a continutation of a count
               # prefix.  Don't treat it as a movement if we already have an initial count prefix.
@@ -356,7 +356,7 @@ class Movement extends SuppressPrintable
 
   matchedKeyHandler: (command, count) =>
     @selection = window.getSelection()
-    @keyQueue = ""
+    @keyQueue = []
 
     if @movements[command]
       @runMovementKeyChar command, count
