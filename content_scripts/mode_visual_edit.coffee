@@ -314,15 +314,7 @@ class Movement extends SuppressPrintable
               # prefix.  Don't treat it as a movement if we already have an initial count prefix.
               return @continueBubbling if command == "0" and 0 < @countPrefix.length
 
-              count = @getCountPrefix()
-
-              if @movements[command]
-                @runMovementKeyChar command, count
-
-              else
-                @commands[command].call @, count
-                @scrollIntoView()
-
+              @matchedKeyHandler command, @getCountPrefix()
               return @suppressEvent
 
           @countPrefix =
@@ -361,6 +353,14 @@ class Movement extends SuppressPrintable
     count = @countPrefixFactor * (if 0 < @countPrefix.length then parseInt @countPrefix else 1)
     @countPrefix = ""; @countPrefixFactor = 1
     count
+
+  matchedKeyHandler: (command, count) =>
+    if @movements[command]
+      @runMovementKeyChar command, count
+
+    else
+      @commands[command].call @, count
+      @scrollIntoView()
 
   # Yank the selection; always exits; either deletes the selection or collapses it; set @yankedText and return
   # it.
