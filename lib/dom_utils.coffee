@@ -253,6 +253,17 @@ DomUtils =
     event.preventDefault()
     @suppressPropagation(event)
 
+  getAccesskeyElements: (keyChar) ->
+    accessKey = keyChar.match /<a-(.+)>/
+    return [] unless accessKey
+    accessKey = accessKey[1].replace "'", "\\'"
+    accessKeyElements = document.querySelectorAll "*[accesskey='#{accessKey}']"
+    Array::slice.call accessKeyElements, 0
+
+  disableAccessKeys: (element) ->
+    element.oldAccessKeys = element.accessKey
+    element.accessKey = ""
+
   # Suppress the next keyup event for Escape.
   suppressKeyupAfterEscape: (handlerStack) ->
     handlerStack.push

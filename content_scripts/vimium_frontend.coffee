@@ -539,6 +539,8 @@ onKeydown = (event) ->
   if (isShowingHelpDialog && KeyboardUtils.isEscape(event))
     hideHelpDialog()
     DomUtils.suppressEvent event
+    @accessKeyElements = DomUtils.getAccesskeyElements keyChar
+    @accessKeyElements.map DomUtils.disableAccessKeys
     KeydownEvents.push event
     return @stopBubblingAndTrue
 
@@ -546,6 +548,8 @@ onKeydown = (event) ->
     if (keyChar)
       if (currentCompletionKeys.indexOf(keyChar) != -1 or isValidFirstKey(keyChar))
         DomUtils.suppressEvent event
+        @accessKeyElements = DomUtils.getAccesskeyElements keyChar
+        @accessKeyElements.map DomUtils.disableAccessKeys
         KeydownEvents.push event
         keyPort.postMessage({ keyChar:keyChar, frameId:frameId })
         return @stopBubblingAndTrue
@@ -566,6 +570,8 @@ onKeydown = (event) ->
      (currentCompletionKeys.indexOf(KeyboardUtils.getKeyChar(event)) != -1 ||
       isValidFirstKey(KeyboardUtils.getKeyChar(event)))
     DomUtils.suppressPropagation(event)
+    @accessKeyElements = DomUtils.getAccesskeyElements keyChar
+    @accessKeyElements.map DomUtils.disableAccessKeys
     KeydownEvents.push event
     return @stopBubblingAndTrue
 
@@ -575,6 +581,7 @@ onKeydown = (event) ->
 onKeyup = (event) ->
   return @continueBubbling unless KeydownEvents.pop event
   DomUtils.suppressEvent event
+  @accessKeyElements.map (element) -> element.accessKey = element.oldAccessKeys
   @stopBubblingAndTrue
 
 # Checks if Vimium should be enabled or not in this frame.  As a side effect, it also informs the background
