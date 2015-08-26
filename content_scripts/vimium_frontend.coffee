@@ -574,7 +574,7 @@ onKeydown = (event) ->
 # @/this, here, is the the normal-mode Mode object.
 onKeyup = (event) ->
   return @continueBubbling unless KeydownEvents.pop event
-  DomUtils.suppressPropagation(event)
+  DomUtils.suppressEvent event
   @stopBubblingAndTrue
 
 # Checks if Vimium should be enabled or not in this frame.  As a side effect, it also informs the background
