@@ -167,7 +167,7 @@ class SelectionManipulator
       original = @selection.getRangeAt(0).cloneRange()
       range = original.cloneRange()
       range.collapse direction == backward
-      @setSelectionRange range
+      @selectionManipulator.setSelectionRange.call this, range
       which = if direction == forward then "start" else "end"
       @selection.extend original["#{which}Container"], original["#{which}Offset"]
 
@@ -219,7 +219,6 @@ class Movement extends CountPrefix
   getDirection: -> @selectionManipulator.getDirection.apply this, arguments
   collapseSelectionToAnchor: -> @selectionManipulator.collapseSelectionToAnchor.apply this, arguments
   collapseSelectionToFocus: -> @selectionManipulator.collapseSelectionToFocus.apply this, arguments
-  setSelectionRange: -> @selectionManipulator.setSelectionRange.apply this, arguments
 
   # Replace the current mode with another. For example, replace caret mode with visual mode, or replace visual
   # mode with visual-line mode.
@@ -374,7 +373,7 @@ class Movement extends CountPrefix
           initialRange = @selection.getRangeAt(0).cloneRange()
           for [0...count] by 1
             unless FindMode.execute null, {colorSelection: false, backwards}
-              @setSelectionRange initialRange
+              @selectionManipulator.setSelectionRange.call this, initialRange
               HUD.showForDuration("No matches for '#{FindMode.query.rawQuery}'", 1000)
               return
           # The find was successfull. If we're in caret mode, then we should now have a selection, so we can
@@ -665,7 +664,7 @@ class CaretMode extends Movement
           range = document.createRange()
           range.setStart node, offset
           range.setEnd node, offset
-          @setSelectionRange range
+          @selectionManipulator.setSelectionRange.call this, range
           return true
     false
 
