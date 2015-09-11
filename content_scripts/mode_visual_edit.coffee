@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  getNextBackwardCharacter: -> @selectionManipulator.getNextBackwardCharacter.apply this, arguments
   nextCharacterIsWordCharacter: -> @selectionManipulator.nextCharacterIsWordCharacter.apply this, arguments
   hashSelection: -> @selectionManipulator.hashSelection.apply this, arguments
   selectionChanged: -> @selectionManipulator.selectionChanged.apply this, arguments
@@ -447,10 +446,10 @@ class Movement extends CountPrefix
         # (like mid-paragraph, for example).  Here, we define a paragraph as a new-line delimited entity,
         # including the terminating newline.
         # Note(smblott).  This does not currently use the count.
-        char = @getNextBackwardCharacter()
+        char = @selectionManipulator.getNextBackwardCharacter.call this
         while char? and char != "\n"
           return unless @runMovements [ backward, character ], [ backward, lineboundary ]
-          char = @getNextBackwardCharacter()
+          char = @selectionManipulator.getNextBackwardCharacter.call this
         @collapseSelectionToFocus()
         char = @selectionManipulator.getNextForwardCharacter.call this
         while char? and char != "\n"
