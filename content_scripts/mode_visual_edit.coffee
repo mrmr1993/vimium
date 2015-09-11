@@ -149,7 +149,7 @@ class SelectionManipulator
 
   # Call a function; return true if the selection changed, false otherwise.
   selectionChanged: (func) ->
-    before = @hashSelection(); func(); @hashSelection() != before
+    before = @selectionManipulator.hashSelection.call this; func(); @selectionManipulator.hashSelection.call(this) != before
 
   # Swap the anchor node/offset and the focus node/offset.  This allows us to work with both ends of the
   # selection, and implements "o" for visual mode.
@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  hashSelection: -> @selectionManipulator.hashSelection.apply this, arguments
   selectionChanged: -> @selectionManipulator.selectionChanged.apply this, arguments
   reverseSelection: -> @selectionManipulator.reverseSelection.apply this, arguments
   extendByOneCharacter: -> @selectionManipulator.extendByOneCharacter.apply this, arguments
