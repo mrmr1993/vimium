@@ -110,7 +110,7 @@ class SelectionManipulator
   # undefined if no such character exists.
   getNextForwardCharacter: ->
     beforeText = @selection.toString()
-    if beforeText.length == 0 or @getDirection() == forward
+    if beforeText.length == 0 or @selectionManipulator.getDirection.call(this) == forward
       @selection.modify "extend", forward, character
       afterText = @selection.toString()
       if beforeText != afterText
@@ -122,7 +122,7 @@ class SelectionManipulator
   # As above, but backwards.
   getNextBackwardCharacter: ->
     beforeText = @selection.toString()
-    if beforeText.length == 0 or @getDirection() == backward
+    if beforeText.length == 0 or @selectionManipulator.getDirection.call(this) == backward
       @selection.modify "extend", backward, character
       afterText = @selection.toString()
       if beforeText != afterText
@@ -154,7 +154,7 @@ class SelectionManipulator
   # Swap the anchor node/offset and the focus node/offset.  This allows us to work with both ends of the
   # selection, and implements "o" for visual mode.
   reverseSelection: ->
-    direction = @getDirection()
+    direction = @selectionManipulator.getDirection.call(this)
     element = document.activeElement
     if element and DomUtils.isEditable(element) and not element.isContentEditable
       # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
@@ -192,11 +192,11 @@ class SelectionManipulator
 
   collapseSelectionToAnchor: ->
     if 0 < @selection.toString().length
-      @selection[if @getDirection() == backward then "collapseToEnd" else "collapseToStart"]()
+      @selection[if @selectionManipulator.getDirection.call(this) == backward then "collapseToEnd" else "collapseToStart"]()
 
   collapseSelectionToFocus: ->
     if 0 < @selection.toString().length
-      @selection[if @getDirection() == forward then "collapseToEnd" else "collapseToStart"]()
+      @selection[if @selectionManipulator.getDirection.call(this) == forward then "collapseToEnd" else "collapseToStart"]()
 
   setSelectionRange: (range) ->
     @selection.removeAllRanges()
@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  getDirection: -> @selectionManipulator.getDirection.apply this, arguments
   collapseSelectionToAnchor: -> @selectionManipulator.collapseSelectionToAnchor.apply this, arguments
   collapseSelectionToFocus: -> @selectionManipulator.collapseSelectionToFocus.apply this, arguments
 
@@ -459,19 +458,19 @@ class Movement extends CountPrefix
         if @element.clientHeight < @element.scrollHeight
           if @element.isContentEditable
             # WIP (edit mode only)...
-            elementWithFocus = DomUtils.getElementWithFocus @selection, @getDirection() == backward
+            elementWithFocus = DomUtils.getElementWithFocus @selection, @selectionManipulator.getDirection.call(this) == backward
             # position = @element.getClientRects()[0].top - elementWithFocus.getClientRects()[0].top
             # console.log "top", position
             # Scroller.scrollToPosition @element, position, 0
             position = elementWithFocus.getClientRects()[0].bottom - @element.getClientRects()[0].top - @element.clientHeight + @element.scrollTop
             Scroller.scrollToPosition @element, position, 0
           else
-            position = if @getDirection() == backward then @element.selectionStart else @element.selectionEnd
+            position = if @selectionManipulator.getDirection.call(this) == backward then @element.selectionStart else @element.selectionEnd
             coords = DomUtils.getCaretCoordinates @element, position
             Scroller.scrollToPosition @element, coords.top, coords.left
       else
         unless @selection.type == "None"
-          elementWithFocus = DomUtils.getElementWithFocus @selection, @getDirection() == backward
+          elementWithFocus = DomUtils.getElementWithFocus @selection, @selectionManipulator.getDirection.call(this) == backward
           Scroller.scrollIntoView elementWithFocus if elementWithFocus
 
 class VisualMode extends Movement
@@ -492,7 +491,7 @@ class VisualMode extends Movement
         @selectionManipulator.extendByOneCharacter.call(this, forward) or @selectionManipulator.extendByOneCharacter.call this, backward
       else
         if @selection.type in [ "Caret", "Range" ]
-          elementWithFocus = DomUtils.getElementWithFocus @selection, @getDirection() == backward
+          elementWithFocus = DomUtils.getElementWithFocus @selection, @selectionManipulator.getDirection.call(this) == backward
           if DomUtils.getVisibleClientRect elementWithFocus
             if @selection.type == "Caret"
               # The caret is in the viewport. Make make it visible.
@@ -571,7 +570,7 @@ class VisualMode extends Movement
     @yank() if @options.oneMovementOnly or @options.immediateMovement
 
   selectLine: (count) ->
-    @selectionManipulator.reverseSelection.call this if @getDirection() == forward
+    @selectionManipulator.reverseSelection.call this if @selectionManipulator.getDirection.call(this) == forward
     @runMovement backward, lineboundary
     @selectionManipulator.reverseSelection.call this
     @runMovement forward, line for [1...count]
@@ -590,7 +589,7 @@ class VisualLineMode extends VisualMode
     @extendSelection()
 
   extendSelection: ->
-    initialDirection = @getDirection()
+    initialDirection = @selectionManipulator.getDirection.call(this)
     for direction in [ initialDirection, @opposite[initialDirection] ]
       @runMovement direction, lineboundary
       @selectionManipulator.reverseSelection.call this
