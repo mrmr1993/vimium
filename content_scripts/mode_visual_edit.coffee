@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  protectClipboard: -> @selectionManipulator.protectClipboard.apply this, arguments
   getNextForwardCharacter: -> @selectionManipulator.getNextForwardCharacter.apply this, arguments
   getNextBackwardCharacter: -> @selectionManipulator.getNextBackwardCharacter.apply this, arguments
   nextCharacterIsWordCharacter: -> @selectionManipulator.nextCharacterIsWordCharacter.apply this, arguments
@@ -293,7 +292,7 @@ class Movement extends CountPrefix
 
   # This handles a movement, but protects to selection while doing so.
   runMovementKeyChar: (args...) ->
-    @protectClipboard => @handleMovementKeyChar args...
+    @selectionManipulator.protectClipboard.call this, => @handleMovementKeyChar args...
 
   # Handle a single movement keyChar.  This is extended (wrapped) by super-classes.
   handleMovementKeyChar: (keyChar, count = 1) ->
@@ -462,7 +461,7 @@ class Movement extends CountPrefix
 
   # Scroll the focus into view.
   scrollIntoView: ->
-    @protectClipboard =>
+    @selectionManipulator.protectClipboard.call this, =>
       if @element and DomUtils.isEditable @element
         if @element.clientHeight < @element.scrollHeight
           if @element.isContentEditable
