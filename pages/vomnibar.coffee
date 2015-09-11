@@ -30,6 +30,7 @@ Vomnibar =
     @vomnibarUI.setForceNewTab options.newTab
     @vomnibarUI.setQuery options.query
     @vomnibarUI.setKeyword options.keyword
+    @vomnibarUI.setFrameOrigin options.frameOrigin
     @vomnibarUI.update true
 
   hide: -> @vomnibarUI?.hide()
@@ -48,6 +49,7 @@ class VomnibarUI
   setForceNewTab: (@forceNewTab) ->
   setCompleter: (@completer) -> @reset()
   setKeywords: (@keywords) ->
+  setFrameOrigin: (@frameOrigin) ->
 
   # The sequence of events when the vomnibar is hidden is as follows:
   # 1. Post a "hide" message to the host page.
@@ -146,7 +148,7 @@ class VomnibarUI
     else if (action == "enter")
       isCustomSearchPrimarySuggestion = @completions[@selection]?.isPrimarySuggestion and @lastReponse.engine?.searchUrl?
       if @selection == -1 or isCustomSearchPrimarySuggestion
-        query = @input.value.trim()
+        query = @getInputValueAsQuery().trim()
         # <Enter> on an empty query is a no-op.
         return unless 0 < query.length
         # First case (@selection == -1).
@@ -190,7 +192,12 @@ class VomnibarUI
   # Return the background-page query corresponding to the current input state.  In other words, reinstate any
   # search engine keyword which is currently being suppressed, and strip any prompted text.
   getInputValueAsQuery: ->
-    (if @customSearchMode? then @customSearchMode + " " else "") + @input.value
+    if @customSearchMode?
+      @customSearchMode + " " + @input.value
+    else if @frameOrigin? and @input.value[0] == "\/"
+      @frameOrigin + @input.value
+    else
+      @input.value
 
   updateCompletions: (callback = null) ->
     @completer.filter

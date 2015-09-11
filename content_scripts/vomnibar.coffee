@@ -28,11 +28,11 @@ Vomnibar =
 
   activate: (sourceFrameId, registryEntry) ->
     @parseRegistryEntry registryEntry, (options) =>
-      @open sourceFrameId, extend options, completer:"omni"
+      @open sourceFrameId, extend options, completer:"omni", frameOrigin: location.origin
 
   activateInNewTab: (sourceFrameId, registryEntry) ->
     @parseRegistryEntry registryEntry, (options) =>
-      @open sourceFrameId, extend options, completer:"omni", newTab: true
+      @open sourceFrameId, extend options, completer:"omni", newTab: true, frameOrigin: location.origin
 
   activateTabSelection: (sourceFrameId) -> @open sourceFrameId, {
     completer: "tabs"
@@ -51,12 +51,14 @@ Vomnibar =
     completer: "omni"
     selectFirst: false
     query: window.location.href
+    frameOrigin: location.origin
   }
   activateEditUrlInNewTab: (sourceFrameId) -> @open sourceFrameId, {
     completer: "omni"
     selectFirst: false
     query: window.location.href
     newTab: true
+    frameOrigin: location.origin
   }
 
   init: ->
