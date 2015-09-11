@@ -151,26 +151,6 @@ class SelectionManipulator
   selectionChanged: (func) ->
     before = @selectionManipulator.hashSelection.call this; func(); @selectionManipulator.hashSelection.call(this) != before
 
-  # Swap the anchor node/offset and the focus node/offset.  This allows us to work with both ends of the
-  # selection, and implements "o" for visual mode.
-  reverseSelection: ->
-    direction = @selectionManipulator.getDirection.call(this)
-    element = document.activeElement
-    if element and DomUtils.isEditable(element) and not element.isContentEditable
-      # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
-      # it here because the normal method (below) does not work for simple text inputs.
-      length = @selectionManipulator.selection.toString().length
-      @selectionManipulator.collapseSelectionToFocus.call this
-      @runMovement @selectionManipulator.opposite[direction], character for [0...length]
-    else
-      # Normal method (efficient).
-      original = @selectionManipulator.selection.getRangeAt(0).cloneRange()
-      range = original.cloneRange()
-      range.collapse direction == backward
-      @selectionManipulator.setSelectionRange.call this, range
-      which = if direction == forward then "start" else "end"
-      @selectionManipulator.selection.extend original["#{which}Container"], original["#{which}Offset"]
-
   # Try to extend the selection one character in direction.  Return positive, negative or 0, indicating
   # whether the selection got bigger, or smaller, or is unchanged.
   extendByOneCharacter: (direction) ->
@@ -256,6 +236,26 @@ class Movement extends CountPrefix
     for movement in movements
       return false unless @selectionManipulator.selectionChanged.call this, => @runMovement movement
     true
+
+  # Swap the anchor node/offset and the focus node/offset.  This allows us to work with both ends of the
+  # selection, and implements "o" for visual mode.
+  reverseSelection: ->
+    direction = @selectionManipulator.getDirection.call(this)
+    element = document.activeElement
+    if element and DomUtils.isEditable(element) and not element.isContentEditable
+      # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
+      # it here because the normal method (below) does not work for simple text inputs.
+      length = @selectionManipulator.selection.toString().length
+      @selectionManipulator.collapseSelectionToFocus.call this
+      @runMovement @selectionManipulator.opposite[direction], character for [0...length]
+    else
+      # Normal method (efficient).
+      original = @selectionManipulator.selection.getRangeAt(0).cloneRange()
+      range = original.cloneRange()
+      range.collapse direction == backward
+      @selectionManipulator.setSelectionRange.call this, range
+      which = if direction == forward then "start" else "end"
+      @selectionManipulator.selection.extend original["#{which}Container"], original["#{which}Offset"]
 
   # A movement can be either a string (which will be passed to @runMovement count times), or a function (which
   # will be called once with count as its argument).
@@ -524,7 +524,7 @@ class VisualMode extends Movement
       @commands.P = -> chrome.runtime.sendMessage handler: "openUrlInNewTab", url: @yank()
       @commands.V = -> @changeMode VisualLineMode
       @commands.c = -> @selectionManipulator.collapseSelectionToFocus.call this; @changeMode CaretMode
-      @commands.o = -> @selectionManipulator.reverseSelection.call this
+      @commands.o = -> @reverseSelection()
 
       # Additional commands when run under edit mode.
       if @options.parentMode
@@ -566,9 +566,9 @@ class VisualMode extends Movement
     @yank() if @options.oneMovementOnly or @options.immediateMovement
 
   selectLine: (count) ->
-    @selectionManipulator.reverseSelection.call this if @selectionManipulator.getDirection.call(this) == forward
+    @reverseSelection() if @selectionManipulator.getDirection.call(this) == forward
     @runMovement backward, lineboundary
-    @selectionManipulator.reverseSelection.call this
+    @reverseSelection()
     @runMovement forward, line for [1...count]
     @runMovement forward, lineboundary
     # Include the next character if it is a newline.
@@ -588,7 +588,7 @@ class VisualLineMode extends VisualMode
     initialDirection = @selectionManipulator.getDirection.call(this)
     for direction in [ initialDirection, @selectionManipulator.opposite[initialDirection] ]
       @runMovement direction, lineboundary
-      @selectionManipulator.reverseSelection.call this
+      @reverseSelection()
 
 class CaretMode extends Movement
   constructor: (options = {}) ->
