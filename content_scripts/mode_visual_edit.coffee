@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  selectionChanged: -> @selectionManipulator.selectionChanged.apply this, arguments
   reverseSelection: -> @selectionManipulator.reverseSelection.apply this, arguments
   extendByOneCharacter: -> @selectionManipulator.extendByOneCharacter.apply this, arguments
   getDirection: -> @selectionManipulator.getDirection.apply this, arguments
@@ -263,7 +262,7 @@ class Movement extends CountPrefix
   # Run a sequence of movements, stopping if a movement fails to change the selection.
   runMovements: (movements...) ->
     for movement in movements
-      return false unless @selectionChanged => @runMovement movement
+      return false unless @selectionManipulator.selectionChanged.call this, => @runMovement movement
     true
 
   # A movement can be either a string (which will be passed to @runMovement count times), or a function (which
