@@ -160,7 +160,7 @@ class SelectionManipulator
       # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
       # it here because the normal method (below) does not work for simple text inputs.
       length = @selection.toString().length
-      @collapseSelectionToFocus()
+      @selectionManipulator.collapseSelectionToFocus.call this
       @runMovement @opposite[direction], character for [0...length]
     else
       # Normal method (efficient).
@@ -205,9 +205,6 @@ class SelectionManipulator
 # This implements vim-like movements, and includes quite a number of gereral utility methods.
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
-
-  collapseSelectionToAnchor: -> @selectionManipulator.collapseSelectionToAnchor.apply this, arguments
-  collapseSelectionToFocus: -> @selectionManipulator.collapseSelectionToFocus.apply this, arguments
 
   # Replace the current mode with another. For example, replace caret mode with visual mode, or replace visual
   # mode with visual-line mode.
@@ -410,7 +407,7 @@ class Movement extends CountPrefix
       #     keydown: (event) =>
       #       handlerStack.remove()
       #       if @selection.type == "Range" and event.type == "keydown" and KeyboardUtils.isEscape event
-      #         @collapseSelectionToFocus()
+      #         @selectionManipulator.collapseSelectionToFocus.call this
       #         DomUtils.suppressKeyupAfterEscape handlerStack
       #         @suppressEvent
       #       else
@@ -427,12 +424,12 @@ class Movement extends CountPrefix
       when word
         if @selectionManipulator.nextCharacterIsWordCharacter.call this
           @runMovements [ forward, character ], [ backward, word ]
-          @collapseSelectionToFocus()
+          @selectionManipulator.collapseSelectionToFocus.call this
         @runMovements ([0...count].map -> [ forward, vimword ])...
 
       when sentence
         @runMovements [ forward, character ], [ backward, sentence ]
-        @collapseSelectionToFocus()
+        @selectionManipulator.collapseSelectionToFocus.call this
         @runMovements ([0...count].map -> [ forward, sentence ])...
 
       when paragraph
@@ -444,7 +441,7 @@ class Movement extends CountPrefix
         while char? and char != "\n"
           return unless @runMovements [ backward, character ], [ backward, lineboundary ]
           char = @selectionManipulator.getNextBackwardCharacter.call this
-        @collapseSelectionToFocus()
+        @selectionManipulator.collapseSelectionToFocus.call this
         char = @selectionManipulator.getNextForwardCharacter.call this
         while char? and char != "\n"
           return unless @runMovements [ forward, character ], [ forward, lineboundary ]
@@ -527,7 +524,7 @@ class VisualMode extends Movement
       @commands.p = -> chrome.runtime.sendMessage handler: "openUrlInCurrentTab", url: @yank()
       @commands.P = -> chrome.runtime.sendMessage handler: "openUrlInNewTab", url: @yank()
       @commands.V = -> @changeMode VisualLineMode
-      @commands.c = -> @collapseSelectionToFocus(); @changeMode CaretMode
+      @commands.c = -> @selectionManipulator.collapseSelectionToFocus.call this; @changeMode CaretMode
       @commands.o = -> @selectionManipulator.reverseSelection.call this
 
       # Additional commands when run under edit mode.
@@ -614,7 +611,7 @@ class CaretMode extends Movement
           HUD.showForDuration "Create a selection before entering visual mode.", 2500
           return
       when "Range"
-        @collapseSelectionToAnchor()
+        @selectionManipulator.collapseSelectionToAnchor.call this
 
     @selection.modify "extend", forward, character
     @scrollIntoView()
@@ -632,7 +629,7 @@ class CaretMode extends Movement
       V: -> @changeMode VisualLineMode
 
   handleMovementKeyChar: (args...) ->
-    @collapseSelectionToAnchor()
+    @selectionManipulator.collapseSelectionToAnchor.call this
     super args...
     @selection.modify "extend", forward, character
 
