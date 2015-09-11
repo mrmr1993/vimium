@@ -103,7 +103,7 @@ class SelectionManipulator
       if locked then func()
       else
         locked = true
-        @paste (text) =>
+        @selectionManipulator.paste.call this, (text) =>
           func(); @copy text; locked = false
 
   # Return the character following (to the right of) the focus, and leave the selection unchanged.  Returns
@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  paste: -> @selectionManipulator.paste.apply this, arguments
   copy: -> @selectionManipulator.copy.apply this, arguments
   protectClipboard: -> @selectionManipulator.protectClipboard.apply this, arguments
   getNextForwardCharacter: -> @selectionManipulator.getNextForwardCharacter.apply this, arguments
@@ -749,7 +748,7 @@ class EditMode extends Movement
 
   # For "p" and "P".
   pasteClipboard: (direction) ->
-    @paste (text) =>
+    @selectionManipulator.paste.call this, (text) =>
       if text
         # We use the following heuristic: if the text ends with a newline character, then it's a line-oriented
         # paste, and should be pasted in at a line break.
