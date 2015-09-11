@@ -109,24 +109,24 @@ class SelectionManipulator
   # Return the character following (to the right of) the focus, and leave the selection unchanged.  Returns
   # undefined if no such character exists.
   getNextForwardCharacter: ->
-    beforeText = @selection.toString()
+    beforeText = @selectionManipulator.selection.toString()
     if beforeText.length == 0 or @selectionManipulator.getDirection.call(this) == forward
-      @selection.modify "extend", forward, character
-      afterText = @selection.toString()
+      @selectionManipulator.selection.modify "extend", forward, character
+      afterText = @selectionManipulator.selection.toString()
       if beforeText != afterText
-        @selection.modify "extend", backward, character
+        @selectionManipulator.selection.modify "extend", backward, character
         afterText[afterText.length - 1]
     else
       beforeText[0] # Existing range selection is backwards.
 
   # As above, but backwards.
   getNextBackwardCharacter: ->
-    beforeText = @selection.toString()
+    beforeText = @selectionManipulator.selection.toString()
     if beforeText.length == 0 or @selectionManipulator.getDirection.call(this) == backward
-      @selection.modify "extend", backward, character
-      afterText = @selection.toString()
+      @selectionManipulator.selection.modify "extend", backward, character
+      afterText = @selectionManipulator.selection.toString()
       if beforeText != afterText
-        @selection.modify "extend", forward, character
+        @selectionManipulator.selection.modify "extend", forward, character
         afterText[0]
     else
       beforeText[beforeText.length - 1] # Existing range selection is forwards.
@@ -143,9 +143,9 @@ class SelectionManipulator
   # Return a simple camparable value which depends on various aspects of the selection.  This is used to
   # detect, after a movement, whether the selection has changed.
   hashSelection: (debug) ->
-    range = @selection.getRangeAt(0)
-    [ @element?.selectionStart, @selection.toString().length, range.anchorOffset, range.focusOffset,
-      @selection.extentOffset, @selection.baseOffset ].join "/"
+    range = @selectionManipulator.selection.getRangeAt(0)
+    [ @element?.selectionStart, @selectionManipulator.selection.toString().length, range.anchorOffset, range.focusOffset,
+      @selectionManipulator.selection.extentOffset, @selectionManipulator.selection.baseOffset ].join "/"
 
   # Call a function; return true if the selection changed, false otherwise.
   selectionChanged: (func) ->
@@ -159,24 +159,24 @@ class SelectionManipulator
     if element and DomUtils.isEditable(element) and not element.isContentEditable
       # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
       # it here because the normal method (below) does not work for simple text inputs.
-      length = @selection.toString().length
+      length = @selectionManipulator.selection.toString().length
       @selectionManipulator.collapseSelectionToFocus.call this
       @runMovement @opposite[direction], character for [0...length]
     else
       # Normal method (efficient).
-      original = @selection.getRangeAt(0).cloneRange()
+      original = @selectionManipulator.selection.getRangeAt(0).cloneRange()
       range = original.cloneRange()
       range.collapse direction == backward
       @selectionManipulator.setSelectionRange.call this, range
       which = if direction == forward then "start" else "end"
-      @selection.extend original["#{which}Container"], original["#{which}Offset"]
+      @selectionManipulator.selection.extend original["#{which}Container"], original["#{which}Offset"]
 
   # Try to extend the selection one character in direction.  Return positive, negative or 0, indicating
   # whether the selection got bigger, or smaller, or is unchanged.
   extendByOneCharacter: (direction) ->
-    length = @selection.toString().length
-    @selection.modify "extend", direction, character
-    @selection.toString().length - length
+    length = @selectionManipulator.selection.toString().length
+    @selectionManipulator.selection.modify "extend", direction, character
+    @selectionManipulator.selection.toString().length - length
 
   # Get the direction of the selection.  The selection is "forward" if the focus is at or after the anchor,
   # and "backward" otherwise.
@@ -191,16 +191,16 @@ class SelectionManipulator
     forward
 
   collapseSelectionToAnchor: ->
-    if 0 < @selection.toString().length
-      @selection[if @selectionManipulator.getDirection.call(this) == backward then "collapseToEnd" else "collapseToStart"]()
+    if 0 < @selectionManipulator.selection.toString().length
+      @selectionManipulator.selection[if @selectionManipulator.getDirection.call(this) == backward then "collapseToEnd" else "collapseToStart"]()
 
   collapseSelectionToFocus: ->
-    if 0 < @selection.toString().length
-      @selection[if @selectionManipulator.getDirection.call(this) == forward then "collapseToEnd" else "collapseToStart"]()
+    if 0 < @selectionManipulator.selection.toString().length
+      @selectionManipulator.selection[if @selectionManipulator.getDirection.call(this) == forward then "collapseToEnd" else "collapseToStart"]()
 
   setSelectionRange: (range) ->
-    @selection.removeAllRanges()
-    @selection.addRange range
+    @selectionManipulator.selection.removeAllRanges()
+    @selectionManipulator.selection.addRange range
 
 # This implements vim-like movements, and includes quite a number of gereral utility methods.
 class Movement extends CountPrefix
@@ -241,7 +241,7 @@ class Movement extends CountPrefix
         return unless @runMovements [ forward, character ]
 
     else if granularity == vimword
-      @selection.modify @alterMethod, backward, word
+      @selectionManipulator.selection.modify @alterMethod, backward, word
 
     # As above, we implement this character-by-character to get consistent behavior on Windows and Linux.
     if granularity == word and direction == forward
@@ -251,7 +251,7 @@ class Movement extends CountPrefix
         return unless @runMovements [ forward, character ]
 
     else
-      @selection.modify @alterMethod, direction, granularity
+      @selectionManipulator.selection.modify @alterMethod, direction, granularity
 
   # Run a sequence of movements, stopping if a movement fails to change the selection.
   runMovements: (movements...) ->
@@ -305,8 +305,8 @@ class Movement extends CountPrefix
   #     If truthy, then do not copy the yanked text to the clipboard when yanking.
   #
   constructor: (options) ->
-    @selection = window.getSelection()
     @selectionManipulator = new SelectionManipulator()
+    @selectionManipulator.selection = window.getSelection()
     @movements = extend {}, @movements
     @commands = {}
     @keyQueue = ""
@@ -332,7 +332,7 @@ class Movement extends CountPrefix
           @keyQueue = @keyQueue.slice Math.max 0, @keyQueue.length - 2
           for command in [ @keyQueue, @keyQueue[1..] ]
             if command and (@movements[command] or @commands[command])
-              @selection = window.getSelection()
+              @selectionManipulator.selection = window.getSelection()
               @keyQueue = ""
 
               # We need to treat "0" specially.  It can be either a movement, or a continutation of a count
@@ -356,7 +356,7 @@ class Movement extends CountPrefix
     unless @options.parentMode or options.oneMovementOnly
       do =>
         doFind = (count, backwards) =>
-          initialRange = @selection.getRangeAt(0).cloneRange()
+          initialRange = @selectionManipulator.selection.getRangeAt(0).cloneRange()
           for [0...count] by 1
             unless FindMode.execute null, {colorSelection: false, backwards}
               @selectionManipulator.setSelectionRange.call this, initialRange
@@ -364,7 +364,7 @@ class Movement extends CountPrefix
               return
           # The find was successfull. If we're in caret mode, then we should now have a selection, so we can
           # drop back into visual mode.
-          @changeMode VisualMode if @name == "caret" and 0 < @selection.toString().length
+          @changeMode VisualMode if @name == "caret" and 0 < @selectionManipulator.selection.toString().length
 
         @movements.n = (count) -> doFind count, false
         @movements.N = (count) -> doFind count, true
@@ -377,11 +377,11 @@ class Movement extends CountPrefix
   # Yank the selection; always exits; either deletes the selection or collapses it; set @yankedText and return
   # it.
   yank: (args = {}) ->
-    @yankedText = @selection.toString()
+    @yankedText = @selectionManipulator.selection.toString()
     if @options.deleteFromDocument or args.deleteFromDocument
-      @selection.deleteFromDocument()
+      @selectionManipulator.selection.deleteFromDocument()
     else
-      @selection.collapseToStart()
+      @selectionManipulator.selection.collapseToStart()
 
     message = @yankedText.replace /\s+/g, " "
     message = message[...12] + "..." if 15 < @yankedText.length
@@ -394,19 +394,19 @@ class Movement extends CountPrefix
 
   exit: (event, target) ->
     unless @options.parentMode or @options.oneMovementOnly
-      @selection.collapseToStart() if event?.type == "keydown" and KeyboardUtils.isEscape event
+      @selectionManipulator.selection.collapseToStart() if event?.type == "keydown" and KeyboardUtils.isEscape event
 
       # Disabled, pending discussion of fine-tuning the UX.  Simpler alternative is implemented above.
       # # If we're exiting on escape and there is a range selection, then we leave it in place.  However, an
       # # immediately-following Escape clears the selection.  See #1441.
-      # if @selection.type == "Range" and event?.type == "keydown" and KeyboardUtils.isEscape event
+      # if @selectionManipulator.selection.type == "Range" and event?.type == "keydown" and KeyboardUtils.isEscape event
       #   handlerStack.push
       #     _name: "visual/range/escape"
       #     click: -> handlerStack.remove(); @continueBubbling
       #     focus: -> handlerStack.remove(); @continueBubbling
       #     keydown: (event) =>
       #       handlerStack.remove()
-      #       if @selection.type == "Range" and event.type == "keydown" and KeyboardUtils.isEscape event
+      #       if @selectionManipulator.selection.type == "Range" and event.type == "keydown" and KeyboardUtils.isEscape event
       #         @selectionManipulator.collapseSelectionToFocus.call this
       #         DomUtils.suppressKeyupAfterEscape handlerStack
       #         @suppressEvent
@@ -455,7 +455,7 @@ class Movement extends CountPrefix
         if @element.clientHeight < @element.scrollHeight
           if @element.isContentEditable
             # WIP (edit mode only)...
-            elementWithFocus = DomUtils.getElementWithFocus @selection, @selectionManipulator.getDirection.call(this) == backward
+            elementWithFocus = DomUtils.getElementWithFocus @selectionManipulator.selection, @selectionManipulator.getDirection.call(this) == backward
             # position = @element.getClientRects()[0].top - elementWithFocus.getClientRects()[0].top
             # console.log "top", position
             # Scroller.scrollToPosition @element, position, 0
@@ -466,8 +466,8 @@ class Movement extends CountPrefix
             coords = DomUtils.getCaretCoordinates @element, position
             Scroller.scrollToPosition @element, coords.top, coords.left
       else
-        unless @selection.type == "None"
-          elementWithFocus = DomUtils.getElementWithFocus @selection, @selectionManipulator.getDirection.call(this) == backward
+        unless @selectionManipulator.selection.type == "None"
+          elementWithFocus = DomUtils.getElementWithFocus @selectionManipulator.selection, @selectionManipulator.getDirection.call(this) == backward
           Scroller.scrollIntoView elementWithFocus if elementWithFocus
 
 class VisualMode extends Movement
@@ -483,22 +483,22 @@ class VisualMode extends Movement
 
     # Establish or use the initial selection.  If that's not possible, then enter caret mode.
     unless @options.oneMovementOnly or options.immediateMovement
-      if @options.parentMode and @selection.type == "Caret"
+      if @options.parentMode and @selectionManipulator.selection.type == "Caret"
         # We're being called from edit mode, so establish an intial visible selection.
         @selectionManipulator.extendByOneCharacter.call(this, forward) or @selectionManipulator.extendByOneCharacter.call this, backward
       else
-        if @selection.type in [ "Caret", "Range" ]
-          elementWithFocus = DomUtils.getElementWithFocus @selection, @selectionManipulator.getDirection.call(this) == backward
+        if @selectionManipulator.selection.type in [ "Caret", "Range" ]
+          elementWithFocus = DomUtils.getElementWithFocus @selectionManipulator.selection, @selectionManipulator.getDirection.call(this) == backward
           if DomUtils.getVisibleClientRect elementWithFocus
-            if @selection.type == "Caret"
+            if @selectionManipulator.selection.type == "Caret"
               # The caret is in the viewport. Make make it visible.
               @selectionManipulator.extendByOneCharacter.call(this, forward) or @selectionManipulator.extendByOneCharacter.call this, backward
           else
             # The selection is outside of the viewport: clear it.  We guess that the user has moved on, and is
             # more likely to be interested in visible content.
-            @selection.removeAllRanges()
+            @selectionManipulator.selection.removeAllRanges()
 
-        if @selection.type != "Range"
+        if @selectionManipulator.selection.type != "Range"
           @changeMode CaretMode
           HUD.showForDuration "No usable selection, entering caret mode...", 2500
           return
@@ -603,17 +603,17 @@ class CaretMode extends Movement
     super extend defaults, options
 
     # Establish the initial caret.
-    switch @selection.type
+    switch @selectionManipulator.selection.type
       when "None"
         @establishInitialSelectionAnchor()
-        if @selection.type == "None"
+        if @selectionManipulator.selection.type == "None"
           @exit()
           HUD.showForDuration "Create a selection before entering visual mode.", 2500
           return
       when "Range"
         @selectionManipulator.collapseSelectionToAnchor.call this
 
-    @selection.modify "extend", forward, character
+    @selectionManipulator.selection.modify "extend", forward, character
     @scrollIntoView()
 
     @push
@@ -631,7 +631,7 @@ class CaretMode extends Movement
   handleMovementKeyChar: (args...) ->
     @selectionManipulator.collapseSelectionToAnchor.call this
     super args...
-    @selection.modify "extend", forward, character
+    @selectionManipulator.selection.modify "extend", forward, character
 
   # When visual mode starts and there's no existing selection, we launch CaretMode and try to establish a
   # selection.  As a heuristic, we pick the first non-whitespace character of the first visible text node
