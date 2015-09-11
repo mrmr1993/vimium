@@ -106,30 +106,27 @@ class SelectionManipulator
         @paste (text) =>
           func(); @copy text; locked = false
 
-  # Return the character following (to the right of) the focus, and leave the selection unchanged.  Returns
+  # Return the next character in |direction| outside of the focus, and leave the selection unchanged. Returns
   # undefined if no such character exists.
-  getNextForwardCharacter: ->
+  getNextCharacter: (direction) ->
     beforeText = @selection.toString()
-    if beforeText.length == 0 or @getDirection() == forward
-      @selection.modify "extend", forward, character
+    if beforeText.length == 0 or @getDirection() == direction
+      @selection.modify "extend", direction, character
       afterText = @selection.toString()
       if beforeText != afterText
-        @selection.modify "extend", backward, character
-        afterText[afterText.length - 1]
+        @selection.modify "extend", opposite[direction], character
+        if direction == forward
+          afterText[afterText.length - 1]
+        else
+          afterText[0]
     else
-      beforeText[0] # Existing range selection is backwards.
+      if direction == forward
+        beforeText[0] # Existing range selection is backwards.
+      else
+        beforeText[beforeText.length - 1] # Existing range selection is forwards.
 
-  # As above, but backwards.
-  getNextBackwardCharacter: ->
-    beforeText = @selection.toString()
-    if beforeText.length == 0 or @getDirection() == backward
-      @selection.modify "extend", backward, character
-      afterText = @selection.toString()
-      if beforeText != afterText
-        @selection.modify "extend", forward, character
-        afterText[0]
-    else
-      beforeText[beforeText.length - 1] # Existing range selection is forwards.
+  getNextForwardCharacter: -> @getNextCharacter forward
+  getNextBackwardCharacter: -> @getNextCharacter backward
 
   # Test whether the character following the focus is a word character (and leave the selection unchanged).
   nextCharacterIsWordCharacter: do ->
