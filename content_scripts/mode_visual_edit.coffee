@@ -144,7 +144,7 @@ class SelectionManipulator
   # detect, after a movement, whether the selection has changed.
   hashSelection: (debug) ->
     range = @selectionManipulator.selection.getRangeAt(0)
-    [ @element?.selectionStart, @selectionManipulator.selection.toString().length, range.anchorOffset, range.focusOffset,
+    [ @selectionManipulator.element?.selectionStart, @selectionManipulator.selection.toString().length, range.anchorOffset, range.focusOffset,
       @selectionManipulator.selection.extentOffset, @selectionManipulator.selection.baseOffset ].join "/"
 
   # Call a function; return true if the selection changed, false otherwise.
@@ -307,6 +307,7 @@ class Movement extends CountPrefix
   constructor: (options) ->
     @selectionManipulator = new SelectionManipulator()
     @selectionManipulator.selection = window.getSelection()
+    @selectionManipulator.element = @element
     @movements = extend {}, @movements
     @commands = {}
     @keyQueue = ""
