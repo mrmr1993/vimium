@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  nextCharacterIsWordCharacter: -> @selectionManipulator.nextCharacterIsWordCharacter.apply this, arguments
   hashSelection: -> @selectionManipulator.hashSelection.apply this, arguments
   selectionChanged: -> @selectionManipulator.selectionChanged.apply this, arguments
   reverseSelection: -> @selectionManipulator.reverseSelection.apply this, arguments
@@ -244,9 +243,9 @@ class Movement extends CountPrefix
     # Native word movements behave differently on Linux and Windows, see #1441.  So we implement some of them
     # character-by-character.
     if granularity == vimword and direction == forward
-      while @nextCharacterIsWordCharacter()
+      while @selectionManipulator.nextCharacterIsWordCharacter.call this
         return unless @runMovements [ forward, character ]
-      while @selectionManipulator.getNextForwardCharacter.call(this) and not @nextCharacterIsWordCharacter()
+      while @selectionManipulator.getNextForwardCharacter.call(this) and not @selectionManipulator.nextCharacterIsWordCharacter.call this
         return unless @runMovements [ forward, character ]
 
     else if granularity == vimword
@@ -254,9 +253,9 @@ class Movement extends CountPrefix
 
     # As above, we implement this character-by-character to get consistent behavior on Windows and Linux.
     if granularity == word and direction == forward
-      while @selectionManipulator.getNextForwardCharacter.call(this) and not @nextCharacterIsWordCharacter()
+      while @selectionManipulator.getNextForwardCharacter.call(this) and not @selectionManipulator.nextCharacterIsWordCharacter.call this
         return unless @runMovements [ forward, character ]
-      while @nextCharacterIsWordCharacter()
+      while @selectionManipulator.nextCharacterIsWordCharacter.call this
         return unless @runMovements [ forward, character ]
 
     else
@@ -431,7 +430,7 @@ class Movement extends CountPrefix
 
     switch entity
       when word
-        if @nextCharacterIsWordCharacter()
+        if @selectionManipulator.nextCharacterIsWordCharacter.call this
           @runMovements [ forward, character ], [ backward, word ]
           @collapseSelectionToFocus()
         @runMovements ([0...count].map -> [ forward, vimword ])...
