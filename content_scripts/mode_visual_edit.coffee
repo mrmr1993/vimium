@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  reverseSelection: -> @selectionManipulator.reverseSelection.apply this, arguments
   extendByOneCharacter: -> @selectionManipulator.extendByOneCharacter.apply this, arguments
   getDirection: -> @selectionManipulator.getDirection.apply this, arguments
   collapseSelectionToAnchor: -> @selectionManipulator.collapseSelectionToAnchor.apply this, arguments
@@ -531,7 +530,7 @@ class VisualMode extends Movement
       @commands.P = -> chrome.runtime.sendMessage handler: "openUrlInNewTab", url: @yank()
       @commands.V = -> @changeMode VisualLineMode
       @commands.c = -> @collapseSelectionToFocus(); @changeMode CaretMode
-      @commands.o = -> @reverseSelection()
+      @commands.o = -> @selectionManipulator.reverseSelection.call this
 
       # Additional commands when run under edit mode.
       if @options.parentMode
@@ -573,9 +572,9 @@ class VisualMode extends Movement
     @yank() if @options.oneMovementOnly or @options.immediateMovement
 
   selectLine: (count) ->
-    @reverseSelection() if @getDirection() == forward
+    @selectionManipulator.reverseSelection.call this if @getDirection() == forward
     @runMovement backward, lineboundary
-    @reverseSelection()
+    @selectionManipulator.reverseSelection.call this
     @runMovement forward, line for [1...count]
     @runMovement forward, lineboundary
     # Include the next character if it is a newline.
@@ -595,7 +594,7 @@ class VisualLineMode extends VisualMode
     initialDirection = @getDirection()
     for direction in [ initialDirection, @opposite[initialDirection] ]
       @runMovement direction, lineboundary
-      @reverseSelection()
+      @selectionManipulator.reverseSelection.call this
 
 class CaretMode extends Movement
   constructor: (options = {}) ->
