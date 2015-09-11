@@ -90,7 +90,7 @@ class SelectionManipulator
     # If isFinalUserCopy is set, then we're copying the final text selected by the user (and exiting).
     # However, @protectClipboard may later try to restore the original clipboard contents.  Therefore, we
     # disable copy so that subsequent copies do not propagate.
-    @copy = (->) if isFinalUserCopy
+    @selectionManipulator.copy = (->) if isFinalUserCopy
 
   # This s used whenever manipulating the selection may, as a side effect, change the clipboard's contents.
   # We restore the original clipboard contents when we're done. May be asynchronous.  We use a lock so that
@@ -104,7 +104,7 @@ class SelectionManipulator
       else
         locked = true
         @selectionManipulator.paste.call this, (text) =>
-          func(); @copy text; locked = false
+          func(); @selectionManipulator.copy.call this, text; locked = false
 
   # Return the character following (to the right of) the focus, and leave the selection unchanged.  Returns
   # undefined if no such character exists.
@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  copy: -> @selectionManipulator.copy.apply this, arguments
   protectClipboard: -> @selectionManipulator.protectClipboard.apply this, arguments
   getNextForwardCharacter: -> @selectionManipulator.getNextForwardCharacter.apply this, arguments
   getNextBackwardCharacter: -> @selectionManipulator.getNextBackwardCharacter.apply this, arguments
@@ -572,7 +571,7 @@ class VisualMode extends Movement
     if @yankedText?
       unless @options.noCopyToClipboard
         console.log "yank:", @yankedText if @debug
-        @copy @yankedText, true
+        @selectionManipulator.copy.call this, @yankedText, true
 
   # Call sub-class; then yank, if we've only been created for a single movement.
   handleMovementKeyChar: (args...) ->
