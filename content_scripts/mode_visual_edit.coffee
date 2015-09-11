@@ -185,8 +185,8 @@ class SelectionManipulator
   getDirection: ->
     # Try to move the selection forward or backward, check whether it got bigger or smaller (then restore it).
     for direction in [ forward, backward ]
-      if change = @extendByOneCharacter direction
-        @extendByOneCharacter @opposite[direction]
+      if change = @selectionManipulator.extendByOneCharacter.call this, direction
+        @selectionManipulator.extendByOneCharacter.call this, @opposite[direction]
         return if 0 < change then direction else @opposite[direction]
     forward
 
@@ -206,7 +206,6 @@ class SelectionManipulator
 class Movement extends CountPrefix
   opposite: forward: backward, backward: forward
 
-  extendByOneCharacter: -> @selectionManipulator.extendByOneCharacter.apply this, arguments
   getDirection: -> @selectionManipulator.getDirection.apply this, arguments
   collapseSelectionToAnchor: -> @selectionManipulator.collapseSelectionToAnchor.apply this, arguments
   collapseSelectionToFocus: -> @selectionManipulator.collapseSelectionToFocus.apply this, arguments
@@ -490,14 +489,14 @@ class VisualMode extends Movement
     unless @options.oneMovementOnly or options.immediateMovement
       if @options.parentMode and @selection.type == "Caret"
         # We're being called from edit mode, so establish an intial visible selection.
-        @extendByOneCharacter(forward) or @extendByOneCharacter backward
+        @selectionManipulator.extendByOneCharacter.call(this, forward) or @selectionManipulator.extendByOneCharacter.call this, backward
       else
         if @selection.type in [ "Caret", "Range" ]
           elementWithFocus = DomUtils.getElementWithFocus @selection, @getDirection() == backward
           if DomUtils.getVisibleClientRect elementWithFocus
             if @selection.type == "Caret"
               # The caret is in the viewport. Make make it visible.
-              @extendByOneCharacter(forward) or @extendByOneCharacter backward
+              @selectionManipulator.extendByOneCharacter.call(this, forward) or @selectionManipulator.extendByOneCharacter.call this, backward
           else
             # The selection is outside of the viewport: clear it.  We guess that the user has moved on, and is
             # more likely to be interested in visible content.
