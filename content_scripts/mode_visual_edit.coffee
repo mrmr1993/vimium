@@ -161,7 +161,7 @@ class SelectionManipulator
       # it here because the normal method (below) does not work for simple text inputs.
       length = @selectionManipulator.selection.toString().length
       @selectionManipulator.collapseSelectionToFocus.call this
-      @runMovement @opposite[direction], character for [0...length]
+      @runMovement @selectionManipulator.opposite[direction], character for [0...length]
     else
       # Normal method (efficient).
       original = @selectionManipulator.selection.getRangeAt(0).cloneRange()
@@ -186,8 +186,8 @@ class SelectionManipulator
     # Try to move the selection forward or backward, check whether it got bigger or smaller (then restore it).
     for direction in [ forward, backward ]
       if change = @selectionManipulator.extendByOneCharacter.call this, direction
-        @selectionManipulator.extendByOneCharacter.call this, @opposite[direction]
-        return if 0 < change then direction else @opposite[direction]
+        @selectionManipulator.extendByOneCharacter.call this, @selectionManipulator.opposite[direction]
+        return if 0 < change then direction else @selectionManipulator.opposite[direction]
     forward
 
   collapseSelectionToAnchor: ->
@@ -204,8 +204,6 @@ class SelectionManipulator
 
 # This implements vim-like movements, and includes quite a number of gereral utility methods.
 class Movement extends CountPrefix
-  opposite: forward: backward, backward: forward
-
   # Replace the current mode with another. For example, replace caret mode with visual mode, or replace visual
   # mode with visual-line mode.
   changeMode: (mode, options = {}) ->
@@ -588,7 +586,7 @@ class VisualLineMode extends VisualMode
 
   extendSelection: ->
     initialDirection = @selectionManipulator.getDirection.call(this)
-    for direction in [ initialDirection, @opposite[initialDirection] ]
+    for direction in [ initialDirection, @selectionManipulator.opposite[initialDirection] ]
       @runMovement direction, lineboundary
       @selectionManipulator.reverseSelection.call this
 
