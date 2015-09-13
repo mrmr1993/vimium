@@ -106,24 +106,23 @@ class SelectionManipulator
         @paste (text) =>
           func(); @copy text; locked = false
 
+  # Move the selection by one character in |direction|, and return the (de-)selected character, or the empty
+  # string if there was no change.
+  consumeNextCharacter: (direction) ->
+    beforeText = @selection.toString()
+    @selection.modify "extend", direction, character
+    afterText = @selection.toString()
+    if afterText.length > beforeText.length
+      afterText.replace beforeText, ""
+    else
+      beforeText.replace afterText, ""
+
   # Return the next character in |direction| outside of the focus, and leave the selection unchanged. Returns
   # undefined if no such character exists.
   getNextCharacter: (direction) ->
-    beforeText = @selection.toString()
-    if beforeText.length == 0 or @getDirection() == direction
-      @selection.modify "extend", direction, character
-      afterText = @selection.toString()
-      if beforeText != afterText
-        @selection.modify "extend", opposite[direction], character
-        if direction == forward
-          afterText[afterText.length - 1]
-        else
-          afterText[0]
-    else
-      if direction == forward
-        beforeText[0] # Existing range selection is backwards.
-      else
-        beforeText[beforeText.length - 1] # Existing range selection is forwards.
+    char = @consumeNextCharacter direction
+    @consumeNextCharacter opposite[direction] if char
+    char
 
   getNextForwardCharacter: -> @getNextCharacter forward
   getNextBackwardCharacter: -> @getNextCharacter backward
