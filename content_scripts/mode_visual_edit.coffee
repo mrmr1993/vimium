@@ -475,14 +475,14 @@ class VisualMode extends Movement
     unless @options.oneMovementOnly or options.immediateMovement
       if @options.parentMode and @selectionManipulator.selection.type == "Caret"
         # We're being called from edit mode, so establish an intial visible selection.
-        @selectionManipulator.extendByOneCharacter(forward) or @selectionManipulator.extendByOneCharacter backward
+        @selectionManipulator.consumeNextCharacter(forward) or @selectionManipulator.consumeNextCharacter backward
       else
         if @selectionManipulator.selection.type in [ "Caret", "Range" ]
           elementWithFocus = DomUtils.getElementWithFocus @selectionManipulator.selection, @selectionManipulator.getDirection() == backward
           if DomUtils.getVisibleClientRect elementWithFocus
             if @selectionManipulator.selection.type == "Caret"
               # The caret is in the viewport. Make make it visible.
-              @selectionManipulator.extendByOneCharacter(forward) or @selectionManipulator.extendByOneCharacter backward
+              @selectionManipulator.consumeNextCharacter(forward) or @selectionManipulator.consumeNextCharacter backward
           else
             # The selection is outside of the viewport: clear it.  We guess that the user has moved on, and is
             # more likely to be interested in visible content.
