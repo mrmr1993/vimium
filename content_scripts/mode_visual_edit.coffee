@@ -146,13 +146,6 @@ class SelectionManipulator
       return true if before[key] != newValue
     false
 
-  # Try to extend the selection one character in direction.  Return positive, negative or 0, indicating
-  # whether the selection got bigger, or smaller, or is unchanged.
-  extendByOneCharacter: (direction) ->
-    length = @selection.toString().length
-    @selection.modify "extend", direction, character
-    @selection.toString().length - length
-
   # Get the direction of the selection.  The selection is "forward" if the focus is at or after the anchor,
   # and "backward" otherwise.
   getDirection: ->
