@@ -211,20 +211,22 @@ class Movement extends CountPrefix
     # Native word movements behave differently on Linux and Windows, see #1441.  So we implement some of them
     # character-by-character.
     if granularity == vimword and direction == forward
-      while @selectionManipulator.nextCharacterIsWordCharacter()
-        return unless @runMovements [ forward, character ]
-      while @selectionManipulator.getNextForwardCharacter() and not @selectionManipulator.nextCharacterIsWordCharacter()
-        return unless @runMovements [ forward, character ]
+      char = @selectionManipulator.consumeNextCharacter forward
+      while char and @selectionManipulator.isWordCharacter char
+        char = @selectionManipulator.consumeNextCharacter forward
+      while char and not @selectionManipulator.isWordCharacter char
+        char = @selectionManipulator.consumeNextCharacter forward
 
     else if granularity == vimword
       @selectionManipulator.selection.modify @alterMethod, backward, word
 
     # As above, we implement this character-by-character to get consistent behavior on Windows and Linux.
     if granularity == word and direction == forward
-      while @selectionManipulator.getNextForwardCharacter() and not @selectionManipulator.nextCharacterIsWordCharacter()
-        return unless @runMovements [ forward, character ]
-      while @selectionManipulator.nextCharacterIsWordCharacter()
-        return unless @runMovements [ forward, character ]
+      char = @selectionManipulator.consumeNextCharacter forward
+      while char and not @selectionManipulator.isWordCharacter char
+        char = @selectionManipulator.consumeNextCharacter forward
+      while char and @selectionManipulator.isWordCharacter char
+        char = @selectionManipulator.consumeNextCharacter forward
 
     else
       @selectionManipulator.selection.modify @alterMethod, direction, granularity
