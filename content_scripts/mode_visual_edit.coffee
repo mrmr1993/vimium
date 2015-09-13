@@ -243,19 +243,13 @@ class Movement extends CountPrefix
     direction = @selectionManipulator.getDirection()
     element = document.activeElement
     if element and DomUtils.isEditable(element) and not element.isContentEditable
-      # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
-      # it here because the normal method (below) does not work for simple text inputs.
-      length = @selectionManipulator.selection.toString().length
-      @selectionManipulator.collapseSelectionToFocus()
-      @runMovement @selectionManipulator.opposite[direction], character for [0...length]
+      try
+        # We may not have a selection (ie. getSelection().type == "None") if the element doesn't support it.
+        element.selectionDirection = opposite[element.selectionDirection]
     else
-      # Normal method (efficient).
-      original = @selectionManipulator.selection.getRangeAt(0).cloneRange()
-      range = original.cloneRange()
-      range.collapse direction == backward
-      @selectionManipulator.setSelectionRange range
-      which = if direction == forward then "start" else "end"
-      @selectionManipulator.selection.extend original["#{which}Container"], original["#{which}Offset"]
+      {anchorNode, anchorOffset, focusNode, focusOffset} = @selectionManipulator.selection
+      @selectionManipulator.selection.collapse anchorNode, anchorOffset
+      @selectionManipulator.selection.extend focusNode, focusOffset if focusNode?
 
   # A movement can be either a string (which will be passed to @runMovement count times), or a function (which
   # will be called once with count as its argument).
