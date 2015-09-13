@@ -138,16 +138,13 @@ class SelectionManipulator
   # Test whether the character following the focus is a word character (and leave the selection unchanged).
   nextCharacterIsWordCharacter: @isWordCharacter @getNextForwardCharacter()
 
-  # Return a simple camparable value which depends on various aspects of the selection.  This is used to
-  # detect, after a movement, whether the selection has changed.
-  hashSelection: (debug) ->
-    range = @selection.getRangeAt(0)
-    [ @element?.selectionStart, @selection.toString().length, range.anchorOffset, range.focusOffset,
-      @selection.extentOffset, @selection.baseOffset ].join "/"
-
   # Call a function; return true if the selection changed, false otherwise.
   selectionChanged: (func) ->
-    before = @hashSelection(); func(); @hashSelection() != before
+    before = extend {}, @selection
+    func()
+    for key, newValue of extend {}, @selection
+      return true if before[key] != newValue
+    false
 
   # Try to extend the selection one character in direction.  Return positive, negative or 0, indicating
   # whether the selection got bigger, or smaller, or is unchanged.
