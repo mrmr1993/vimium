@@ -106,6 +106,41 @@ class SelectionManipulator
         @paste (text) =>
           func(); @copy text; locked = false
 
+  regexSearchForward: (regex, value, startOffset) ->
+    unless regex.global # The regex has to be global for our algorithm to work.
+      regexFlags = "g#{if regex.ignoreCase then "i" else ""}#{if regex.multiline then "m" else ""}"
+      regex = new RegExp regex.toSource(), regexFlags
+
+    regex.lastIndex = startOffset
+    newFocusOffset = (regex.exec value).index
+
+  textInputSelectionForwardToRegexMatch: (element, regex, matchToOffset = ((match) -> match.index)) ->
+    {selectionDirection, selectionStart, selectionEnd, value} = element
+    focusOffset = if selectionDirection == forward then selectionEnd else selectionStart
+    anchorOffset = if selectionDirection == forward then selectionStart else selectionEnd
+
+
+    [element.selectionStart, element.selectionEnd] = [newFocusOffset, anchorOffset].sort()
+    element.selectionDirection = if newFocusOffset > anchorOffset then forward else backward
+
+  #
+  extendTextInputSelectionToRegexp: (direction, regex, regexString) ->
+    element = document.activeElement
+    if element and DomUtils.isEditable(element) and not element.isContentEditable
+      try
+        {selectionDirection, selectionStart, selectionEnd, value} = element
+        focusOffset = if selectionDirection == forward then selectionEnd else selectionStart
+        anchorOffset = if selectionDirection == forward then selectionStart else selectionEnd
+
+        if direction == forward
+          @regexSearch regex, element.value, focusOffset
+        else
+          useRegex = regex
+          @regexSearch backwardRegex, element.value.reverse()
+
+        [element.selectionStart, element.selectionEnd] = [newFocusOffset, anchorOffset].sort()
+        element.selectionDirection = if newFocusOffset > anchorOffset then forward else backward
+
   # Move the selection by one character in |direction|, and return the (de-)selected character, or the empty
   # string if there was no change.
   consumeNextCharacter: (direction) ->
