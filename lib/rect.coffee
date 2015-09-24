@@ -67,6 +67,16 @@ Rect =
 
     rects.filter (rect) -> rect.height > 0 and rect.width > 0
 
+  # Restrict the coordinates of rect1 to lie inside rect2, so that
+  # @subtract (@restrictTo rect1, rect2), rect2 = [].
+  restrictTo: (rect1, rect2) ->
+    @create(
+      Math.max(rect1.left, rect2.left, 0),
+      Math.max(rect1.top, rect2.top, 0),
+      Math.max(Math.min(rect1.right, rect2.right), 0),
+      Math.max(Math.min(rect1.bottom, rect2.bottom), 0)
+    )
+
   contains: (rect1, rect2) ->
     rect1.right > rect2.left and
     rect1.left < rect2.right and

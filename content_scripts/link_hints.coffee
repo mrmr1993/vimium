@@ -148,7 +148,7 @@ class LinkHintsMode
   # the viewport.  There may be more than one part of element which is clickable (for example, if it's an
   # image), therefore we always return a array of element/rect pairs (which may also be a singleton or empty).
   #
-  getVisibleClickable: (element) ->
+  getVisibleClickable: (element, boundingRect) ->
     tagName = element.tagName.toLowerCase()
     isClickable = false
     onlyHasTabIndex = false
@@ -226,7 +226,7 @@ class LinkHintsMode
       isClickable = onlyHasTabIndex = true
 
     if isClickable
-      clientRect = DomUtils.getVisibleClientRect element, true
+      clientRect = DomUtils.getVisibleClientRect element, true, boundingRect
       if clientRect != null
         visibleElements.push {element: element, rect: clientRect, secondClassCitizen: onlyHasTabIndex}
 
@@ -243,34 +243,67 @@ class LinkHintsMode
     elements = document.documentElement.getElementsByTagName "*"
     visibleElements = []
 
+    overflowBounds = []
+
     # The order of elements here is important; they should appear in the order they are in the DOM, so that
     # we can work out which element is on top when multiple elements overlap. Detecting elements in this loop
     # is the sensible, efficient way to ensure this happens.
     # NOTE(mrmr1993): Our previous method (combined XPath and DOM traversal for jsaction) couldn't provide
     # this, so it's necessary to check whether elements are clickable in order, as we do below.
     for element in elements
-      visibleElement = @getVisibleClickable element
+      while overflowBound = overflowBounds.pop()
+        if overflowBound.element.contains element
+          overflowBounds.push overflowBound
+          break
+
+      {overflowX, overflowY} = window.getComputedStyle element, null
+      # NOTE(mrmr1993): overflow: scroll; can also act as scroll, but not always, so we keep it simple here.
+      boundsRect = if overflowX in ["hidden", "scroll"] and overflowY in ["hidden", "scroll"]
+        element.getBoundingClientRect()
+      else if overflowX in ["hidden", "scroll"]
+        rect = element.getBoundingClientRect()
+        if rect then Rect.create rect.left, -Infinity, rect.right, Infinity else null
+      else if overflowY in ["hidden", "scroll"]
+        rect = element.getBoundingClientRect()
+        if rect then Rect.create -Infinity, rect.top, Infinity, rect.bottom else null
+      else
+        null
+
+      if boundsRect?
+        Rect.restrictTo boundsRect, overflowBounds[overflowBounds.length-1].rect if overflowBounds.length > 0
+        overflowBounds.push {element, rect: boundsRect}
+
+      visibleElement = @getVisibleClickable element, overflowBounds[overflowBounds.length-1]?.rect
+
+      # Remove wrapper elements that also seem to be clickable; the click event should bubble up to them
+      # anyway.
+      if visibleElements.length > 0 and visibleElement.length > 0
+        el = visibleElement[0]
+        parEl = visibleElements[visibleElements.length - 1]
+        parentElement = el.element.parentElement
+        while parentElement
+          if parentElement == parEl.element
+            if el.rect.height * el.rect.width >= parEl.rect.height * parEl.rect.width * 0.7
+              # The element takes up more than 70% of its parent. Assume that they represent the same
+              # clickable region.
+              visibleElements.pop()
+            break
+          parentElement = parentElement.parentElement
+
       visibleElements.push visibleElement...
 
-    # TODO(mrmr1993): Consider z-index. z-index affects behviour as follows:
-    #  * The document has a local stacking context.
-    #  * An element with z-index specified
-    #    - sets its z-order position in the containing stacking context, and
-    #    - creates a local stacking context containing its children.
-    #  * An element (1) is shown above another element (2) if either
-    #    - in the last stacking context which contains both an ancestor of (1) and an ancestor of (2), the
-    #      ancestor of (1) has a higher z-index than the ancestor of (2); or
-    #    - in the last stacking context which contains both an ancestor of (1) and an ancestor of (2),
-    #        + the ancestors of (1) and (2) have equal z-index, and
-    #        + the ancestor of (1) appears later in the DOM than the ancestor of (2).
-    #
+    # Sort visibleElements by z-index
+    visibleElement.index = i for visibleElement, i in visibleElements
+    @sortElementsByZIndex visibleElements
+
     # Remove rects from elements where another clickable element lies above it.
     nonOverlappingElements = []
     # Traverse the DOM from first to last, since later elements show above earlier elements.
     visibleElements = visibleElements.reverse()
     while visibleElement = visibleElements.pop()
       rects = [visibleElement.rect]
-      for {rect: negativeRect} in visibleElements
+      for {rect: negativeRect, element: negativeEl} in visibleElements
+        continue if negativeEl.contains visibleElement.element
         # Subtract negativeRect from every rect in rects, and concatenate the arrays of rects that result.
         rects = [].concat (rects.map (rect) -> Rect.subtract rect, negativeRect)...
       if rects.length > 0
@@ -281,9 +314,34 @@ class LinkHintsMode
         # than they're worth.
         # TODO(mrmr1993): This is probably the wrong thing to do, but we don't want to stop being able to
         # click some elements that we could click before.
-        nonOverlappingElements.push visibleElement unless visibleElement.secondClassCitizen
+        # nonOverlappingElements.push visibleElement unless visibleElement.secondClassCitizen
 
     nonOverlappingElements
+
+  sortElementsByZIndex: (elements) ->
+    elements.sort (a, b) ->
+      [parentsA, parentsB] = [a, b].map (el) -> el while el = el.parentElement
+      while parent = parentsA.pop()
+        unless parent.contains b
+          parentsA.push parent
+          break
+      commonAncestor = parentsA[parentsA.length - 1]?.parentElement
+      while parent = parentsB.pop()
+        break if parent == commonAncestor
+
+      zIndexesA = (parentsA.map (el) -> (window.getComputedStyle el, null).zIndex).filter (zIndex) -> zIndex != "auto"
+      zIndexesB = (parentsB.map (el) -> (window.getComputedStyle el, null).zIndex).filter (zIndex) -> zIndex != "auto"
+
+      while zIndexA = zIndexesA.pop() and zIndexB = zIndexesB.pop()
+        return -1 if zIndexA > zIndexB
+        return 1 if zIndexA < zIndexB
+
+      if zIndexesA?
+        -1
+      else if zIndexesB.pop()?
+        1
+      else
+        a.index - b.index
 
   # Handles <Shift> and <Ctrl>.
   onKeyDownInMode: (hintMarkers, event) ->

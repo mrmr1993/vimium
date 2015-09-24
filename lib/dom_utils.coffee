@@ -71,7 +71,7 @@ DomUtils =
   # WARNING: If testChildren = true then the rects of visible (eg. floated) children may be returned instead.
   # This is used for LinkHints and focusInput, **BUT IS UNSUITABLE FOR MOST OTHER PURPOSES**.
   #
-  getVisibleClientRect: (element, testChildren = false) ->
+  getVisibleClientRect: (element, testChildren = false, boundingRect) ->
     # Note: this call will be expensive if we modify the DOM in between calls.
     clientRects = (Rect.copy clientRect for clientRect in element.getClientRects())
 
@@ -104,6 +104,7 @@ DomUtils =
 
       else
         clientRect = @cropRectToVisible clientRect
+        clientRect = Rect.restrictTo clientRect, boundingRect if boundingRect? and clientRect?
 
         continue if clientRect == null or clientRect.width < 3 or clientRect.height < 3
 
