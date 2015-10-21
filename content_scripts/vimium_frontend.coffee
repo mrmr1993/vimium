@@ -325,8 +325,19 @@ extend window,
 
 extend window,
   reload: -> window.location.reload()
-  goBack: (count) -> history.go(-count)
-  goForward: (count) -> history.go(count)
+  historyGo: (count, stepSize) ->
+      navigationOccurred = false
+      hasNavigated = -> navigationOccurred = true
+      window.addEventListener "hashchange", hasNavigated, true
+      window.addEventListener "popstate", hasNavigated, true
+      history.go count
+      setTimeout ( =>
+        window.removeEventListener "hashchange", hasNavigated, true
+        window.removeEventListener "popstate", hasNavigated, true
+        @historyGo count + stepSize, stepSize unless navigationOccurred or count == 0
+      ), 0
+  goBack: (count) -> @historyGo -count, 1
+  goForward: (count) -> @historyGo count, -1
 
   goUp: (count) ->
     url = window.location.href
