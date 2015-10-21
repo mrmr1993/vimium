@@ -326,16 +326,17 @@ extend window,
 extend window,
   reload: -> window.location.reload()
   historyGo: (count, stepSize) ->
-      navigationOccurred = false
-      hasNavigated = -> navigationOccurred = true
-      window.addEventListener "hashchange", hasNavigated, true
-      window.addEventListener "popstate", hasNavigated, true
-      history.go count
-      setTimeout ( =>
-        window.removeEventListener "hashchange", hasNavigated, true
-        window.removeEventListener "popstate", hasNavigated, true
-        @historyGo count + stepSize, stepSize unless navigationOccurred or count == 0
-      ), 0
+    return if count == 0
+    navigationOccurred = false
+    hasNavigated = -> navigationOccurred = true
+    window.addEventListener "hashchange", hasNavigated, true
+    window.addEventListener "popstate", hasNavigated, true
+    history.go count
+    setTimeout ( =>
+      window.removeEventListener "hashchange", hasNavigated, true
+      window.removeEventListener "popstate", hasNavigated, true
+      @historyGo count + stepSize, stepSize unless navigationOccurred
+    ), 0
   goBack: (count) -> @historyGo -count, 1
   goForward: (count) -> @historyGo count, -1
 
