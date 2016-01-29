@@ -161,6 +161,7 @@ Settings =
     newTabUrl: "chrome://newtab"
     grabBackFocus: false
     regexFindMode: false
+    waitForEnterForFilteredHints: true # Once properly implmented, this will default to false.
 
     settingsVersion: Utils.getCurrentVersion()
     helpDialog_showAdvancedCommands: false
