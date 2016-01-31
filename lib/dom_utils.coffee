@@ -234,7 +234,6 @@ DomUtils =
           if element.selectionStart == 0 and element.selectionEnd == 0
             element.setSelectionRange element.value.length, element.value.length
 
-
   # From @mrmr1993: https://github.com/philc/vimium/pull/1032.
   simulateHover: (element, modifiers) ->
     @simulateMouseEvent("mouseover", element, modifiers)
@@ -246,14 +245,26 @@ DomUtils =
     eventSequence = ["mouseover", "mousedown", "mouseup", "click"]
     @simulateMouseEvent event, element, modifiers for event in eventSequence
 
-  simulateMouseEvent: (event, element, modifiers) ->
-    modifiers ||= {}
-    mouseEvent = document.createEvent("MouseEvents")
-    mouseEvent.initMouseEvent(event, true, true, window, 1, 0, 0, 0, 0, modifiers.ctrlKey, modifiers.altKey,
-    modifiers.shiftKey, modifiers.metaKey, 0, null)
-    # Debugging note: Firefox will not execute the element's default action if we dispatch this click event,
-    # but Webkit will. Dispatching a click on an input box does not seem to focus it; we do that separately
-    element.dispatchEvent(mouseEvent)
+  simulateMouseEvent: do ->
+    lastHoveredElement = undefined
+    (event, element, modifiers = {}) ->
+
+      if event == "mouseout"
+        element ?= lastHoveredElement # Allow unhovering the last hovered element by passing undefined.
+        lastHoveredElement = undefined
+        return unless element?
+
+      else if event == "mouseover"
+        # Simulate moving the mouse off the previous element first, as if we were a real mouse.
+        @simulateMouseEvent "mouseout", undefined, modifiers
+        lastHoveredElement = element
+
+      mouseEvent = document.createEvent("MouseEvents")
+      mouseEvent.initMouseEvent(event, true, true, window, 1, 0, 0, 0, 0, modifiers.ctrlKey, modifiers.altKey,
+      modifiers.shiftKey, modifiers.metaKey, 0, null)
+      # Debugging note: Firefox will not execute the element's default action if we dispatch this click event,
+      # but Webkit will. Dispatching a click on an input box does not seem to focus it; we do that separately
+      element.dispatchEvent(mouseEvent)
 
   addFlashRect: (rect) ->
     flashEl = @createElement "div"

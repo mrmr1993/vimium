@@ -145,7 +145,9 @@ Shifts are automatically detected so, for example, `<c-&>` corresponds to ctrl+s
 
 More documentation
 ------------------
-Many of the more advanced or involved features are documented on [Vimium's github wiki](https://github.com/philc/vimium/wiki).
+Many of the more advanced or involved features are documented on
+[Vimium's github wiki](https://github.com/philc/vimium/wiki). Also
+see the [FAQ](https://github.com/philc/vimium/wiki/FAQ).
 
 Contributing
 ------------
@@ -155,8 +157,9 @@ Release Notes
 -------------
 Next version (not yet released)
 
-- Bug fixes:
-    - Fix endless scrolling (#1911).
+1.54 (2016-01-30)
+
+- Fix occasional endless scrolling (#1911).
 
 1.53 (2015-09-25)
 

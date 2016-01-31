@@ -60,6 +60,11 @@ class LinkHintsMode
       # ancestors.
       length = (el) -> el.element.innerHTML?.length ? 0
       elements.sort (a,b) -> length(a) - length b
+
+    if elements.length == 0
+      HUD.showForDuration "No links to select.", 2000
+      return
+
     hintMarkers = (@createMarkerFor(el) for el in elements)
     @markerMatcher = new (if Settings.get "filterLinkHints" then FilterHints else AlphabetHints)
     @markerMatcher.fillInMarkers hintMarkers
@@ -72,7 +77,6 @@ class LinkHintsMode
       suppressTrailingKeyEvents: true
       exitOnEscape: true
       exitOnClick: true
-      exitOnScroll: true
       keydown: @onKeyDownInMode.bind this, hintMarkers
       keypress: @onKeyPressInMode.bind this, hintMarkers
 
@@ -125,7 +129,7 @@ class LinkHintsMode
       @linkActivator = (link) -> new ContextMenuMode link
     else # OPEN_IN_CURRENT_TAB
       @hintMode.setIndicator "Open link in current tab."
-      @linkActivator = (link) -> DomUtils.simulateClick.bind(DomUtils, link)()
+      @linkActivator = DomUtils.simulateClick.bind DomUtils
 
   #
   # Creates a link marker for the given link.
