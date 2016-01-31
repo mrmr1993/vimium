@@ -31,6 +31,8 @@ class Suggestion
     @insertText = null
     # @deDuplicate controls whether this suggestion is a candidate for deduplication.
     @deDuplicate = true
+    # @completer (optional) is the completer which generated this suggestion.
+    @completer = null
 
     # Other options set by individual completers include:
     # - tabId (TabCompleter)
@@ -214,6 +216,7 @@ class BookmarkCompleter
         url: bookmark.url
         title: if usePathAndTitle then bookmark.pathAndTitle else bookmark.title
         relevancyFunction: @computeRelevancy
+        completer: this
     onComplete = @currentSearch.onComplete
     @currentSearch = null
     onComplete suggestions
@@ -223,6 +226,7 @@ class BookmarkCompleter
     chrome.bookmarks.getTree (bookmarks) =>
       @bookmarks = @traverseBookmarks(bookmarks).filter((bookmark) -> bookmark.url?)
       @onBookmarksLoaded()
+    HistoryCache.use (history) => @historyCache = history
 
   # If these names occur as top-level bookmark names, then they are not included in the names of bookmark folders.
   ignoreTopLevel:
@@ -247,8 +251,20 @@ class BookmarkCompleter
     results.push bookmark
     bookmark.children.forEach((child) => @traverseBookmarksRecursive child, results, bookmark) if bookmark.children
 
+  compareHistoryByUrl: (a, b) ->
+    return 0 if a.url == b.url
+    if a.url > b.url then 1 else -1
+
   computeRelevancy: (suggestion) ->
-    RankingUtils.wordRelevancy(suggestion.queryTerms, suggestion.url, suggestion.title)
+    wordRelevancy = RankingUtils.wordRelevancy suggestion.queryTerms, suggestion.url, suggestion.title
+    recencyScore = 0
+    historyCache = suggestion.completer?.historyCache
+    compareHistoryByUrl = suggestion.completer?.compareHistoryByUrl
+    if historyCache and compareHistoryByUrl
+      i = HistoryCache.binarySearch suggestion, historyCache, compareHistoryByUrl
+      if suggestion.completer.historyCache[i]?.url == suggestion.url
+        recencyScore = RankingUtils.recencyScore suggestion.completer.historyCache[i].lastVisitTime
+    (wordRelevancy + Math.max recencyScore, wordRelevancy) / 2
 
 class HistoryCompleter
   filter: ({ queryTerms, seenTabToOpenCompletionList }, onComplete) ->
