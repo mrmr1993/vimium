@@ -20,15 +20,22 @@ DOWNLOAD_LINK_URL = name: "download"
 CONTEXT_MENU = name: "context"
 
 LinkHints =
-  activateMode: (mode = OPEN_IN_CURRENT_TAB) -> new LinkHintsMode mode
+  activateMode: (count = 1, mode = OPEN_IN_CURRENT_TAB) ->
+    if 0 < count
+      new LinkHintsMode mode, (event = null) ->
+        # This is called which LinkHintsMode exits.  Escape and Backspace are the two ways in which hints mode
+        # can exit following which we do not restart hints mode.
+        return if event?.type == "keydown" and KeyboardUtils.isEscape event
+        return if event?.type == "keydown" and event.keyCode in [ keyCodes.backspace, keyCodes.deleteKey ]
+        LinkHints.activateMode count-1, mode
 
-  activateModeToOpenInNewTab: -> @activateMode OPEN_IN_NEW_BG_TAB
-  activateModeToOpenInNewForegroundTab: -> @activateMode OPEN_IN_NEW_FG_TAB
-  activateModeToCopyLinkUrl: -> @activateMode COPY_LINK_URL
-  activateModeWithQueue: -> @activateMode OPEN_WITH_QUEUE
-  activateModeToOpenIncognito: -> @activateMode OPEN_INCOGNITO
-  activateModeToDownloadLink: -> @activateMode DOWNLOAD_LINK_URL
-  activateModeForMenu: -> @activateMode CONTEXT_MENU
+  activateModeToOpenInNewTab: (count) -> @activateMode count, OPEN_IN_NEW_BG_TAB
+  activateModeToOpenInNewForegroundTab: (count) -> @activateMode count, OPEN_IN_NEW_FG_TAB
+  activateModeToCopyLinkUrl: (count) -> @activateMode count, COPY_LINK_URL
+  activateModeWithQueue: -> @activateMode 1, OPEN_WITH_QUEUE
+  activateModeToOpenIncognito: (count) -> @activateMode count, OPEN_INCOGNITO
+  activateModeToDownloadLink: (count) -> @activateMode count, DOWNLOAD_LINK_URL
+  activateModeForMenu: (count) -> @activateMode count, CONTEXT_MENU
 
 class LinkHintsMode
   hintMarkerContainingDiv: null
@@ -45,7 +52,7 @@ class LinkHintsMode
   # A count of the number of Tab presses since the last non-Tab keyboard event.
   tabCount: 0
 
-  constructor: (mode = OPEN_IN_CURRENT_TAB) ->
+  constructor: (mode = OPEN_IN_CURRENT_TAB, onExit = (->)) ->
     # we need documentElement to be ready in order to append links
     return unless document.documentElement
     @isActive = true
@@ -82,6 +89,7 @@ class LinkHintsMode
 
     @hintMode.onExit =>
       @deactivateMode() if @isActive
+    @hintMode.onExit onExit
 
     @setOpenLinkMode mode
 
@@ -328,7 +336,9 @@ class LinkHintsMode
       if @markerMatcher.popKeyChar()
         @updateVisibleMarkers hintMarkers
       else
-        @deactivateMode()
+        # Exit via @hintMode.exit(), so that the LinkHints.activate() "onExit" callback sees the key event and
+        # knows not to restart hints mode.
+        @hintMode.exit event
 
     else if event.keyCode == keyCodes.enter
       # Activate the active hint, if there is one.  Only FilterHints uses an active hint.
@@ -380,17 +390,25 @@ class LinkHintsMode
       if (clickEl.nodeName.toLowerCase() == "input" and clickEl.type not in ["button", "submit"])
         clickEl.focus()
 
-      linkActivator = =>
-        @linkActivator(clickEl)
-        LinkHints.activateModeWithQueue() if @mode is OPEN_WITH_QUEUE
-
-      delay = 0 if waitForEnter
-      @deactivateMode delay, =>
-        if waitForEnter
-          new WaitForEnter matchedLink.rect, linkActivator
+      linkActivator =
+        if @mode is CONTEXT_MENU
+          =>
+            @removeMarkerContainingDiv()
+            contextMenuMode = @linkActivator clickEl
+            contextMenuMode.onExit =>
+              @deactivateMode()
         else
-          DomUtils.flashRect matchedLink.rect unless @mode is CONTEXT_MENU
-          linkActivator()
+          =>
+            @deactivateMode delay, =>
+              DomUtils.flashRect matchedLink.rect
+              @linkActivator clickEl
+              LinkHints.activateModeWithQueue() if @mode is OPEN_WITH_QUEUE
+
+      if waitForEnter
+        delay = 0
+        new WaitForEnter matchedLink.rect, linkActivator
+      else
+        linkActivator()
 
   #
   # Shows the marker, highlighting matchingCharCount characters.
@@ -405,9 +423,14 @@ class LinkHintsMode
 
   hideMarker: (linkMarker) -> linkMarker.style.display = "none"
 
+  removeMarkerContainingDiv: ->
+    if @hintMarkerContainingDiv
+      DomUtils.removeElement @hintMarkerContainingDiv
+      @hintMarkerContainingDiv = null
+
   deactivateMode: (delay = 0, callback = null) ->
     deactivate = =>
-      DomUtils.removeElement @hintMarkerContainingDiv if @hintMarkerContainingDiv
+      @removeMarkerContainingDiv()
       @hintMarkerContainingDiv = null
       @markerMatcher = null
       @isActive = false

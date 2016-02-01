@@ -272,7 +272,7 @@ commandDescriptions =
   toggleViewSource: ["View page source", { noRepeat: true }]
 
   copyCurrentUrl: ["Copy the current URL to the clipboard", { noRepeat: true }]
-  "LinkHints.activateModeToCopyLinkUrl": ["Copy a link URL to the clipboard", { noRepeat: true }]
+  "LinkHints.activateModeToCopyLinkUrl": ["Copy a link URL to the clipboard", { passCountToFunction: true }]
   openCopiedUrlInCurrentTab: ["Open the clipboard's URL in the current tab", { background: true }]
   openCopiedUrlInNewTab: ["Open the clipboard's URL in a new tab", { background: true, repeatLimit: 20 }]
 
@@ -283,13 +283,16 @@ commandDescriptions =
   focusInput: ["Focus the first text box on the page. Cycle between them using tab",
     { passCountToFunction: true }]
 
-  "LinkHints.activateMode": ["Open a link in the current tab", { noRepeat: true }]
-  "LinkHints.activateModeToOpenInNewTab": ["Open a link in a new tab", { noRepeat: true }]
-  "LinkHints.activateModeToOpenInNewForegroundTab": ["Open a link in a new tab & switch to it", { noRepeat: true }]
+  "LinkHints.activateMode": ["Open a link in the current tab", { passCountToFunction: true }]
+  "LinkHints.activateModeToOpenInNewTab": ["Open a link in a new tab", { passCountToFunction: true }]
+  "LinkHints.activateModeToOpenInNewForegroundTab": ["Open a link in a new tab & switch to it", { passCountToFunction: true }]
   "LinkHints.activateModeWithQueue": ["Open multiple links in a new tab", { noRepeat: true }]
   "LinkHints.activateModeToOpenIncognito": ["Open a link in incognito window", { noRepeat: true }]
   "LinkHints.activateModeToDownloadLink": ["Download link url", { noRepeat: true }]
   "LinkHints.activateModeForMenu": ["Open a link's context menu", { noRepeat: true }]
+  "LinkHints.activateModeToOpenIncognito": ["Open a link in incognito window", { passCountToFunction: true }]
+  "LinkHints.activateModeToDownloadLink": ["Download link url", { passCountToFunction: true }]
+  "LinkHints.activateModeForMenu": ["Open a link's context menu", { passCountToFunction: true }]
 
   enterFindMode: ["Enter find mode", { noRepeat: true }]
   performFind: ["Cycle forward to the next find match"]

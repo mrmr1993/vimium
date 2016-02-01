@@ -369,9 +369,6 @@ extend window,
   enterVisualLineMode: ->
     new VisualLineMode
 
-  enterEditMode: ->
-    @focusInput 1, EditMode
-
   focusInput: do ->
     # Track the most recently focused input element.
     recentlyFocusedElement = null
@@ -389,7 +386,7 @@ extend window,
         for i in [0...resultSet.snapshotLength] by 1
           element = resultSet.snapshotItem i
           continue unless DomUtils.getVisibleClientRect element, true
-          { element, rect: DomUtils.getBoundingClientRect element }
+          { element, rect: Rect.copy element.getBoundingClientRect() }
 
       if visibleInputs.length == 0
         HUD.showForDuration("There are no inputs to focus.", 1000)
