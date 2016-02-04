@@ -61,6 +61,14 @@ tr.vimiumReset {
   z-index: 2147483648;
 }
 
+thead.vimiumReset, tbody.vimiumReset {
+  display: table-header-group;
+}
+
+tbody.vimiumReset {
+  display: table-row-group;
+}
+
 /* Linkhints CSS */
 
 div.internalVimiumHintMarker {
@@ -193,7 +201,7 @@ div#vimiumHelpDialog {
   border-radius:6px;
   padding:8px 12px;
   width:640px;
-  max-height: 85%;
+  max-height: calc(100% - 80px);
   left:50%;
   /* This needs to be 1/2 width to horizontally center the help dialog */
   margin-left:-320px;
@@ -250,7 +258,8 @@ div#vimiumHelpDialog td.vimiumHelpSectionTitle {
 }
 div#vimiumHelpDialog div.commandName { font-family:"courier new"; }
 /* Advanced commands are hidden by default until you show them. */
-div#vimiumHelpDialog div.advanced { display: none; }
+div#vimiumHelpDialog tr.advanced { display: none; }
+div#vimiumHelpDialog.showAdvanced tr.advanced { display: table-row; }
 div#vimiumHelpDialog div.advanced td:nth-of-type(3) { color: #555; }
 div#vimiumHelpDialog a.closeButton {
   position:absolute;

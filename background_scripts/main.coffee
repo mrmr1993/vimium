@@ -144,14 +144,16 @@ root.helpDialogHtml = (showUnboundCommands, showCommandNames, customTitle) ->
     command = Commands.keyToCommandRegistry[key].command
     commandsToKey[command] = (commandsToKey[command] || []).concat(key)
 
-  dialogHtml = fetchFileContents("pages/help_dialog.html")
+  replacementStrings =
+    version: currentVersion
+    title: customTitle || "Help"
+
   for group of Commands.commandGroups
-    dialogHtml = dialogHtml.replace("{{#{group}}}",
+    replacementStrings[group] =
         helpDialogHtmlForCommandGroup(group, commandsToKey, Commands.availableCommands,
-                                      showUnboundCommands, showCommandNames))
-  dialogHtml = dialogHtml.replace("{{version}}", currentVersion)
-  dialogHtml = dialogHtml.replace("{{title}}", customTitle || "Help")
-  dialogHtml
+                                      showUnboundCommands, showCommandNames)
+
+  replacementStrings
 
 #
 # Generates HTML for a given set of commands. commandGroups are defined in commands.js

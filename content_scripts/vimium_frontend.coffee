@@ -5,7 +5,6 @@
 # "domReady".
 #
 
-isShowingHelpDialog = false
 keyPort = null
 isEnabledForUrl = true
 isIncognitoMode = chrome.extension.inIncognitoContext
@@ -138,7 +137,7 @@ initializePreDomReady = ->
 
   requestHandlers =
     showHUDforDuration: handleShowHUDforDuration
-    toggleHelpDialog: (request) -> toggleHelpDialog(request.dialogHtml, request.frameId)
+    toggleHelpDialog: (request) -> if frameId == request.frameId then HelpDialog.toggle request.dialogHtml
     focusFrame: (request) -> if (frameId == request.frameId) then focusThisFrame request
     refreshCompletionKeys: refreshCompletionKeys
     getScrollPosition: -> scrollX: window.scrollX, scrollY: window.scrollY
@@ -220,6 +219,7 @@ initializeOnDomReady = ->
   # We only initialize the vomnibar in the tab's main frame, because it's only ever opened there.
   Vomnibar.init() if DomUtils.isTopFrame()
   HUD.init()
+  HelpDialog.init()
 
 registerFrame = ->
   # Don't register frameset containers; focusing them is no use.
@@ -532,8 +532,8 @@ onKeydown = (event) ->
       if (modifiers.length > 0 || keyChar.length > 1)
         keyChar = "<" + keyChar + ">"
 
-  if (isShowingHelpDialog && KeyboardUtils.isEscape(event))
-    hideHelpDialog()
+  if (HelpDialog.showing && KeyboardUtils.isEscape(event))
+    HelpDialog.hide()
     DomUtils.suppressEvent event
     KeydownEvents.push event
     return @stopBubblingAndTrue
@@ -768,68 +768,72 @@ window.enterFindMode = ->
   Marks.setPreviousPosition()
   new FindMode()
 
-window.showHelpDialog = (html, fid) ->
-  return if (isShowingHelpDialog || !document.body || fid != frameId)
-  isShowingHelpDialog = true
-  container = DomUtils.createElement "div"
-  container.id = "vimiumHelpDialogContainer"
-  container.className = "vimiumReset"
+window.HelpDialog =
+  container: null
+  dialogElement: null
+  showing: false
 
-  document.body.appendChild(container)
+  # This setting is pulled out of local storage. It's false by default.
+  getShowAdvancedCommands: -> Settings.get "helpDialog_showAdvancedCommands"
 
-  container.innerHTML = html
-  container.getElementsByClassName("closeButton")[0].addEventListener("click", hideHelpDialog, false)
+  init: ->
+    return if @container?
+    @container = DomUtils.createElement "div"
+    @container.id = "vimiumHelpDialogContainer"
+    @container.className = "vimiumReset"
+    chrome.runtime.sendMessage {handler: "fetchFileContents", fileName: "pages/help_dialog.html"}, (html) =>
+      @container.innerHTML = html
 
-  VimiumHelpDialog =
-    # This setting is pulled out of local storage. It's false by default.
-    getShowAdvancedCommands: -> Settings.get("helpDialog_showAdvancedCommands")
+      @dialogElement = @container.querySelector "#vimiumHelpDialog"
 
-    init: () ->
-      this.dialogElement = document.getElementById("vimiumHelpDialog")
-      this.dialogElement.getElementsByClassName("toggleAdvancedCommands")[0].addEventListener("click",
-        VimiumHelpDialog.toggleAdvancedCommands, false)
-      this.dialogElement.style.maxHeight = window.innerHeight - 80
-      this.showAdvancedCommands(this.getShowAdvancedCommands())
+      @dialogElement.getElementsByClassName("closeButton")[0].addEventListener("click", (clickEvent) =>
+          clickEvent.preventDefault()
+          @hide()
+        false)
+      @dialogElement.getElementsByClassName("optionsPage")[0].addEventListener("click", (clickEvent) ->
+          clickEvent.preventDefault()
+          chrome.runtime.sendMessage {handler: "openOptionsPageInNewTab"}
+        false)
+      @dialogElement.getElementsByClassName("toggleAdvancedCommands")[0].addEventListener("click",
+        HelpDialog.toggleAdvancedCommands, false)
 
-    #
-    # Advanced commands are hidden by default so they don't overwhelm new and casual users.
-    #
-    toggleAdvancedCommands: (event) ->
-      event.preventDefault()
-      showAdvanced = VimiumHelpDialog.getShowAdvancedCommands()
-      VimiumHelpDialog.showAdvancedCommands(!showAdvanced)
-      Settings.set("helpDialog_showAdvancedCommands", !showAdvanced)
+  isReady: -> document.body? and @container?
 
-    showAdvancedCommands: (visible) ->
-      VimiumHelpDialog.dialogElement.getElementsByClassName("toggleAdvancedCommands")[0].innerHTML =
-        if visible then "Hide advanced commands" else "Show advanced commands"
-      advancedEls = VimiumHelpDialog.dialogElement.getElementsByClassName("advanced")
-      for el in advancedEls
-        el.style.display = if visible then "table-row" else "none"
+  show: (html) ->
+    return if @showing or !@isReady()
+    @showing = true
+    for placeholder, htmlString of html
+      @dialogElement.querySelector("#help-dialog-#{placeholder}").innerHTML = htmlString
 
-  VimiumHelpDialog.init()
+    document.body.appendChild @container
+    @showAdvancedCommands @getShowAdvancedCommands()
 
-  container.getElementsByClassName("optionsPage")[0].addEventListener("click", (clickEvent) ->
-      clickEvent.preventDefault()
-      chrome.runtime.sendMessage({handler: "openOptionsPageInNewTab"})
-    false)
+    # Simulating a click on the help dialog makes it the active element for scrolling.
+    DomUtils.simulateClick document.getElementById "vimiumHelpDialog"
 
-  # Simulating a click on the help dialog makes it the active element for scrolling.
-  DomUtils.simulateClick document.getElementById "vimiumHelpDialog"
+  hide: ->
+    @showing = false
+    @container?.parentNode?.removeChild @container
 
-hideHelpDialog = (clickEvent) ->
-  isShowingHelpDialog = false
-  helpDialog = document.getElementById("vimiumHelpDialogContainer")
-  if (helpDialog)
-    helpDialog.parentNode.removeChild(helpDialog)
-  if (clickEvent)
-    clickEvent.preventDefault()
+  toggle: (html) ->
+    if @showing then @hide() else @show html
 
-toggleHelpDialog = (html, fid) ->
-  if (isShowingHelpDialog)
-    hideHelpDialog()
-  else
-    showHelpDialog(html, fid)
+  #
+  # Advanced commands are hidden by default so they don't overwhelm new and casual users.
+  #
+  toggleAdvancedCommands: (event) ->
+    event.preventDefault()
+    showAdvanced = HelpDialog.getShowAdvancedCommands()
+    HelpDialog.showAdvancedCommands !showAdvanced
+    Settings.set("helpDialog_showAdvancedCommands", !showAdvanced)
+
+  showAdvancedCommands: (visible) ->
+    @dialogElement.getElementsByClassName("toggleAdvancedCommands")[0].innerHTML =
+      if visible then "Hide advanced commands" else "Show advanced commands"
+
+    # Add/remove the showAdvanced class to show/hide advanced commands.
+    addOrRemove = if visible then "add" else "remove"
+    @dialogElement.classList[addOrRemove] "showAdvanced"
 
 initializePreDomReady()
 DomUtils.documentReady initializeOnDomReady
