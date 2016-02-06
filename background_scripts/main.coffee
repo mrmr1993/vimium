@@ -389,25 +389,42 @@ updateOpenTabs = (tab, deleteFrames = false) ->
   # Frames are recreated on refresh
   delete frameIdsForTab[tab.id] if deleteFrames
 
+# The externalExtensionMapping (stored in chrome.storage.sync) is a self-declared extension-name-to-id
+# mapping.  This allows mappings for external commands to use symbolic names (rather than extension Ids).
+chrome.storage.sync.get "externalExtensionMapping", (items) ->
+  unless items.externalExtensionMapping
+    chrome.storage.sync.set externalExtensionMapping: {}
+
+chrome.runtime.onMessageExternal.addListener (request) ->
+  if request.name == "registerExternalExtension"
+    {extensionName, extensionId} = request
+    chrome.storage.sync.get "externalExtensionMapping", (items) ->
+      logMessage "registering external extension #{extensionName} -> #{extensionId}"
+      items.externalExtensionMapping[extensionName] = extensionId
+      chrome.storage.sync.set items
+  false
+
 executeExternalCommand = (count, frameId, registryEntry) ->
   try
-    [ extensionId, command ] = registryEntry.options[0].split "."
+    [ extensionName, command ] = registryEntry.options[0].split "."
   catch
     logMessage "incorrectly defined external command: #{registryEntry.command}"
     return
 
-  # We first require a "prepare"/"ready" message exchange.  This ensures (dynamically) that the required
-  # extension is in fact available, and allows that extension to tell use whether we need to block keyboard
-  # activity pending completion.
-  chrome.runtime.sendMessage extensionId, {name: "prepare", command}, (response) ->
-    if response?.name == "ready"
-      if response.blockKeyboardActivity
-        # If synchronous, then block keyboard activity in the current frame here.
-        true # Not yet implemented.
-      chrome.runtime.sendMessage extensionId, {name: "execute", command, count}, ->
+  chrome.storage.sync.get "externalExtensionMapping", (items) ->
+    extensionId = items.externalExtensionMapping[extensionName] ? extensionName
+    # We first require a "prepare"/"ready" message exchange.  This ensures (dynamically) that the required
+    # extension is in fact available, and allows that extension to tell use whether we need to block keyboard
+    # activity pending completion.
+    chrome.runtime.sendMessage extensionId, {name: "prepare", command}, (response) ->
+      if response?.name == "ready"
         if response.blockKeyboardActivity
-          # If synchronous, then unblock keyboard activity in the current frame here.
+          # If synchronous, then block keyboard activity in the current frame here.
           true # Not yet implemented.
+        chrome.runtime.sendMessage extensionId, {name: "execute", command, count}, ->
+          if response.blockKeyboardActivity
+            # If synchronous, then unblock keyboard activity in the current frame here.
+            true # Not yet implemented.
 
 # Here's how we set the page icon.  The default is "disabled", so if we do nothing else, then we get the
 # grey-out disabled icon.  Thereafter, we only set tab-specific icons, so there's no need to update the icon

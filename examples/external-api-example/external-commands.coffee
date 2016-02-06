@@ -2,6 +2,9 @@ root = exports ? window
 
 # These are just example commands.  They don't do anything particularly interesting.
 root.Commands =
+  # A symbolic name that can be used in place of the extension Id.
+  extensionName: "demoExtension"
+
   # These commands are executed asynchronously (launch and forget).
   asyncCommands:
 
