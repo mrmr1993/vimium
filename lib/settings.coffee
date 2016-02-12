@@ -167,6 +167,7 @@ Settings =
     settingsVersion: Utils.getCurrentVersion()
     helpDialog_showAdvancedCommands: false
     optionsPage_showAdvancedOptions: false
+    passNextKeyKeys: []
 
 Settings.init()
 
