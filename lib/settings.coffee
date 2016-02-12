@@ -163,6 +163,7 @@ Settings =
     newTabUrl: "chrome://newtab"
     grabBackFocus: false
     regexFindMode: false
+    waitForEnterForFilteredHints: false
 
     settingsVersion: Utils.getCurrentVersion()
     helpDialog_showAdvancedCommands: false
