@@ -221,6 +221,9 @@ div#vimiumHelpDialog td.vimiumHelpSectionTitle {
 /* Style to control showing/hiding the command names in the help dialog. */
 div#vimiumHelpDialog.hideCommandNames span.commandName { display: none; }
 
+/* Style to control showing/hiding unbound commands in the help dialog. */
+div#vimiumHelpDialog.hideUnboundCommands tr.unboundCommand { display: none; }
+
 div#vimiumHelpDialog div.commandName { font-family:"courier new"; }
 /* Advanced commands are hidden by default until you show them. */
 div#vimiumHelpDialog tr.advanced { display: none; }

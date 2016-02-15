@@ -45,6 +45,8 @@ HelpDialog =
 
     addOrRemove = if showCommandNames then "remove" else "add"
     HelpDialog.dialogElement.classList[addOrRemove] "hideCommandNames"
+    addOrRemove = if showUnboundCommands then "remove" else "add"
+    HelpDialog.dialogElement.classList[addOrRemove] "hideUnboundCommands"
 
     @showAdvancedCommands(@getShowAdvancedCommands())
 
@@ -81,20 +83,19 @@ HelpDialog =
     html = []
     for command in Commands.commandGroups[group]
       bindings = (commandsToKey[command] || [""]).join(", ")
-      if (showUnboundCommands || commandsToKey[command])
-        isAdvanced = Commands.advancedCommands.indexOf(command) >= 0
-        description = availableCommands[command].description
-        if bindings.length < 12
-          @helpDialogHtmlForCommand html, isAdvanced, bindings, description, command
-        else
-          # If the length of the bindings is too long, then we display the bindings on a separate row from the
-          # description.  This prevents the column alignment from becoming out of whack.
-          @helpDialogHtmlForCommand html, isAdvanced, bindings, "", ""
-          @helpDialogHtmlForCommand html, isAdvanced, "", description, command
+      isAdvanced = Commands.advancedCommands.indexOf(command) >= 0
+      description = availableCommands[command].description
+      if bindings.length < 12
+        @helpDialogHtmlForCommand html, isAdvanced, bindings, description, command, !bindings
+      else
+        # If the length of the bindings is too long, then we display the bindings on a separate row from the
+        # description.  This prevents the column alignment from becoming out of whack.
+        @helpDialogHtmlForCommand html, isAdvanced, bindings, "", ""
+        @helpDialogHtmlForCommand html, isAdvanced, "", description, command
     html.join("\n")
 
-  helpDialogHtmlForCommand: (html, isAdvanced, bindings, description, command) ->
-    html.push "<tr class='vimiumReset #{"advanced" if isAdvanced}'>"
+  helpDialogHtmlForCommand: (html, isAdvanced, bindings, description, command, unboundCommand) ->
+    html.push "<tr class='vimiumReset #{"advanced" if isAdvanced} #{"unboundCommand" if unboundCommand}'>"
     if description
       html.push "<td class='vimiumReset'>", Utils.escapeHtml(bindings), "</td>"
       html.push "<td class='vimiumReset'>#{if description and bindings then ':' else ''}</td><td class='vimiumReset'>", description
