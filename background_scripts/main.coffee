@@ -147,43 +147,11 @@ root.helpDialogHtml = (showUnboundCommands, showCommandNames, customTitle) ->
   replacementStrings =
     version: currentVersion
     title: customTitle || "Help"
-
-  for group of Commands.commandGroups
-    replacementStrings[group] =
-        helpDialogHtmlForCommandGroup(group, commandsToKey, Commands.availableCommands,
-                                      showUnboundCommands, showCommandNames)
+    commandsToKey: commandsToKey
+    showUnboundCommands: showUnboundCommands
+    showCommandNames: showCommandNames
 
   replacementStrings
-
-#
-# Generates HTML for a given set of commands. commandGroups are defined in commands.js
-#
-helpDialogHtmlForCommandGroup = (group, commandsToKey, availableCommands,
-    showUnboundCommands, showCommandNames) ->
-  html = []
-  for command in Commands.commandGroups[group]
-    bindings = (commandsToKey[command] || [""]).join(", ")
-    if (showUnboundCommands || commandsToKey[command])
-      isAdvanced = Commands.advancedCommands.indexOf(command) >= 0
-      description = availableCommands[command].description
-      if bindings.length < 12
-        helpDialogHtmlForCommand html, isAdvanced, bindings, description, showCommandNames, command
-      else
-        # If the length of the bindings is too long, then we display the bindings on a separate row from the
-        # description.  This prevents the column alignment from becoming out of whack.
-        helpDialogHtmlForCommand html, isAdvanced, bindings, "", false, ""
-        helpDialogHtmlForCommand html, isAdvanced, "", description, showCommandNames, command
-  html.join("\n")
-
-helpDialogHtmlForCommand = (html, isAdvanced, bindings, description, showCommandNames, command) ->
-  html.push "<tr class='vimiumReset #{"advanced" if isAdvanced}'>"
-  if description
-    html.push "<td class='vimiumReset'>", Utils.escapeHtml(bindings), "</td>"
-    html.push "<td class='vimiumReset'>#{if description and bindings then ':' else ''}</td><td class='vimiumReset'>", description
-    html.push("<span class='vimiumReset commandName'>(#{command})</span>") if showCommandNames
-  else
-    html.push "<td class='vimiumReset' colspan='3' style='text-align: left;'>", Utils.escapeHtml(bindings)
-  html.push("</td></tr>")
 
 #
 # Fetches the contents of a file bundled with this extension.
