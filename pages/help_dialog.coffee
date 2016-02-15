@@ -41,7 +41,10 @@ HelpDialog =
     for group of Commands.commandGroups
       @dialogElement.querySelector("#help-dialog-#{group}").innerHTML =
           @helpDialogHtmlForCommandGroup(group, commandsToKey, Commands.availableCommands,
-                                         showUnboundCommands, showCommandNames)
+                                         showUnboundCommands)
+
+    addOrRemove = if showCommandNames then "remove" else "add"
+    HelpDialog.dialogElement.classList[addOrRemove] "hideCommandNames"
 
     @showAdvancedCommands(@getShowAdvancedCommands())
 
@@ -74,7 +77,7 @@ HelpDialog =
   # Generates HTML for a given set of commands. commandGroups are defined in commands.js
   #
   helpDialogHtmlForCommandGroup: (group, commandsToKey, availableCommands,
-      showUnboundCommands, showCommandNames) ->
+      showUnboundCommands) ->
     html = []
     for command in Commands.commandGroups[group]
       bindings = (commandsToKey[command] || [""]).join(", ")
@@ -82,20 +85,20 @@ HelpDialog =
         isAdvanced = Commands.advancedCommands.indexOf(command) >= 0
         description = availableCommands[command].description
         if bindings.length < 12
-          @helpDialogHtmlForCommand html, isAdvanced, bindings, description, showCommandNames, command
+          @helpDialogHtmlForCommand html, isAdvanced, bindings, description, command
         else
           # If the length of the bindings is too long, then we display the bindings on a separate row from the
           # description.  This prevents the column alignment from becoming out of whack.
-          @helpDialogHtmlForCommand html, isAdvanced, bindings, "", false, ""
-          @helpDialogHtmlForCommand html, isAdvanced, "", description, showCommandNames, command
+          @helpDialogHtmlForCommand html, isAdvanced, bindings, "", ""
+          @helpDialogHtmlForCommand html, isAdvanced, "", description, command
     html.join("\n")
 
-  helpDialogHtmlForCommand: (html, isAdvanced, bindings, description, showCommandNames, command) ->
+  helpDialogHtmlForCommand: (html, isAdvanced, bindings, description, command) ->
     html.push "<tr class='vimiumReset #{"advanced" if isAdvanced}'>"
     if description
       html.push "<td class='vimiumReset'>", Utils.escapeHtml(bindings), "</td>"
       html.push "<td class='vimiumReset'>#{if description and bindings then ':' else ''}</td><td class='vimiumReset'>", description
-      html.push("<span class='vimiumReset commandName'>(#{command})</span>") if showCommandNames
+      html.push "<span class='vimiumReset commandName'>(#{command})</span>"
     else
       html.push "<td class='vimiumReset' colspan='3' style='text-align: left;'>", Utils.escapeHtml(bindings)
     html.push("</td></tr>")
