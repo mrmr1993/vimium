@@ -720,6 +720,12 @@ window.runTests = -> open(chrome.runtime.getURL('tests/dom_tests/dom_tests.html'
 #
 Commands.clearKeyMappingsAndSetDefaults()
 
+# Register postUpdateHook for keyMappings setting.
+Settings.postUpdateHooks["keyMappings"] = (value) ->
+  Commands.clearKeyMappingsAndSetDefaults()
+  Commands.parseCustomKeyMappings value
+  refreshCompletionKeysAfterMappingSave()
+
 if Settings.has("keyMappings")
   Commands.parseCustomKeyMappings(Settings.get("keyMappings"))
 
