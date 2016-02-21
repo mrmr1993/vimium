@@ -59,7 +59,7 @@ class LinkHintsMode
     # For these modes, we filter out those elements which don't have an HREF (since there's nothing we can do
     # with them).
     elements = (el for el in elements when el.element.href?) if mode in [ COPY_LINK_URL, OPEN_INCOGNITO ]
-    if Settings.get "filterLinkHints"
+    if false # Settings.get "filterLinkHints"
       # When using text filtering, we sort the elements such that we visit descendants before their ancestors.
       # This allows us to exclude the text used for matching descendants from that used for matching their
       # ancestors.
@@ -71,7 +71,7 @@ class LinkHintsMode
       return
 
     hintMarkers = (@createMarkerFor(el) for el in elements)
-    @markerMatcher = new (if Settings.get "filterLinkHints" then FilterHints else AlphabetHints)
+    @markerMatcher = new AlphabetHints
     @markerMatcher.fillInMarkers hintMarkers
 
     @hintMode = new Mode
@@ -336,7 +336,7 @@ class LinkHintsMode
         @hintMode.exit event
 
     else if event.keyCode == keyCodes.enter
-      # Activate the active hint, if there is one.  Only FilterHints uses an active hint.
+      # Activate the active hint, if there is one.
       @activateLink @markerMatcher.activeHintMarker if @markerMatcher.activeHintMarker
 
     else if event.keyCode == keyCodes.tab
@@ -362,15 +362,27 @@ class LinkHintsMode
     DomUtils.suppressEvent event
 
   updateVisibleMarkers: (hintMarkers, tabCount = 0) ->
-    keyResult = @markerMatcher.getMatchingHints hintMarkers, tabCount
-    linksMatched = keyResult.linksMatched
+    DomUtils.removeElement @activeFlashElement if @activeFlashElement
+    @activeFlashElement = null
+
+    linksMatched = @markerMatcher.getMatchingHints hintMarkers, tabCount
+
     if linksMatched.length == 0
       @deactivateMode()
     else if linksMatched.length == 1
-      @activateLink linksMatched[0], keyResult.delay ? 0, keyResult.waitForEnter and Settings.get "waitForEnterForFilteredHints"
+      matchedLink = linksMatched[0]
+      delay = if matchedLink.hintPrefix == matchedLink.hintString then 0 else 200
+      waitForEnter = delay and Settings.get "waitForEnterForFilteredHints"
+      @activateLink matchedLink, delay, waitForEnter
     else
+      if @markerMatcher.activeHintMarker
+        @activeFlashElement = DomUtils.addFlashRect @markerMatcher.activeHintMarker.rect
+      textOnlylinksMatched = linksMatched.filter (link) -> link.hintPrefix.length == 0
+      if textOnlylinksMatched.length == linksMatched.length
+        @markerMatcher.fillInMarkers linksMatched
       @hideMarker marker for marker in hintMarkers
-      @showMarker matched, @markerMatcher.hintKeystrokeQueue.length for matched in linksMatched
+      for matched in linksMatched
+        @showMarker matched, matched.hintPrefix.length
 
   #
   # When only one link hint remains, this function activates it in the appropriate way.
@@ -421,6 +433,7 @@ class LinkHintsMode
       @onExit?()
       @onExit = null
       @tabCount = 0
+      DomUtils.removeElement @activeFlashElement if @activeFlashElement
 
     if delay
       # Install a mode to block keyboard events if the user is still typing.  The intention is to prevent the
@@ -444,171 +457,81 @@ class AlphabetHints
     # characters. See #1722.
     @useKeydown = /^[a-z0-9]*$/.test @linkHintCharacters
     @hintKeystrokeQueue = []
+    @splitRegexp = new RegExp "\\W+"
 
   fillInMarkers: (hintMarkers) ->
-    hintStrings = @hintStrings(hintMarkers.length)
+    DomUtils.textContent.reset()
+    hintStrings = @hintStrings hintMarkers.length
+
     for marker, idx in hintMarkers
       marker.hintString = hintStrings[idx]
-      marker.innerHTML = spanWrap(marker.hintString.toUpperCase())
+      marker.innerHTML = spanWrap marker.hintString.toUpperCase()
+      marker.linkText = @generateLinkText(marker.clickableItem).toLowerCase()
+      marker.hintPrefix = ""
+      marker.matchedText = ""
 
-    hintMarkers
+  generateLinkText: (element) ->
+    # toLowerCase is necessary as html documents return "IMG" and xhtml documents return "img"
+    nodeName = element.nodeName.toLowerCase()
+
+    if nodeName == "input" and element.type != "password"
+      element.value || element.placeholder || ""
+    else if nodeName == "a" and not element.textContent.trim() and element.firstElementChild and element.firstElementChild.nodeName.toLowerCase() == "img"
+      element.firstElementChild.alt || element.firstElementChild.title || ""
+    else
+      DomUtils.textContent.get element
 
   #
-  # Returns a list of hint strings which will uniquely identify the given number of links. The hint strings
-  # may be of different lengths.
+  # Returns a list of hint strings which will uniquely identify the given number of links.  The hint strings
+  # must be of the same length.
   #
   hintStrings: (linkCount) ->
+    numHintCharacters = Math.ceil Math.log(linkCount) / Math.log @linkHintCharacters.length
     hints = [""]
-    offset = 0
-    while hints.length - offset < linkCount or hints.length == 1
-      hint = hints[offset++]
-      hints.push ch + hint for ch in @linkHintCharacters
-    hints = hints[offset...offset+linkCount]
+    for _ in [0...numHintCharacters]
+      newHints = []
+      for hint in hints
+        for ch in @linkHintCharacters
+          newHints.push ch + hint
+      hints = newHints
 
     # Shuffle the hints so that they're scattered; hints starting with the same character and short hints are
     # spread evenly throughout the array.
     return hints.sort().map (str) -> str.reverse()
 
-  getMatchingHints: (hintMarkers) ->
-    matchString = @hintKeystrokeQueue.join ""
-    linksMatched: hintMarkers.filter (linkMarker) -> linkMarker.hintString.startsWith matchString
-
-  pushKeyChar: (keyChar, keydownKeyChar) ->
-    @hintKeystrokeQueue.push (if @useKeydown then keydownKeyChar else keyChar)
-  popKeyChar: -> @hintKeystrokeQueue.pop()
-
-# Use numbers (usually) for hints, and also filter links by their text.
-class FilterHints
-  constructor: ->
-    @linkHintNumbers = Settings.get "linkHintNumbers"
-    @hintKeystrokeQueue = []
-    @linkTextKeystrokeQueue = []
-    @labelMap = {}
+  getMatchingHints: (hintMarkers, tabCount) ->
     @activeHintMarker = null
-    # The regexp for splitting typed text and link texts.  We split on sequences of non-word characters and
-    # link-hint numbers.
-    @splitRegexp = new RegExp "[\\W#{Utils.escapeRegexSpecialCharacters @linkHintNumbers}]+"
-
-  #
-  # Generate a map of input element => label
-  #
-  generateLabelMap: ->
-    labels = document.querySelectorAll("label")
-    for label in labels
-      forElement = label.getAttribute("for")
-      if (forElement)
-        labelText = label.textContent.trim()
-        # remove trailing : commonly found in labels
-        if (labelText[labelText.length-1] == ":")
-          labelText = labelText.substr(0, labelText.length-1)
-        @labelMap[forElement] = labelText
-
-  generateHintString: (linkHintNumber) ->
-    base = @linkHintNumbers.length
-    hint = []
-    while 0 < linkHintNumber
-      hint.push @linkHintNumbers[Math.floor linkHintNumber % base]
-      linkHintNumber = Math.floor linkHintNumber / base
-    hint.reverse().join ""
-
-  generateLinkText: (element) ->
-    linkText = ""
-    showLinkText = false
-    # toLowerCase is necessary as html documents return "IMG" and xhtml documents return "img"
-    nodeName = element.nodeName.toLowerCase()
-
-    if (nodeName == "input")
-      if (@labelMap[element.id])
-        linkText = @labelMap[element.id]
-        showLinkText = true
-      else if (element.type != "password")
-        linkText = element.value
-        if not linkText and 'placeholder' of element
-          linkText = element.placeholder
-      # check if there is an image embedded in the <a> tag
-    else if (nodeName == "a" && !element.textContent.trim() &&
-        element.firstElementChild &&
-        element.firstElementChild.nodeName.toLowerCase() == "img")
-      linkText = element.firstElementChild.alt || element.firstElementChild.title
-      showLinkText = true if (linkText)
-    else
-      linkText = DomUtils.textContent.get element
-
-    { text: linkText, show: showLinkText }
-
-  renderMarker: (marker) ->
-    marker.innerHTML = spanWrap(marker.hintString +
-        (if marker.showLinkText then ": " + marker.linkText else ""))
-
-  fillInMarkers: (hintMarkers) ->
-    @generateLabelMap()
-    DomUtils.textContent.reset()
-    for marker in hintMarkers
-      linkTextObject = @generateLinkText(marker.clickableItem)
-      marker.linkText = linkTextObject.text
-      marker.showLinkText = linkTextObject.show
-      @renderMarker(marker)
-
-    @activeHintMarker = hintMarkers[0]
-    @activeHintMarker?.classList.add "vimiumActiveHintMarker"
-
-    # We use @filterLinkHints() here (although we know that all of the hints will match) to fill in the hint
-    # strings.  This ensures that we always get hint strings in the same order.
-    @filterLinkHints hintMarkers
-
-  getMatchingHints: (hintMarkers, tabCount = 0) ->
-    delay = 0
-
-    # At this point, linkTextKeystrokeQueue and hintKeystrokeQueue have been updated to reflect the latest
-    # input. use them to filter the link hints accordingly.
     matchString = @hintKeystrokeQueue.join ""
-    linksMatched = @filterLinkHints hintMarkers
-    linksMatched = linksMatched.filter (linkMarker) -> linkMarker.hintString.startsWith matchString
+    hintMarkers = hintMarkers.filter (linkMarker) =>
+      # We are looking for a partitioning "TTTHH" of matchString such that "TTT" is present in the link text
+      # and "HH" is a prefix of the link hint.  Either of "TTT" and "HH" can be of length 0 (so, it can be all
+      # matched text, or all matched hint prefix).
+      for i in [0..matchString.length]
+        candidateLinkText = matchString[0...i]
+        candidateHintPrefix = matchString[i..]
+        if linkMarker.hintString.startsWith candidateHintPrefix
+          # if 0 <= linkMarker.linkText.indexOf candidateLinkText
+          if candidateLinkText.length == 0 or 0 < @scoreLinkHint(candidateLinkText) linkMarker
+            linkMarker.hintPrefix = candidateHintPrefix
+            linkMarker.matchedText = candidateLinkText
+            # Because the hints are of equal length and are all different, only one can match here.
+            @activeHintMarker = linkMarker if candidateHintPrefix == linkMarker.hintString
+            return true
+      # No match.
+      false
 
-    if linksMatched.length == 1 && @hintKeystrokeQueue.length == 0 and 0 < @linkTextKeystrokeQueue.length
-      # In filter mode, people tend to type out words past the point needed for a unique match. Hence we
-      # should avoid passing control back to command mode immediately after a match is found.
-      delay = 200
+    @activeHintMarker =
+      if @activeHintMarker
+        hintMarkers[((hintMarkers.length * Math.abs tabCount) + tabCount + hintMarkers.indexOf @activeHintMarker) % hintMarkers.length]
+      else
+        for linkMarker in hintMarkers
+          linkMarker.score = @scoreLinkHint(matchString) linkMarker
+        tabCount = ((hintMarkers.length * Math.abs tabCount) + tabCount) % hintMarkers.length
+        hintMarkers[..].sort((a,b) -> b.score - a.score)[tabCount]
 
-    # Visually highlight of the active hint (that is, the one that will be activated if the user
-    # types <Enter>).
-    tabCount = ((linksMatched.length * Math.abs tabCount) + tabCount) % linksMatched.length
-    @activeHintMarker?.classList.remove "vimiumActiveHintMarker"
-    @activeHintMarker = linksMatched[tabCount]
-    @activeHintMarker?.classList.add "vimiumActiveHintMarker"
+    hintMarkers
 
-    { linksMatched: linksMatched, delay: delay, waitForEnter: 0 < delay }
-
-  pushKeyChar: (keyChar, keydownKeyChar) ->
-    # For filtered hints, we *always* use the keyChar value from keypress, because there is no obvious and
-    # easy-to-understand meaning for choosing one of keyChar or keydownKeyChar (as there is for alphabet
-    # hints).
-    if 0 <= @linkHintNumbers.indexOf keyChar
-      @hintKeystrokeQueue.push keyChar
-    else
-      # Since we might renumber the hints, we should reset the current hintKeyStrokeQueue.
-      @hintKeystrokeQueue = []
-      @linkTextKeystrokeQueue.push keyChar
-
-  popKeyChar: ->
-    @hintKeystrokeQueue.pop() or @linkTextKeystrokeQueue.pop()
-
-  # Filter link hints by search string, renumbering the hints as necessary.
-  filterLinkHints: (hintMarkers) ->
-    linkSearchString = @linkTextKeystrokeQueue.join("").trim().toLowerCase()
-    do (scoreFunction = @scoreLinkHint linkSearchString) ->
-      linkMarker.score = scoreFunction linkMarker for linkMarker in hintMarkers
-    hintMarkers = hintMarkers[..].sort (a,b) ->
-      if b.score == a.score then b.stableSortCount - a.stableSortCount else b.score - a.score
-
-    linkHintNumber = 1
-    for linkMarker in hintMarkers
-      continue unless 0 < linkMarker.score
-      linkMarker.hintString = @generateHintString linkHintNumber++
-      @renderMarker linkMarker
-      linkMarker
-
-  # Assign a score to a filter match (higher is better).  We assign a higher score for matches at the start of
+  # Assign a score to a match (higher is better).  We assign a higher score for matches at the start of
   # a word, and a considerably higher score still for matches which are whole words.
   scoreLinkHint: (linkSearchString) ->
     searchWords = linkSearchString.trim().split @splitRegexp
@@ -630,14 +553,18 @@ class FilterHints
                 0
           Math.max linkWordScores...
 
-      if 0 in searchWordScores
+      if text.length == 0 or 0 in searchWordScores
         0
       else
         addFunc = (a,b) -> a + b
         score = searchWordScores.reduce addFunc, 0
         # Prefer matches in shorter texts.  To keep things balanced for links without any text, we just weight
         # them as if their length was 50.
-        score / Math.log(text.length || 50)
+        score / Math.log((1 + text.length) || 50)
+
+  pushKeyChar: (keyChar, keydownKeyChar) ->
+    @hintKeystrokeQueue.push (if @useKeydown then keydownKeyChar else keyChar)
+  popKeyChar: -> @hintKeystrokeQueue.pop()
 
 #
 # Make each hint character a span, so that we can highlight the typed characters as you type them.
