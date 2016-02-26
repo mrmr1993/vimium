@@ -180,7 +180,12 @@ DomUtils =
   # enter insert mode if focused. Also note that the "contentEditable" attribute can be set on any element
   # which makes it a rich text editor, like the notes on jjot.com.
   isEditable: (element) ->
-    (@isSelectable element) or element.nodeName?.toLowerCase() == "select"
+    # Including <button> is a hack to make youtube playlist input not conflict with us (issue #1882).
+    # NOTE(mrmr1993): We never focus a <button> ourselves, so this can only occur when the user focuses a
+    # button with tab/the mouse or a script focuses it (as youtube does).
+    # It should be rare that this will happen and a user will immediately want to use Vimium, so requiring
+    # them to exit insert mode with <esc> before proceding will break very few workflows. I hope.
+    (@isSelectable element) or element.nodeName?.toLowerCase() in ["select", "button"]
 
   # Embedded elements like Flash and quicktime players can obtain focus.
   isEmbed: (element) ->
