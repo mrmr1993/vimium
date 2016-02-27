@@ -45,6 +45,16 @@ DomUtils =
   isTopFrame: ->
     window.top == window.self
 
+  # The properties of Chrome events are immutable.  This copies those properties we care about (so that we can
+  # pass around a mutable version of the event).
+  copyChromeEvent: do ->
+    copyProperties = "shiftKey ctrlKey metaKey altKey".split " "
+    (event) ->
+      eventCopy = {}
+      for property in copyProperties
+        eventCopy[property] = event[property] if event[property]?
+      eventCopy
+
   #
   # Takes an array of XPath selectors, adds the necessary namespaces (currently only XHTML), and applies them
   # to the document root. The namespaceResolver in evaluateXPath should be kept in sync with the namespaces

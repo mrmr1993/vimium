@@ -10,13 +10,64 @@
 #
 # The "name" property below is a short-form name to appear in the link-hints mode's name.  It's for debug only.
 #
-OPEN_IN_CURRENT_TAB = name: "curr-tab"
-OPEN_IN_NEW_BG_TAB = name: "bg-tab"
-OPEN_IN_NEW_FG_TAB = name: "fg-tab"
-OPEN_WITH_QUEUE = name: "queue"
-COPY_LINK_URL = name: "link"
-OPEN_INCOGNITO = name: "incognito"
-DOWNLOAD_LINK_URL = name: "download"
+OPEN_IN_CURRENT_TAB =
+  name: "curr-tab"
+  indicator: "Open link in current tab."
+  activateLink: (element, event) ->
+    DomUtils.simulateClick element, event
+
+OPEN_IN_NEW_BG_TAB =
+  name: "bg-tab"
+  indicator: "Open link in new tab."
+  activateLink: (element, event) ->
+    event.metaKey = not event.metaKey if KeyboardUtils.platform == "Mac"
+    event.ctrlKey = not event.ctrlKey if KeyboardUtils.platform != "Mac"
+    DomUtils.simulateClick element, event
+
+OPEN_IN_NEW_FG_TAB =
+  name: "fg-tab"
+  indicator: "Open link in new tab and switch to it."
+  activateLink: (element, event) ->
+    event.shiftKey = not event.shiftKey
+    event.metaKey = not event.metaKey if KeyboardUtils.platform == "Mac"
+    event.ctrlKey = not event.ctrlKey if KeyboardUtils.platform != "Mac"
+    DomUtils.simulateClick element, event
+
+OPEN_WITH_QUEUE =
+  name: "queue"
+  indicator: "Open multiple links in new tabs."
+  activateLink: (element, event) ->
+    event.metaKey = not event.metaKey if KeyboardUtils.platform == "Mac"
+    event.ctrlKey = not event.ctrlKey if KeyboardUtils.platform != "Mac"
+    DomUtils.simulateClick element, event
+
+COPY_LINK_URL =
+  name: "link"
+  indicator: "Copy link URL to Clipboard."
+  activateLink: (link) ->
+    if link.href?
+      chrome.runtime.sendMessage handler: "copyToClipboard", data: link.href
+      url = link.href
+      url = url[0..25] + "...." if 28 < url.length
+      HUD.showForDuration "Yanked #{url}", 2000
+    else
+      HUD.showForDuration "No link to yank.", 2000
+
+OPEN_INCOGNITO =
+  name: "incognito"
+  indicator: "Open link in incognito window."
+  activateLink: (link) ->
+    if link.href?
+      chrome.runtime.sendMessage handler: 'openUrlInIncognito', url: link.href
+    else
+      HUD.showForDuration "No link to open.", 2000
+
+DOWNLOAD_LINK_URL =
+  name: "download"
+  indicator: "Download link URL."
+  activateLink: (element, event) ->
+    event.altKey = not event.altKey
+    DomUtils.simulateClick element, event
 
 LinkHints =
   activateMode: (count = 1, mode = OPEN_IN_CURRENT_TAB) ->
@@ -97,42 +148,7 @@ class LinkHintsMode
       id: "vimiumHintMarkerContainer", className: "vimiumReset"
 
   setOpenLinkMode: (@mode) ->
-    if @mode is OPEN_IN_NEW_BG_TAB or @mode is OPEN_IN_NEW_FG_TAB or @mode is OPEN_WITH_QUEUE
-      if @mode is OPEN_IN_NEW_BG_TAB
-        @hintMode.setIndicator "Open link in new tab."
-      else if @mode is OPEN_IN_NEW_FG_TAB
-        @hintMode.setIndicator "Open link in new tab and switch to it."
-      else
-        @hintMode.setIndicator "Open multiple links in new tabs."
-      @linkActivator = (link) ->
-        # When "clicking" on a link, dispatch the event with the appropriate meta key (CMD on Mac, CTRL on
-        # windows) to open it in a new tab if necessary.
-        DomUtils.simulateClick link,
-          shiftKey: @mode is OPEN_IN_NEW_FG_TAB
-          metaKey: KeyboardUtils.platform == "Mac"
-          ctrlKey: KeyboardUtils.platform != "Mac"
-          altKey: false
-    else if @mode is COPY_LINK_URL
-      @hintMode.setIndicator "Copy link URL to Clipboard."
-      @linkActivator = (link) =>
-        if link.href?
-          chrome.runtime.sendMessage handler: "copyToClipboard", data: link.href
-          url = link.href
-          url = url[0..25] + "...." if 28 < url.length
-          @onExit = -> HUD.showForDuration "Yanked #{url}", 2000
-        else
-          @onExit = -> HUD.showForDuration "No link to yank.", 2000
-    else if @mode is OPEN_INCOGNITO
-      @hintMode.setIndicator "Open link in incognito window."
-      @linkActivator = (link) ->
-        chrome.runtime.sendMessage handler: 'openUrlInIncognito', url: link.href
-    else if @mode is DOWNLOAD_LINK_URL
-      @hintMode.setIndicator "Download link URL."
-      @linkActivator = (link) ->
-        DomUtils.simulateClick link, altKey: true, ctrlKey: false, metaKey: false
-    else # OPEN_IN_CURRENT_TAB
-      @hintMode.setIndicator "Open link in current tab."
-      @linkActivator = DomUtils.simulateClick.bind DomUtils
+    @hintMode.setIndicator @mode.indicator
 
   #
   # Creates a link marker for the given link.
@@ -303,31 +319,7 @@ class LinkHintsMode
     previousTabCount = @tabCount
     @tabCount = 0
 
-    if event.keyCode in [ keyCodes.shiftKey, keyCodes.ctrlKey ] and
-      @mode in [ OPEN_IN_CURRENT_TAB, OPEN_WITH_QUEUE, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB ]
-        @tabCount = previousTabCount
-        # Toggle whether to open the link in a new or current tab.
-        previousMode = @mode
-        keyCode = event.keyCode
-
-        switch keyCode
-          when keyCodes.shiftKey
-            @setOpenLinkMode(if @mode is OPEN_IN_CURRENT_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_CURRENT_TAB)
-          when keyCodes.ctrlKey
-            @setOpenLinkMode(if @mode is OPEN_IN_NEW_FG_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_NEW_FG_TAB)
-
-        handlerId = handlerStack.push
-          keyup: (event) =>
-            if event.keyCode == keyCode
-              handlerStack.remove()
-              @setOpenLinkMode previousMode if @isActive
-            true # Continue bubbling the event.
-
-        # For some (unknown) reason, we don't always receive the keyup event needed to remove this handler.
-        # Therefore, we ensure that it's always removed when hint mode exits.  See #1911 and #1926.
-        @hintMode.onExit -> handlerStack.remove handlerId
-
-    else if event.keyCode in [ keyCodes.backspace, keyCodes.deleteKey ]
+    if event.keyCode in [ keyCodes.backspace, keyCodes.deleteKey ]
       if @markerMatcher.popKeyChar()
         @updateVisibleMarkers hintMarkers
       else
@@ -337,11 +329,16 @@ class LinkHintsMode
 
     else if event.keyCode == keyCodes.enter
       # Activate the active hint, if there is one.  Only FilterHints uses an active hint.
-      @activateLink @markerMatcher.activeHintMarker if @markerMatcher.activeHintMarker
+      @activateLink @markerMatcher.activeHintMarker, event if @markerMatcher.activeHintMarker
 
     else if event.keyCode == keyCodes.tab
       @tabCount = previousTabCount + (if event.shiftKey then -1 else 1)
-      @updateVisibleMarkers hintMarkers, @tabCount
+      @updateVisibleMarkers hintMarkers, event, @tabCount
+
+    else if 0 < @keydownKeyChar.length and not KeyboardUtils.isPrintable event
+      # We won't be getting a keypress event for this keystroke, so we have to handle it now.
+      @markerMatcher.pushKeyChar @keydownKeyChar, @keydownKeyChar
+      @updateVisibleMarkers hintMarkers, event
 
     else
       return
@@ -356,18 +353,18 @@ class LinkHintsMode
     keyChar = String.fromCharCode(event.charCode).toLowerCase()
     if keyChar
       @markerMatcher.pushKeyChar keyChar, @keydownKeyChar
-      @updateVisibleMarkers hintMarkers
+      @updateVisibleMarkers hintMarkers, event
 
     # We've handled the event, so suppress it.
     DomUtils.suppressEvent event
 
-  updateVisibleMarkers: (hintMarkers, tabCount = 0) ->
+  updateVisibleMarkers: (hintMarkers, event = {}, tabCount = 0) ->
     keyResult = @markerMatcher.getMatchingHints hintMarkers, tabCount
     linksMatched = keyResult.linksMatched
     if linksMatched.length == 0
       @deactivateMode()
     else if linksMatched.length == 1
-      @activateLink linksMatched[0], keyResult.delay ? 0, keyResult.waitForEnter and Settings.get "waitForEnterForFilteredHints"
+      @activateLink linksMatched[0], event, keyResult.delay ? 0, keyResult.waitForEnter and Settings.get "waitForEnterForFilteredHints"
     else
       @hideMarker marker for marker in hintMarkers
       @showMarker matched, @markerMatcher.hintKeystrokeQueue.length for matched in linksMatched
@@ -375,7 +372,7 @@ class LinkHintsMode
   #
   # When only one link hint remains, this function activates it in the appropriate way.
   #
-  activateLink: (@matchedLink, delay = 0, waitForEnter = false) ->
+  activateLink: (@matchedLink, event, delay = 0, waitForEnter = false) ->
     clickEl = @matchedLink.clickableItem
     if (DomUtils.isSelectable(clickEl))
       DomUtils.simulateSelect(clickEl)
@@ -385,8 +382,8 @@ class LinkHintsMode
       if (clickEl.nodeName.toLowerCase() == "input" and clickEl.type not in ["button", "submit"])
         clickEl.focus()
 
-      linkActivator = =>
-        @linkActivator(clickEl)
+      linkActivator = (activatingEvent = null) =>
+        @mode.activateLink clickEl, DomUtils.copyChromeEvent activatingEvent ? event
         LinkHints.activateModeWithQueue() if @mode is OPEN_WITH_QUEUE
 
       delay = 0 if waitForEnter
@@ -481,6 +478,7 @@ class AlphabetHints
 class FilterHints
   constructor: ->
     @linkHintNumbers = Settings.get "linkHintNumbers"
+    @useKeydown = /^[0-9]*$/.test @linkHintNumbers
     @hintKeystrokeQueue = []
     @linkTextKeystrokeQueue = []
     @labelMap = {}
@@ -579,11 +577,12 @@ class FilterHints
 
     { linksMatched: linksMatched, delay: delay, waitForEnter: 0 < delay }
 
+  isHintNumber: (keyChar) ->
+    0 <= @linkHintNumbers.indexOf keyChar
+
   pushKeyChar: (keyChar, keydownKeyChar) ->
-    # For filtered hints, we *always* use the keyChar value from keypress, because there is no obvious and
-    # easy-to-understand meaning for choosing one of keyChar or keydownKeyChar (as there is for alphabet
-    # hints).
-    if 0 <= @linkHintNumbers.indexOf keyChar
+    keyChar = keydownKeyChar if @useKeydown and @isHintNumber keydownKeyChar
+    if @isHintNumber keyChar
       @hintKeystrokeQueue.push keyChar
     else
       # Since we might renumber the hints, we should reset the current hintKeyStrokeQueue.
@@ -684,10 +683,10 @@ class WaitForEnter extends Mode
       keydown: (event) =>
         if event.keyCode == keyCodes.enter
           @exit()
-          callback()
+          callback DomUtils.copyChromeEvent event
           DomUtils.suppressEvent event
         else
-          true
+          true # Suppress event.
 
     flashEl = DomUtils.addFlashRect rect
     @onExit -> DomUtils.removeElement flashEl
