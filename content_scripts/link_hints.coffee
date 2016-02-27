@@ -44,6 +44,7 @@ OPEN_WITH_QUEUE =
 COPY_LINK_URL =
   name: "link"
   indicator: "Copy link URL to Clipboard."
+  filter: (link) -> link.href
   activateLink: (link) ->
     if link.href?
       chrome.runtime.sendMessage handler: "copyToClipboard", data: link.href
@@ -56,6 +57,7 @@ COPY_LINK_URL =
 OPEN_INCOGNITO =
   name: "incognito"
   indicator: "Open link in incognito window."
+  filter: (link) -> link.href
   activateLink: (link) ->
     if link.href?
       chrome.runtime.sendMessage handler: 'openUrlInIncognito', url: link.href
@@ -107,9 +109,7 @@ class LinkHintsMode
     @isActive = true
 
     elements = @getVisibleClickableElements()
-    # For these modes, we filter out those elements which don't have an HREF (since there's nothing we can do
-    # with them).
-    elements = (el for el in elements when el.element.href?) if mode in [ COPY_LINK_URL, OPEN_INCOGNITO ]
+    elements = (el for el in elements when mode.filter el.element) if mode.filter
     if Settings.get "filterLinkHints"
       # When using text filtering, we sort the elements such that we visit descendants before their ancestors.
       # This allows us to exclude the text used for matching descendants from that used for matching their
