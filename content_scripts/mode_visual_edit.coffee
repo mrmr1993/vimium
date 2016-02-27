@@ -232,15 +232,22 @@ class Movement extends CountPrefix
 
   # Get the direction of the selection.  The selection is "forward" if the focus is at or after the anchor,
   # and "backward" otherwise.
-  # NOTE(smblott). This could be better, see: https://dom.spec.whatwg.org/#interface-range (however, that
-  # probably wouldn't work for text inputs).
   getDirection: ->
-    # Try to move the selection forward or backward, check whether it got bigger or smaller (then restore it).
-    for direction in [ forward, backward ]
-      if change = @extendByOneCharacter direction
-        @extendByOneCharacter @opposite[direction]
-        return if 0 < change then direction else @opposite[direction]
-    forward
+    element = @selectedInput()
+    if element?
+      # We can query selectionDirection on <input>s and <textarea>s to get the direction.
+      direction = element.selectionDirection
+      # Treat direction "none" as "forward".
+      if direction in ["forward", "backward"] then direction else "forward"
+    else
+      startRange = new Range()
+      endRange = new Range()
+      startRange.setStart @selection.anchorNode, @selection.anchorOffset
+      endRange.setEnd @selection.focusNode, @selection.focusOffset
+      if 0 <= startRange.compareBoundaryPoints Range.END_TO_START, endRange
+        "forward"
+      else
+        "backward"
 
   collapseSelectionToAnchor: ->
     if 0 < @selection.toString().length
