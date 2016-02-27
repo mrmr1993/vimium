@@ -199,21 +199,15 @@ class Movement extends CountPrefix
   # selection, and implements "o" for visual mode.
   reverseSelection: ->
     direction = @getDirection()
-    element = document.activeElement
-    if element and DomUtils.isEditable(element) and not element.isContentEditable
-      # Note(smblott). This implementation is unacceptably expensive if the selection is large.  We only use
-      # it here because the normal method (below) does not work for simple text inputs.
-      length = @selection.toString().length
-      @collapseSelectionToFocus()
-      @runMovement @opposite[direction], character for [0...length]
+    element = @selectedInput()
+    if element?
+      element.selectionDirection = opposite[element.selectionDirection] ? forward
     else
-      # Normal method (efficient).
-      original = @selection.getRangeAt(0).cloneRange()
-      range = original.cloneRange()
-      range.collapse direction == backward
-      @setSelectionRange range
-      which = if direction == forward then "start" else "end"
-      @selection.extend original["#{which}Container"], original["#{which}Offset"]
+      {startContainer, startOffset, endContainer, endOffset} = @selection.getRangeAt(0).cloneRange()
+      if direction == "forward"
+        @selection.setBaseAndExtent endContainer, endOffset, startContainer, startOffset
+      else
+        @selection.setBaseAndExtent startContainer, startOffset, endContainer, endOffset
 
   # Try to extend the selection one character in direction.  Return positive, negative or 0, indicating
   # whether the selection got bigger, or smaller, or is unchanged.
