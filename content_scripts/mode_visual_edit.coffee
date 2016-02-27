@@ -222,6 +222,14 @@ class Movement extends CountPrefix
     @selection.modify "extend", direction, character
     @selection.toString().length - length
 
+  # This returns the text input that is currently selected when applicable, and null otherwise.
+  selectedInput: ->
+    element = document.activeElement
+    if element and DomUtils.isEditable(element) and not element.isContentEditable
+      element
+    else
+      null
+
   # Get the direction of the selection.  The selection is "forward" if the focus is at or after the anchor,
   # and "backward" otherwise.
   # NOTE(smblott). This could be better, see: https://dom.spec.whatwg.org/#interface-range (however, that
