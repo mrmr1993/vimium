@@ -179,6 +179,15 @@ div#vimiumTitle, div#vimiumTitle span,  div#vimiumTitle * { font-size:20px; }
   display: block;
   line-height: 130%;
 }
+div#vimiumTitle input#helpSearch {
+  font-size: 13px;
+  vertical-align: text-top;
+  margin-left: 20px;
+  border: none;
+  border-bottom: 1px solid #c0c0c0;
+  background: none;
+  outline: none;
+}
 div.vimiumColumn {
   width:50%;
   float:left;
