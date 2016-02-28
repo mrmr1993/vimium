@@ -1,7 +1,14 @@
 Commands =
-  init: ->
+  init: (customKeyMappings) ->
     for own command, description of commandDescriptions
       @addCommand(command, description[0], description[1])
+    @loadKeyMappings customKeyMappings
+    Settings.postUpdateHooks["keyMappings"] = @loadKeyMappings.bind this
+
+  loadKeyMappings: (value) ->
+    @clearKeyMappingsAndSetDefaults()
+    @parseCustomKeyMappings value
+    @generateKeyStateMapping()
 
   availableCommands: {}
   keyToCommandRegistry: {}
@@ -93,6 +100,26 @@ Commands =
   clearKeyMappingsAndSetDefaults: ->
     @keyToCommandRegistry = {}
     @mapKeyToCommand { key, command } for own key, command of defaultKeyMappings
+
+  # Keys are either literal characters, or "named" - for example <a-b> (alt+b), <left> (left arrow) or <f12>
+  # This regular expression captures two groups: the first is a named key, the second is the remainder of the
+  # string.
+  namedKeyRegex: /^(<(?:[amc]-.|(?:[amc]-)?[a-z0-9]{2,5})>)(.*)$/
+
+  generateKeyStateMapping: ->
+    keyMapping = {}
+    for own keys, registryEntry of @keyToCommandRegistry
+      currentMapping = keyMapping
+      while 0 < keys.length
+        [key, rest] = if 0 == keys.search @namedKeyRegex then [RegExp.$1, RegExp.$2] else [keys[0], keys[1..]]
+        if 0 < rest.length
+          # Do not overwrite existing command bindings, they take priority.
+          break if (currentMapping[key] ?= {}).command
+          currentMapping = currentMapping[key]
+        else
+          currentMapping[key] = registryEntry
+        keys = rest
+    chrome.storage.local.set normalModeKeyStateMapping: keyMapping
 
   # An ordered listing of all available commands, grouped by type. This is the order they will
   # be shown in the help page.
@@ -355,13 +382,14 @@ commandDescriptions =
   moveTabLeft: ["Move tab to the left", { background: true, passCountToFunction: true }]
   moveTabRight: ["Move tab to the right", { background: true, passCountToFunction: true  }]
 
-  "Vomnibar.activate": ["Open URL, bookmark, or history entry", { noRepeat: true }]
-  "Vomnibar.activateInNewTab": ["Open URL, bookmark, history entry, in a new tab", { noRepeat: true }]
-  "Vomnibar.activateTabSelection": ["Search through your open tabs", { noRepeat: true }]
-  "Vomnibar.activateBookmarks": ["Open a bookmark", { noRepeat: true }]
-  "Vomnibar.activateBookmarksInNewTab": ["Open a bookmark in a new tab", { noRepeat: true }]
-  "Vomnibar.activateEditUrl": ["Edit the current URL", { noRepeat: true }]
-  "Vomnibar.activateEditUrlInNewTab": ["Edit the current URL and open in a new tab", { noRepeat: true }]
+  # These are background-page commands because all requests go via the background page.
+  "Vomnibar.activate": ["Open URL, bookmark, or history entry", { background: true, noRepeat: true }]
+  "Vomnibar.activateInNewTab": ["Open URL, bookmark, history entry, in a new tab", { background: true, noRepeat: true }]
+  "Vomnibar.activateTabSelection": ["Search through your open tabs", { background: true, noRepeat: true }]
+  "Vomnibar.activateBookmarks": ["Open a bookmark", { background: true, noRepeat: true }]
+  "Vomnibar.activateBookmarksInNewTab": ["Open a bookmark in a new tab", { background: true, noRepeat: true }]
+  "Vomnibar.activateEditUrl": ["Edit the current URL", { background: true, noRepeat: true }]
+  "Vomnibar.activateEditUrlInNewTab": ["Edit the current URL and open in a new tab", { background: true, noRepeat: true }]
 
   nextFrame: ["Cycle forward to the next frame on the page", { background: true, passCountToFunction: true }]
   mainFrame: ["Select the tab's main/top frame", { background: true, noRepeat: true }]
@@ -369,13 +397,7 @@ commandDescriptions =
   "Marks.activateCreateMode": ["Create a new mark", { noRepeat: true }]
   "Marks.activateGotoMode": ["Go to a mark", { noRepeat: true }]
 
-Commands.init()
-
-# Register postUpdateHook for keyMappings setting.
-Settings.postUpdateHooks["keyMappings"] = (value) ->
-  Commands.clearKeyMappingsAndSetDefaults()
-  Commands.parseCustomKeyMappings value
-  refreshCompletionKeysAfterMappingSave()
+Commands.init Settings.get "keyMappings"
 
 root = exports ? window
 root.Commands = Commands

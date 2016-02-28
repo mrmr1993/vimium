@@ -38,7 +38,13 @@ HelpDialog =
 
     @showAdvancedCommands(@getShowAdvancedCommands())
 
-  hide: -> UIComponentServer.postMessage "hide"
+    @exitOnEscape = new Mode exitOnEscape: true
+    @exitOnEscape.onExit (event) =>
+      HelpDialog.hide() if event?.type == "keydown" and KeyboardUtils.isEscape event
+
+  hide: ->
+    @exitOnEscape.exit()
+    UIComponentServer.postMessage "hide"
 
   toggle: (html) ->
     if @showing then @hide() else @show html
