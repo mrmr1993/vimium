@@ -39,8 +39,7 @@ HelpDialog =
     @showAdvancedCommands(@getShowAdvancedCommands())
 
     @exitOnEscape = new Mode name: "help-page-escape", exitOnEscape: true
-    @exitOnEscape.onExit (event) =>
-      HelpDialog.hide() if event?.type == "keydown" and KeyboardUtils.isEscape event
+    @exitOnEscape.onExit (event) => HelpDialog.hide() if event?.type == "keydown"
 
   hide: ->
     @exitOnEscape?.exit()
