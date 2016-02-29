@@ -25,9 +25,7 @@ initializeModeState = ->
   Mode.reset()
   handlerStack.reset()
   initializeModes keyMapping: {m: {}, p: {}, z: {p: {}}}
-  handlerStack.bubbleEvent "registerStateChange",
-    enabled: true
-    passKeys: "p"
+  normalMode.setPassKeys "p"
 
 # Tell Settings that it's been loaded.
 Settings.isLoaded = true
@@ -377,7 +375,7 @@ context "Normal mode",
   should "suppress passKeys with a non-empty key state (a key)", ->
     sendKeyboardEvent "z"
     sendKeyboardEvent "p"
-    assert.equal 0, pageKeyboardEventCount
+    assert.equal pageKeyboardEventCount, 0
 
 context "Insert mode",
   setup ->
@@ -396,7 +394,7 @@ context "Insert mode",
   should "resume normal mode after leaving insert mode", ->
     @insertMode.exit()
     sendKeyboardEvent "m"
-    assert.equal 0, pageKeyboardEventCount
+    assert.equal pageKeyboardEventCount, 0
 
 context "Triggering insert mode",
   setup ->
@@ -493,13 +491,6 @@ context "Mode utilities",
     assert.isTrue test.modeIsActive
     element.blur()
     assert.isTrue test.modeIsActive
-
-  should "register state change", ->
-    test = new Mode trackState: true
-    handlerStack.bubbleEvent "registerStateChange", { enabled: "one", passKeys: "two" }
-
-    assert.isTrue test.enabled == "one"
-    assert.isTrue test.passKeys == "two"
 
 context "PostFindMode",
   setup ->
