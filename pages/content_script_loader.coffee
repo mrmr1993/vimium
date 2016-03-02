@@ -1,3 +1,5 @@
+window.isExtensionPage = true
+
 injectContentScripts = ->
   manifest = chrome.runtime.getManifest()
   content_scripts = manifest.content_scripts

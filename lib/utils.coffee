@@ -4,10 +4,10 @@ Utils =
 
   # Returns true whenever the current page (or the page supplied as an argument) is from the extension's
   # origin (and thus can access the extension's localStorage).
-  isExtensionPage: (win = window) -> try win.document.location?.origin + "/" == chrome.extension.getURL ""
+  isExtensionPage: (win = window) -> try win.isExtensionPage or @isBackgroundPage()
 
   # Returns true whenever the current page is the extension's background page.
-  isBackgroundPage: -> @isExtensionPage() and chrome.extension.getBackgroundPage?() == window
+  isBackgroundPage: -> chrome.extension.getBackgroundPage?() == window
 
   # Takes a dot-notation object string and call the function
   # that it points to with the correct value for 'this'.
