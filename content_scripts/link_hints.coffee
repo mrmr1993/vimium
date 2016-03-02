@@ -134,7 +134,11 @@ class LinkHintsMode
         DomUtils.simulateClick link, altKey: true, ctrlKey: false, metaKey: false
     else # OPEN_IN_CURRENT_TAB
       @hintMode.setIndicator "Open link in current tab."
-      @linkActivator = DomUtils.simulateClick.bind DomUtils
+      @linkActivator = (link) ->
+        if link.tagName.toLowerCase() in ["frame","iframe"]
+          link.contentWindow.focus()
+        else
+          DomUtils.simulateClick link
 
   #
   # Creates a link marker for the given link.
@@ -214,6 +218,9 @@ class LinkHintsMode
       for jsactionRule in jsactionRules
         ruleSplit = jsactionRule.split ":"
         isClickable ||= ruleSplit[0] == "click" or (ruleSplit.length == 1 and ruleSplit[0] != "none")
+
+    # We can select elements with these tagNames.
+    isClickable ||= tagName in ["frame", "iframe"]
 
     # Check for tagNames which are natively clickable.
     switch tagName
