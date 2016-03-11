@@ -418,6 +418,30 @@ sendMessageToFrames = (request, sender) ->
 bgLog = (request, sender) ->
   logMessage "#{sender.tab.id}/#{request.frameId} #{request.message}", sender
 
+HintCoordinator =
+  tabState: {}
+
+  onMessage: (request, sender) ->
+    if request.name of this
+      this[request.name] extend request, tabId: sender.tab.id
+    else
+      # The message is not for us.  It's for all frames, so we bounce it there.
+      @sendMessage request.name, sender.tab.id, request
+
+  sendMessage: (handler, tabId, request = {}) ->
+    chrome.tabs.sendMessage tabId, extend request, {name: "linkHintsMessage", handler}
+
+  activateMode: ({tabId, frameId, modeIndex}) ->
+    @tabState[tabId] = {frameIds: frameIdsForTab[tabId], hints: [], modeIndex, frameId}
+    @sendMessage "getHints", tabId
+
+  postHints: ({tabId, frameId, hints}) ->
+    @tabState[tabId].hints.push hints...
+    @tabState[tabId].frameIds = @tabState[tabId].frameIds.filter (fId) -> fId != frameId
+    if @tabState[tabId].frameIds.length == 0
+      @sendMessage "activateLinkHintsMode", tabId, @tabState[tabId]
+      delete @tabState[tabId] # We won't be needing this any more.
+
 # Port handler mapping
 portHandlers =
   completions: handleCompletions
@@ -443,6 +467,7 @@ sendRequestHandlers =
   sendMessageToFrames: sendMessageToFrames
   log: bgLog
   fetchFileContents: (request, sender) -> fetchFileContents request.fileName
+  linkHintsMessage: HintCoordinator.onMessage.bind HintCoordinator
 
 # We always remove chrome.storage.local/findModeRawQueryListIncognito on startup.
 chrome.storage.local.remove "findModeRawQueryListIncognito"
