@@ -121,10 +121,12 @@ class NormalMode extends KeyHandlerMode
         handler: "sendMessageToFrames", message: {name: "runInTopFrame", sourceFrameId: frameId, registryEntry}
     else if registryEntry.background
       chrome.runtime.sendMessage {handler: "runBackgroundCommand", frameId, registryEntry, count}
-    else if registryEntry.passCountToFunction
-      Utils.invokeCommandString registryEntry.command, [count]
     else
-      Utils.invokeCommandString registryEntry.command for i in [0...count]
+      extraArgs = if Object.keys(registryEntry.options).length != 0 then [registryEntry.options] else []
+      if registryEntry.passCountToFunction
+        Utils.invokeCommandString registryEntry.command, [count, extraArgs...]
+      else
+        Utils.invokeCommandString registryEntry.command, [extraArgs...] for i in [0...count]
 
 # Only exported for tests.
 window.initializeModes = ->

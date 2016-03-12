@@ -26,10 +26,11 @@ Marks =
   # If <Shift> is depressed, then it's a global mark, otherwise it's a local mark.  This is consistent
   # vim's [A-Z] for global marks and [a-z] for local marks.  However, it also admits other non-Latin
   # characters.  The exceptions are "`" and "'", which are always considered local marks.
-  isGlobalMark: (event, keyChar) ->
-    event.shiftKey and keyChar not in @previousPositionRegisters
+  isGlobalMark: (event, keyChar, swapCaseOption) ->
+    toggle = (bool) -> if swapCaseOption then not bool else bool
+    toggle(event.shiftKey) and keyChar not in @previousPositionRegisters
 
-  activateCreateMode: ->
+  activateCreateMode: (options = {}) ->
     @mode = new Mode
       name: "create-mark"
       indicator: "Create mark..."
@@ -38,7 +39,7 @@ Marks =
       keypress: (event) =>
         keyChar = String.fromCharCode event.charCode
         @exit =>
-          if @isGlobalMark event, keyChar
+          if @isGlobalMark event, keyChar, options.swapCase? and options.swapCase
             # We record the current scroll position, but only if this is the top frame within the tab.
             # Otherwise, we'll fetch the scroll position of the top frame from the background page later.
             [ scrollX, scrollY ] = [ window.scrollX, window.scrollY ] if DomUtils.isTopFrame()
@@ -52,7 +53,7 @@ Marks =
             localStorage[@getLocationKey keyChar] = @getMarkString()
             @showMessage "Created local mark", keyChar
 
-  activateGotoMode: (registryEntry) ->
+  activateGotoMode: (options = {}) ->
     @mode = new Mode
       name: "goto-mark"
       indicator: "Go to mark..."
@@ -61,7 +62,7 @@ Marks =
       keypress: (event) =>
         @exit =>
           keyChar = String.fromCharCode event.charCode
-          if @isGlobalMark event, keyChar
+          if @isGlobalMark event, keyChar, options.swapCase? and options.swapCase
             chrome.runtime.sendMessage
               handler: 'gotoMark'
               markName: keyChar
