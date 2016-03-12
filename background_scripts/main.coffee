@@ -409,10 +409,9 @@ cycleToFrame = (frames, frameId, count = 0) ->
   count = (count + Math.max 0, frames.indexOf frameId) % frames.length
   [frames[count..]..., frames[0...count]...]
 
-# Send a message to all frames in the current tab and yield a list of frameIds for this tab.
+# Send a message to all frames in the current tab.
 sendMessageToFrames = (request, sender) ->
   chrome.tabs.sendMessage sender.tab.id, request.message
-  frameIdsForTab[sender.tab.id]
 
 # For debugging only. This allows content scripts to log messages to the extension's logging page.
 bgLog = (request, sender) ->
