@@ -152,7 +152,7 @@ initializePreDomReady = ->
     initializeTopFrame: initializeTopFrame
     runInTopFrame: ({sourceFrameId, registryEntry}) ->
       Utils.invokeCommandString registryEntry.command, [sourceFrameId, registryEntry] if DomUtils.isTopFrame()
-    linkHintsMessage: (request) -> HintCoordinator[request.handler] request
+    linkHintsMessage: (request) -> HintCoordinator[request.messageType] request
 
   chrome.runtime.onMessage.addListener (request, sender, sendResponse) ->
     # In the options page, we will receive requests from both content and background scripts. ignore those
