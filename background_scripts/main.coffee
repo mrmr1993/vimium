@@ -380,7 +380,9 @@ openOptionsPageInNewTab = ->
 Frames =
   onConnect: (sender, port) ->
     [tabId, frameId] = [sender.tab.id, sender.frameId]
-    (frameIdsForTab[tabId] ?= []).push frameId
+    frameIdsForTab[tabId] ?= []
+    # We need to filter here since the frameId of the top frame (0) may already be registered.
+    frameIdsForTab[tabId] = [(frameIdsForTab[tabId].filter (fId) -> fId != frameId)..., frameId]
     port.postMessage name: "registerFrameId", chromeFrameId: frameId
 
     port.onDisconnect.addListener listener = ->
