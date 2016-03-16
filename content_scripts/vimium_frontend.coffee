@@ -671,3 +671,4 @@ root.handlerStack = handlerStack
 root.frameId = frameId
 root.windowIsFocused = windowIsFocused
 root.bgLog = bgLog
+root.focusThisFrame = focusThisFrame
