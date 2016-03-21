@@ -349,7 +349,7 @@ Frames =
       isEnabledForUrl: not rule or 0 < rule.passKeys.length
       passKeys: rule?.passKeys ? ""
 
-    if request.frameIsFocused
+    if request.frameIsFocused and false
       chrome.browserAction.setIcon tabId: tabId, path:
         if not enabledState.isEnabledForUrl
           "icons/browser_action_disabled.png"
