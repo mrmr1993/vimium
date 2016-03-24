@@ -350,7 +350,7 @@ Frames =
       passKeys: rule?.passKeys ? ""
 
     if request.frameIsFocused
-      chrome.browserAction.setIcon tabId: tabId, path:
+      setIcon tabId,
         if not enabledState.isEnabledForUrl
           "icons/browser_action_disabled.png"
         else if 0 < enabledState.passKeys.length
@@ -368,6 +368,37 @@ Frames =
 
   initializeTopFrameUIComponents: ({tabId}) ->
     topFramePortForTab[tabId].postMessage handler: "initializeTopFrameUIComponents"
+
+# Because of #2055 and Chromium bug 596605, we go to quite some effort to avoid setting the page icon more
+# often than necessary.
+setIcon = do ->
+  iconForTab = {}
+  timerForTab = {}
+
+  removeTimer = (tabId) ->
+    if tabId of timerForTab
+      clearTimeout timerForTab[tabId]
+      delete timerForTab[tabId]
+
+  setIconNow = (tabId, path) ->
+    removeTimer tabId
+    # This is the default icon from the manifest.
+    iconForTab[tabId] ||= "icons/browser_action_enabled.png"
+    unless path == iconForTab[tabId]
+      iconForTab[tabId] = path
+      chrome.browserAction.setIcon {tabId, path}
+
+  chrome.tabs.onActivated.addListener ({tabId}) ->
+    # Schedule setting the "disabled" icon, but with a long timeout to give the "isEnabledForUrl" message a
+    # chance to arrive first.
+    removeTimer tabId
+    timerForTab[tabId] = Utils.setTimeout 500, -> setIconNow tabId, "icons/browser_action_disabled.png"
+
+  chrome.tabs.onRemoved.addListener (tabId) ->
+    removeTimer tabId
+    delete iconForTab[tabId]
+
+  setIconNow
 
 handleFrameFocused = (request, sender) ->
   [tabId, frameId] = [sender.tab.id, sender.frameId]
