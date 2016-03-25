@@ -23,6 +23,28 @@ frameIdsForTab = {}
 root.urlForTab = {}
 topFramePortForTab = {}
 
+# Symbolic names for the three browser-action icons.
+ENABLED_ICON = "icons/browser_action_enabled.png"
+DISABLED_ICON = "icons/browser_action_disabled.png"
+PARTIAL_ICON = "icons/browser_action_partial.png"
+
+# Convert the three icon PNGs to image data.
+iconImageData = {}
+for icon in [ENABLED_ICON, DISABLED_ICON, PARTIAL_ICON]
+  iconImageData[icon] = {}
+  for scale in [19, 38]
+    do (icon, scale) ->
+      canvas = document.createElement "canvas"
+      canvas.width = canvas.height = scale
+      context = canvas.getContext "2d"
+      image = new Image
+      image.src = icon
+      image.onload = ->
+        context.drawImage image, 0, 0, scale, scale
+        iconImageData[icon][scale] = context.getImageData 0, 0, scale, scale
+        document.body.removeChild canvas
+      document.body.appendChild canvas
+
 # This is exported for use by "marks.coffee".
 root.tabLoadedHandlers = {} # tabId -> function()
 
@@ -350,13 +372,13 @@ Frames =
       passKeys: rule?.passKeys ? ""
 
     if request.frameIsFocused
-      chrome.browserAction.setIcon tabId: tabId, path:
-        if not enabledState.isEnabledForUrl
-          "icons/browser_action_disabled.png"
+      chrome.browserAction.setIcon tabId: tabId, imageData:
+        iconImageData[if not enabledState.isEnabledForUrl
+          DISABLED_ICON
         else if 0 < enabledState.passKeys.length
-          "icons/browser_action_partial.png"
+          PARTIAL_ICON
         else
-          "icons/browser_action_enabled.png"
+          ENABLED_ICON]
 
     # Send the response.  The tests require this to be last.
     port.postMessage extend request, enabledState
