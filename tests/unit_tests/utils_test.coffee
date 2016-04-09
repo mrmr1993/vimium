@@ -172,3 +172,13 @@ context "extractQuery",
     searchUrl = "https://www.google.ie/search?q=%s&foobar=x"
     assert.equal "star wars", Utils.extractQuery searchUrl, url
 
+context "String::startsWith",
+  should "be true for all prefixes", ->
+    assert.isTrue "abc".startsWith ""
+    assert.isTrue "abc".startsWith "a"
+    assert.isTrue "abc".startsWith "ab"
+    assert.isTrue "abc".startsWith "abc"
+
+  should "be false for non prefixes", ->
+    assert.isFalse "abc".startsWith "abcx"
+    assert.isFalse "abc".startsWith "abx"

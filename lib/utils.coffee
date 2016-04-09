@@ -251,7 +251,11 @@ Function::curry = ->
 
 Array.copy = (array) -> Array.prototype.slice.call(array, 0)
 
-String::startsWith = (str) -> @indexOf(str) == 0
+String::startsWith = (str) ->
+  str.length <= @length and do =>
+    for ch, i in str
+      return false unless ch == @charAt i
+    true
 String::ltrim = -> @replace /^\s+/, ""
 String::rtrim = -> @replace /\s+$/, ""
 String::reverse = -> @split("").reverse().join ""
