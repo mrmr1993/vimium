@@ -541,9 +541,9 @@ LocalHints =
   # the viewport.  There may be more than one part of element which is clickable (for example, if it's an
   # image), therefore we always return a array of element/rect pairs (which may also be a singleton or empty).
   #
-  getVisibleClickable: (element) ->
+  getVisibleClickable: (element, selectedElement) ->
     tagName = element.tagName.toLowerCase()
-    isClickable = false
+    isClickable = element == selectedElement
     onlyHasTabIndex = false
     possibleFalsePositive = false
     visibleElements = []
@@ -658,6 +658,13 @@ LocalHints =
     elements = document.documentElement.getElementsByTagName "*"
     visibleElements = []
 
+    # Find the element containing a selection range.  We make it clickable regardless.
+    selectedElement = do ->
+      selection = window.getSelection()
+      if selection?.type == "Range"
+        el = selection.getRangeAt(0)?.commonAncestorContainer
+        if el.nodeType == 1 then el else el.parentNode
+
     # The order of elements here is important; they should appear in the order they are in the DOM, so that
     # we can work out which element is on top when multiple elements overlap. Detecting elements in this loop
     # is the sensible, efficient way to ensure this happens.
@@ -665,7 +672,7 @@ LocalHints =
     # this, so it's necessary to check whether elements are clickable in order, as we do below.
     for element in elements
       unless requireHref and not element.href
-        visibleElement = @getVisibleClickable element
+        visibleElement = @getVisibleClickable element, selectedElement
         visibleElements.push visibleElement...
 
     # Traverse the DOM from descendants to ancestors, so later elements show above earlier elements.
