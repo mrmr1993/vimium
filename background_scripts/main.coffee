@@ -368,16 +368,19 @@ HintCoordinator =
       @postMessage tabId, parseInt(frameId), messageType, port, request
 
   prepareToActivateMode: (tabId, originatingFrameId, {modeIndex}) ->
+    BgUtils.log "prepareToActivateMode #{tabId} #{frameIdsForTab[tabId]}"
     @tabState[tabId] = {frameIds: frameIdsForTab[tabId][..], hintDescriptors: {}, originatingFrameId, modeIndex}
     @tabState[tabId].ports = extend {}, portsForTab[tabId]
     @sendMessage "getHintDescriptors", tabId, {modeIndex}
 
   # Receive hint descriptors from all frames and activate link-hints mode when we have them all.
   postHintDescriptors: (tabId, frameId, {hintDescriptors}) ->
+    BgUtils.log "postHintDescriptors #{tabId} #{frameId} len=#{@tabState[tabId]?.frameIds?.length} #{@tabState[tabId]?.frameIds}"
     if frameId in @tabState[tabId].frameIds
       @tabState[tabId].hintDescriptors[frameId] = hintDescriptors
       @tabState[tabId].frameIds = @tabState[tabId].frameIds.filter (fId) -> fId != frameId
       if @tabState[tabId].frameIds.length == 0
+        BgUtils.log "  #{tabId} activateMode"
         for own frameId, port of @tabState[tabId].ports
           if frameId of @tabState[tabId].hintDescriptors
             hintDescriptors = extend {}, @tabState[tabId].hintDescriptors

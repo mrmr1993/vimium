@@ -58,6 +58,7 @@ HintCoordinator =
     Frame.postMessage "linkHintsMessage", extend request, {messageType}
 
   prepareToActivateMode: (mode, onExit) ->
+    bgLog "> prepareToActivateMode #{frameId}"
     # We need to communicate with the background page (and other frames) to initiate link-hints mode.  To
     # prevent other Vimium commands from being triggered before link-hints mode is launched, we install a
     # temporary mode to block keyboard events.
@@ -78,8 +79,10 @@ HintCoordinator =
   #   localIndex: the index in @localHints for the full hint descriptor for this hint
   #   linkText: the link's text for filtered hints (this is null for alphabet hints)
   getHintDescriptors: ({modeIndex}) ->
+    bgLog "> getHintDescriptors 1 #{frameId}"
     # Ensure that the document is ready and that the settings are loaded.
     DomUtils.documentReady => Settings.onLoaded =>
+      bgLog "> getHintDescriptors 2 #{frameId}"
       requireHref = availableModes[modeIndex] in [COPY_LINK_URL, OPEN_INCOGNITO]
       @localHints = LocalHints.getLocalHints requireHref
       @localHintDescriptors = @localHints.map ({linkText}, localIndex) -> {frameId, localIndex, linkText}
@@ -94,7 +97,9 @@ HintCoordinator =
     [hintDescriptors[frameId], @localHintDescriptors] = [@localHintDescriptors, null]
     hintDescriptors = [].concat (hintDescriptors[fId] for fId in (fId for own fId of hintDescriptors).sort())...
     # Ensure that the document is ready and that the settings are loaded.
+    bgLog "> activateMode 1 #{frameId}"
     DomUtils.documentReady => Settings.onLoaded =>
+      bgLog "> activateMode 2 #{frameId}"
       @suppressKeyboardEvents.exit() if @suppressKeyboardEvents?.modeIsActive
       @suppressKeyboardEvents = null
       @onExit = [] unless frameId == originatingFrameId
