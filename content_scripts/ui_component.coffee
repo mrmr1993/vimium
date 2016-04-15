@@ -114,6 +114,8 @@ class UIComponent
           if event.target == window
             window.removeEventListener "focus", handler
             refocusSourceFrame()
+    else
+      window.focus()
 
   # Fetch a Vimium file/resource (such as "content_scripts/vimium.css").
   # We try making an XMLHttpRequest request.  That can fail (see #1817), in which case we fetch the
