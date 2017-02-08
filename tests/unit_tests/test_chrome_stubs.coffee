@@ -32,8 +32,8 @@ exports.chrome =
       addListener: () -> true
     onMessage:
       addListener: () -> true
-    onInstalled:
-      addListener: ->
+    # Not stubbing this API tests compatability with Firefox 51, where it is unimplemented.
+    onInstalled: undefined
 
   extension:
     getURL: (path) -> path

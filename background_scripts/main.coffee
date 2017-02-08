@@ -2,7 +2,7 @@ root = exports ? window
 
 # The browser may have tabs already open. We inject the content scripts immediately so that they work straight
 # away.
-chrome.runtime.onInstalled.addListener ({ reason }) ->
+chrome.runtime.onInstalled?.addListener ({ reason }) ->
   # See https://developer.chrome.com/extensions/runtime#event-onInstalled
   return if reason in [ "chrome_update", "shared_module_update" ]
   manifest = chrome.runtime.getManifest()
@@ -474,7 +474,7 @@ do showUpgradeMessage = ->
         chrome.permissions.onAdded.addListener showUpgradeMessage
 
 # The install date is shown on the logging page.
-chrome.runtime.onInstalled.addListener ({reason}) ->
+chrome.runtime.onInstalled?.addListener ({reason}) ->
   unless reason in ["chrome_update", "shared_module_update"]
     chrome.storage.local.set installDate: new Date().toString()
 
