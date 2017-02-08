@@ -59,7 +59,7 @@ completionHandlers =
   refresh: (completer, _, port) -> completer.refresh port
   cancel: (completer, _, port) -> completer.cancel port
 
-handleCompletions = (sender) -> (request, port) ->
+handleCompletions = (sender, port) -> (request) ->
   completionHandlers[request.handler] completers[request.name], request, port
 
 chrome.runtime.onConnect.addListener (port) ->
@@ -279,7 +279,7 @@ Frames =
     port.postMessage handler: "registerFrameId", chromeFrameId: frameId
 
     # Return our onMessage handler for this port.
-    (request, port) =>
+    (request) =>
       this[request.handler] {request, tabId, frameId, port, sender}
 
   registerFrame: ({tabId, frameId, port}) ->
