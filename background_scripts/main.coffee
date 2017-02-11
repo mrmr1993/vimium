@@ -2,7 +2,7 @@ root = exports ? window
 
 # The browser may have tabs already open. We inject the content scripts immediately so that they work straight
 # away.
-chrome.runtime.onInstalled.addListener ({ reason }) ->
+chrome.runtime.onInstalled?.addListener ({ reason }) ->
   # See https://developer.chrome.com/extensions/runtime#event-onInstalled
   return if reason in [ "chrome_update", "shared_module_update" ]
   manifest = chrome.runtime.getManifest()
@@ -59,7 +59,7 @@ completionHandlers =
   refresh: (completer, _, port) -> completer.refresh port
   cancel: (completer, _, port) -> completer.cancel port
 
-handleCompletions = (sender) -> (request, port) ->
+handleCompletions = (sender, port) -> (request) ->
   completionHandlers[request.handler] completers[request.name], request, port
 
 chrome.runtime.onConnect.addListener (port) ->
@@ -101,8 +101,13 @@ TabOperations =
       index: request.tab.index + 1
       active: true
       windowId: request.tab.windowId
-      openerTabId: request.tab.id
-    chrome.tabs.create tabConfig, callback
+    chrome.tabs.create tabConfig, (tab) ->
+      # NOTE(mrmr1993, 2017-02-08): Firefox currently doesn't support openerTabId (issue 1238314) and throws
+      # a type error if it is present. We work around this by attempting to set it separately from creating
+      # the tab.
+      try chrome.tabs.update tab.id, { openerTabId : request.tab.id }, callback
+      catch
+        callback.apply this, arguments
 
 toggleMuteTab = do ->
   muteTab = (tab) -> chrome.tabs.update tab.id, {muted: !tab.mutedInfo.muted}
@@ -279,7 +284,7 @@ Frames =
     port.postMessage handler: "registerFrameId", chromeFrameId: frameId
 
     # Return our onMessage handler for this port.
-    (request, port) =>
+    (request) =>
       this[request.handler] {request, tabId, frameId, port, sender}
 
   registerFrame: ({tabId, frameId, port}) ->
@@ -474,7 +479,7 @@ do showUpgradeMessage = ->
         chrome.permissions.onAdded.addListener showUpgradeMessage
 
 # The install date is shown on the logging page.
-chrome.runtime.onInstalled.addListener ({reason}) ->
+chrome.runtime.onInstalled?.addListener ({reason}) ->
   unless reason in ["chrome_update", "shared_module_update"]
     chrome.storage.local.set installDate: new Date().toString()
 

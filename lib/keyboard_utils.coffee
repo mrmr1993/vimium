@@ -103,19 +103,28 @@ KeyboardUtils =
         @getKeyChar event
     keyChar.length == 1
 
+  modifierPressed: (event) -> event.metaKey or event.ctrlKey or event.altKey
+
   # Return the Vimium key representation for this keyboard event. Return a falsy value (the empty string or
   # undefined) when no Vimium representation is appropriate.
   getKeyCharString: (event, allKeydownEvents = false) ->
     switch event.type
       when "keypress"
-        # Ignore modifier keys by themselves.
-        if 31 < event.keyCode
+        if event.key?
+          # |keypress| *should* only fire when the key combination results in a printing character.
+          # However, firefox fires keypress events for all non-modifier keys (issue 968056). This means that
+          # we have no way of distinguishing eg. f from <c-f>, and so will capture way too many keys.
+          #
+          # NOTE(mrmr1993): We use browser sniffing here to circumvent this.
+          unless navigator.userAgent.indexOf("Firefox") >= 0 and KeyboardUtils.modifierPressed event
+            event.key
+        else
           String.fromCharCode event.charCode
 
       when "keydown"
         # Handle special keys and normal input keys with modifiers being pressed.
         keyChar = @getKeyChar event
-        if 1 < keyChar.length or (keyChar.length == 1 and (event.metaKey or event.ctrlKey or event.altKey)) or allKeydownEvents
+        if 1 < keyChar.length or (keyChar.length == 1 and KeyboardUtils.modifierPressed event) or allKeydownEvents
           modifiers = []
 
           keyChar = keyChar.toUpperCase() if event.shiftKey
