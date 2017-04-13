@@ -75,6 +75,11 @@ handlers =
 
     inputElement = document.getElementById "hud-find-input"
 
+    # Try to use "plaintext-only" mode (Chrome only). Fallback to contenteditable on Firefox, which throws.
+    try inputElement.contentEditable = "plaintext-only"
+    catch
+      inputElement.contentEditable = "true"
+
     inputElement.addEventListener "input", executeFindQuery
     inputElement.focus()
 
