@@ -24,6 +24,8 @@ document.addEventListener "keydown", (event) ->
       exitEventIsEnter: event.keyCode == keyCodes.enter
       exitEventIsEscape: KeyboardUtils.isEscape event
 
+    document.getElementById("hud-find-input").blur() # Blur the input so it doesn't steal focus.
+
   else if event.keyCode == keyCodes.upArrow
     if rawQuery = FindModeHistory.getQuery findMode.historyIndex + 1
       findMode.historyIndex += 1
@@ -41,39 +43,46 @@ document.addEventListener "keydown", (event) ->
   DomUtils.suppressEvent event
   false
 
+executeFindQuery = (event) ->
+  # Replace \u00A0 (&nbsp;) with a normal space.
+  findMode.rawQuery = event.target.textContent.replace "\u00A0", " "
+  UIComponentServer.postMessage {name: "search", query: findMode.rawQuery}
+
 handlers =
   show: (data) ->
     document.getElementById("hud").innerText = data.text
+
+    document.getElementById("hud").style.display = ""
+    document.getElementById("hud-find").style.display = "none" # Hide the find mode HUD.
   hidden: ->
     # We get a flicker when the HUD later becomes visible again (with new text) unless we reset its contents
     # here.
     document.getElementById("hud").innerText = ""
+    document.getElementById("hud-find-input").textContent = ""
+    document.getElementById("hud-match-count").textContent = ""
+
+    document.getElementById("hud-find-input").blur() # Blur the input so it doesn't steal focus.
+
+    document.getElementById("hud").style.display = "none"
+    document.getElementById("hud-find").style.display = "none"
 
   showFindMode: (data) ->
-    hud = document.getElementById "hud"
-    hud.innerText = "/\u200A" # \u200A is a "hair space", to leave enough space before the caret/first char.
+    document.getElementById("hud-match-count").textContent = ""
 
-    inputElement = document.createElement "span"
-    inputElement.contentEditable = "plaintext-only"
-    inputElement.id = "hud-find-input"
-    hud.appendChild inputElement
+    # Hide the normal HUD, show the find mode HUD.
+    document.getElementById("hud").style.display = "none"
+    document.getElementById("hud-find").style.display = ""
 
-    inputElement.addEventListener "input", executeQuery = (event) ->
-      # Replace \u00A0 (&nbsp;) with a normal space.
-      findMode.rawQuery = inputElement.textContent.replace "\u00A0", " "
-      UIComponentServer.postMessage {name: "search", query: findMode.rawQuery}
+    inputElement = document.getElementById "hud-find-input"
 
-    countElement = document.createElement "span"
-    countElement.id = "hud-match-count"
-    countElement.style.float = "right"
-    hud.appendChild countElement
+    inputElement.addEventListener "input", executeFindQuery
     inputElement.focus()
 
     findMode =
       historyIndex: -1
       partialQuery: ""
       rawQuery: ""
-      executeQuery: executeQuery
+      executeQuery: executeFindQuery
 
   updateMatchesCount: ({matchCount, showMatchText}) ->
     countElement = document.getElementById "hud-match-count"
