@@ -111,7 +111,7 @@ Settings =
     scrollStepSize: 60
     smoothScroll: true
     keyMappings: "# Insert your preferred key mappings here."
-    linkHintCharacters: "sadfjklewcmpgh"
+    linkHintCharacters: "sadjklewcmpgh"
     linkHintNumbers: "0123456789"
     filterLinkHints: false
     hideHud: false
@@ -172,13 +172,13 @@ Settings =
       # qw: https://www.qwant.com/?q=%s Qwant
       """
     newTabUrl: "chrome://newtab"
-    grabBackFocus: false
-    regexFindMode: false
+    grabBackFocus: true
+    regexFindMode: true
     waitForEnterForFilteredHints: false # Note: this defaults to true for new users; see below.
 
     settingsVersion: ""
-    helpDialog_showAdvancedCommands: false
-    optionsPage_showAdvancedOptions: false
+    helpDialog_showAdvancedCommands: true
+    optionsPage_showAdvancedOptions: true
     passNextKeyKeys: []
 
 Settings.init()
