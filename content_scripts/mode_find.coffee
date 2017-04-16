@@ -198,6 +198,57 @@ class FindMode extends Mode
   checkReturnToViewPort: ->
     window.scrollTo @scrollX, @scrollY if @options.returnToViewport
 
+nextNode = (node, checkChildren) =>
+  if checkChildren and node.firstChild
+    node = node.firstChild
+  else if node.nextSibling
+    node = node.nextSibling
+  else
+    while node and not node.nextSibling
+      node = node.parentNode
+    node = node?.nextSibling
+
+class DocumentTextModel
+  constructor: ->
+    node = document.firstChild
+    @textRegions = []
+    @textInputRegions = []
+    @textNodeRegions = []
+    textRegion = []
+    textNodes = []
+
+    while node
+      while node.nodeType == node.ELEMENT_NODE and
+          node.tagName.toLowerCase() in ["head", "script", "style", "meta"] # Blacklist non-printing tags.
+        node = nextNode node, false
+      break unless node
+
+      if node.nodeType == node.TEXT_NODE
+        if node.data.length > 0
+          textRegion.push node.data
+          textNodes.push {"node": node, "length": node.data.length}
+
+      else if node.nodeType == node.ELEMENT_NODE
+        if node.tagName.toLowerCase() in ["input", "textarea"]
+          if textRegion.length > 0
+            @textRegions.push textRegion
+            @textNodeRegions.push textNodes
+
+          if node.value and node.value.length > 0
+            textRegion = [node.value]
+            @textRegions.push textRegion
+            @textInputRegions.push textRegion
+            @textNodeRegions.push [{"node": node, "length": node.value.length}]
+
+          # We don't want results spanning text inputs (to match browser behaviour).
+          textRegion = []
+          textNodes = []
+      node = nextNode node, true
+
+    if textRegion.length > 0
+      @textRegions.push textRegion
+      @textNodeRegions.push textNodes
+
 getCurrentRange = ->
   selection = getSelection()
   if selection.type == "None"
@@ -212,3 +263,4 @@ getCurrentRange = ->
 root = exports ? window
 root.PostFindMode = PostFindMode
 root.FindMode = FindMode
+root.DocumentTextModel = DocumentTextModel
