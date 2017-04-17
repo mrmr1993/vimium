@@ -483,6 +483,15 @@ extend window,
               targetElement: document.activeElement
               indicator: false
 
+  js: (count, {registryEntry: {options}}) ->
+    script = document.createElement "script"
+    script.language = "Javascript"
+    script.type = "text/javascript"
+    try
+      script.appendChild document.createTextNode decodeURIComponent options.javascript
+      document.documentElement.insertBefore script, null
+      document.documentElement.removeChild script
+
 # Checks if Vimium should be enabled or not in this frame.  As a side effect, it also informs the background
 # page whether this frame has the focus, allowing the background page to track the active frame's URL and set
 # the page icon.
