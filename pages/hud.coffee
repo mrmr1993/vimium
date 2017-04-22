@@ -90,14 +90,11 @@ handlers =
       executeQuery: executeFindQuery
 
   updateMatchesCount: ({matchCount, showMatchText}) ->
-    countElement = document.getElementById "hud-match-count"
-    return unless countElement? # Don't do anything if we're not in find mode.
-
     countText = if matchCount > 0
       " (#{matchCount} Match#{if matchCount == 1 then "" else "es"})"
     else
       " (No matches)"
-    countElement.textContent = if showMatchText then countText else ""
+    document.getElementById("hud-match-count").textContent = if showMatchText then countText else ""
 
 UIComponentServer.registerHandler ({data}) -> handlers[data.name ? data]? data
 FindModeHistory.init()
