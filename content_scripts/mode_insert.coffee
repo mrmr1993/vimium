@@ -61,20 +61,22 @@ class InsertMode extends Mode
         else if event.target.shadowRoot
           # A focusable element inside the shadow DOM might have been selected. If so, we can catch the focus
           # event inside the shadow DOM. This fixes #853.
-          shadowRoot = event.target.shadowRoot
-          eventListeners = {}
-          for type in [ "focus", "blur" ]
-            eventListeners[type] = do (type) ->
-              (event) -> handlerStack.bubbleEvent type, event
-            shadowRoot.addEventListener type, eventListeners[type], true
+          removeHandlers = ->
+            handlerStack.remove @shadowHandler
+            for own type, listener of @eventListeners
+              @shadowRoot.removeEventListener type, listener, true
+          removeHandlers() if @shadowHandler?
 
-          handlerStack.push
+          @shadowRoot = event.target.shadowRoot
+          @eventListeners = {}
+          for type in [ "focus", "blur" ]
+            @eventListeners[type] = do (type) ->
+              (event) -> handlerStack.bubbleEvent type, event
+            @shadowRoot.addEventListener type, @eventListeners[type], true
+
+          @shadowHandler = handlerStack.push
             _name: "shadow-DOM-input-mode"
-            blur: (event) ->
-              if event.target.shadowRoot == shadowRoot
-                handlerStack.remove()
-                for own type, listener of eventListeners
-                  shadowRoot.removeEventListener type, listener, true
+            blur: (event) -> removeHandlers() if event.target.shadowRoot == shadowRoot
 
     # Only for tests.  This gives us a hook to test the status of the permanently-installed instance.
     InsertMode.permanentInstance = this if @permanent
