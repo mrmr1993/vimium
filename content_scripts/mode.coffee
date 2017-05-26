@@ -120,16 +120,7 @@ class Mode
       singletons[key]?.exit()
       singletons[key] = this
 
-    # If @options.passInitialKeyupEvents is set, then we pass initial non-printable keyup events to the page
-    # or to other extensions (because the corresponding keydown events were passed).  This is used when
-    # activating link hints, see #1522.
-    if @options.passInitialKeyupEvents
-      @push
-        _name: "mode-#{@id}/passInitialKeyupEvents"
-        keydown: => @alwaysContinueBubbling -> handlerStack.remove()
-        keyup: (event) =>
-          if KeyboardUtils.isPrintable event then @suppressPropagation else @passEventToPage
-
+    @passInitialKeyupEvents() if @options.passInitialKeyupEvents
     @suppressTrailingKeyEvents() if @options.suppressTrailingKeyEvents
 
     Mode.modes.push this
@@ -138,6 +129,15 @@ class Mode
     # End of Mode constructor.
 
   # Options activators.
+
+  # Pass initial non-printable keyup events to the page or to other extensions (because the corresponding
+  # keydown events were passed).  This is used when activating link hints, see #1522.
+  passInitialKeyupEvents: ->
+    @push
+      _name: "mode-#{@id}/passInitialKeyupEvents"
+      keydown: => @alwaysContinueBubbling -> handlerStack.remove()
+      keyup: (event) =>
+        if KeyboardUtils.isPrintable event then @suppressPropagation else @passEventToPage
 
   # Suppress all key events until a subsquent (non-repeat) keydown or keypress on exit.  In particular, the
   # intention is to catch keyup events for keys which we have handled, but which otherwise might trigger
