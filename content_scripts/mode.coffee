@@ -97,13 +97,7 @@ class Mode
         _name: "mode-#{@id}/exitOnClick"
         "click": (event) => @alwaysContinueBubbling => @exit event
 
-    #If @options.exitOnFocus is truthy, then the mode will exit whenever a focusable element is activated.
-    if @options.exitOnFocus
-      @push
-        _name: "mode-#{@id}/exitOnFocus"
-        "focus": (event) => @alwaysContinueBubbling =>
-          @exit event if DomUtils.isFocusable event.target
-
+    @exitOnFocus() if @options.exitOnFocus
     @exitOnScroll() if @options.exitOnScroll
     @makeSingleton @options.singleton if @options.singleton
     @passInitialKeyupEvents() if @options.passInitialKeyupEvents
@@ -115,6 +109,13 @@ class Mode
     # End of Mode constructor.
 
   # Options activators.
+
+  # Exit the mode whenever a focusable element is activated.
+  exitOnFocus: ->
+    @push
+      _name: "mode-#{@id}/exitOnFocus"
+      "focus": (event) => @alwaysContinueBubbling =>
+        @exit event if DomUtils.isFocusable event.target
 
   # Exit the mode on any scroll event.
   exitOnScroll: ->
