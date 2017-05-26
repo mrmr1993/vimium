@@ -73,17 +73,9 @@ class Mode
           @passEventToPage
         else @continueBubbling
 
-    # If @options.exitOnEscape is truthy, then the mode will exit when the escape key is pressed.
-    if @options.exitOnEscape
-      # Note. This handler ends up above the mode's own key handlers on the handler stack, so it takes
-      # priority.
-      @push
-        _name: "mode-#{@id}/exitOnEscape"
-        "keydown": (event) =>
-          return @continueBubbling unless KeyboardUtils.isEscape event
-          @exit event, event.target
-          DomUtils.consumeKeyup event
-
+    # Note: This sets up a handler above the mode's own key handlers on the handler stack, so it takes
+    # priority.
+    @exitOnEscape() if @options.exitOnEscape
     @exitOnBlur() if @options.exitOnBlur
     @exitOnClick() if @options.exitOnClick
     @exitOnFocus() if @options.exitOnFocus
@@ -98,6 +90,15 @@ class Mode
     # End of Mode constructor.
 
   # Options activators.
+
+  # Exit the mode when the escape key is pressed.
+  exitOnEscape: ->
+    @push
+      _name: "mode-#{@id}/exitOnEscape"
+      "keydown": (event) =>
+        return @continueBubbling unless KeyboardUtils.isEscape event
+        @exit event, event.target
+        DomUtils.consumeKeyup event
 
   # The mode will exit when element loses focus.
   exitOnBlur: (element) ->
