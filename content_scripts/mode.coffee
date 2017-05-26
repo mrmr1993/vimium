@@ -91,12 +91,7 @@ class Mode
         _name: "mode-#{@id}/exitOnBlur"
         "blur": (event) => @alwaysContinueBubbling => @exit event if event.target == @options.exitOnBlur
 
-    # If @options.exitOnClick is truthy, then the mode will exit on any click event.
-    if @options.exitOnClick
-      @push
-        _name: "mode-#{@id}/exitOnClick"
-        "click": (event) => @alwaysContinueBubbling => @exit event
-
+    @exitOnClick() if @options.exitOnClick
     @exitOnFocus() if @options.exitOnFocus
     @exitOnScroll() if @options.exitOnScroll
     @makeSingleton @options.singleton if @options.singleton
@@ -109,6 +104,12 @@ class Mode
     # End of Mode constructor.
 
   # Options activators.
+
+  # Exit the mode on any click event.
+  exitOnClick: ->
+    @push
+      _name: "mode-#{@id}/exitOnClick"
+      "click": (event) => @alwaysContinueBubbling => @exit event
 
   # Exit the mode whenever a focusable element is activated.
   exitOnFocus: ->
