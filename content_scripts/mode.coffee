@@ -84,13 +84,7 @@ class Mode
           @exit event, event.target
           DomUtils.consumeKeyup event
 
-    # If @options.exitOnBlur is truthy, then it should be an element.  The mode will exit when that element
-    # loses the focus.
-    if @options.exitOnBlur
-      @push
-        _name: "mode-#{@id}/exitOnBlur"
-        "blur": (event) => @alwaysContinueBubbling => @exit event if event.target == @options.exitOnBlur
-
+    @exitOnBlur() if @options.exitOnBlur
     @exitOnClick() if @options.exitOnClick
     @exitOnFocus() if @options.exitOnFocus
     @exitOnScroll() if @options.exitOnScroll
@@ -104,6 +98,12 @@ class Mode
     # End of Mode constructor.
 
   # Options activators.
+
+  # The mode will exit when element loses focus.
+  exitOnBlur: (element) ->
+    @push
+      _name: "mode-#{@id}/exitOnBlur"
+      "blur": (event) => @alwaysContinueBubbling => @exit event if event.target == element
 
   # Exit the mode on any click event.
   exitOnClick: ->
