@@ -130,10 +130,19 @@ class Mode
         keyup: (event) =>
           if KeyboardUtils.isPrintable event then @suppressPropagation else @passEventToPage
 
-    # if @options.suppressTrailingKeyEvents is set, then  -- on exit -- we suppress all key events until a
-    # subsquent (non-repeat) keydown or keypress.  In particular, the intention is to catch keyup events for
-    # keys which we have handled, but which otherwise might trigger page actions (if the page is listening for
-    # keyup events).
+    @suppressTrailingKeyEvents() if @options.suppressTrailingKeyEvents
+
+    Mode.modes.push this
+    @setIndicator()
+    @logModes()
+    # End of Mode constructor.
+
+  # Options activators.
+
+  # Suppress all key events until a subsquent (non-repeat) keydown or keypress on exit.  In particular, the
+  # intention is to catch keyup events for keys which we have handled, but which otherwise might trigger
+  # page actions (if the page is listening for keyup events).
+  suppressTrailingKeyEvents: ->
     if @options.suppressTrailingKeyEvents
       @onExit ->
         handler = (event) ->
@@ -149,10 +158,7 @@ class Mode
           keypress: handler
           keyup: -> handlerStack.suppressPropagation
 
-    Mode.modes.push this
-    @setIndicator()
-    @logModes()
-    # End of Mode constructor.
+  # End of options activators.
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
