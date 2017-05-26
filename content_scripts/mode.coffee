@@ -110,16 +110,7 @@ class Mode
         _name: "mode-#{@id}/exitOnScroll"
         "scroll": (event) => @alwaysContinueBubbling => @exit event
 
-    # Some modes are singletons: there may be at most one instance active at any time.  A mode is a singleton
-    # if @options.singleton is set.  The value of @options.singleton should be the key which is intended to be
-    # unique.  New instances deactivate existing instances with the same key.
-    if @options.singleton
-      singletons = Mode.singletons ||= {}
-      key = @options.singleton
-      @onExit -> delete singletons[key]
-      singletons[key]?.exit()
-      singletons[key] = this
-
+    @makeSingleton @options.singleton if @options.singleton
     @passInitialKeyupEvents() if @options.passInitialKeyupEvents
     @suppressTrailingKeyEvents() if @options.suppressTrailingKeyEvents
 
@@ -129,6 +120,14 @@ class Mode
     # End of Mode constructor.
 
   # Options activators.
+
+  # Some modes are singletons: there may be at most one instance active at any time. The value of key should
+  # be unique. New instances deactivate existing instances with the same key.
+  makeSingleton: (key) ->
+    singletons = Mode.singletons ||= {}
+    @onExit -> delete singletons[key]
+    singletons[key]?.exit()
+    singletons[key] = this
 
   # Pass initial non-printable keyup events to the page or to other extensions (because the corresponding
   # keydown events were passed).  This is used when activating link hints, see #1522.
