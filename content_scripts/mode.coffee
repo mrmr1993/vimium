@@ -143,20 +143,19 @@ class Mode
   # intention is to catch keyup events for keys which we have handled, but which otherwise might trigger
   # page actions (if the page is listening for keyup events).
   suppressTrailingKeyEvents: ->
-    if @options.suppressTrailingKeyEvents
-      @onExit ->
-        handler = (event) ->
-          if event.repeat
-            handlerStack.suppressEvent
-          else
-            @remove()
-            handlerStack.continueBubbling
+    @onExit ->
+      handler = (event) ->
+        if event.repeat
+          handlerStack.suppressEvent
+        else
+          @remove()
+          handlerStack.continueBubbling
 
-        handlerStack.push
-          name: "suppress-trailing-key-events"
-          keydown: handler
-          keypress: handler
-          keyup: -> handlerStack.suppressPropagation
+      handlerStack.push
+        name: "suppress-trailing-key-events"
+        keydown: handler
+        keypress: handler
+        keyup: -> handlerStack.suppressPropagation
 
   # End of options activators.
 
