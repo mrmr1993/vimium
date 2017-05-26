@@ -63,15 +63,6 @@ class Mode
       keydown: @options.keydown || null
       keypress: @options.keypress || null
       keyup: @options.keyup || null
-      indicator: =>
-        # Update the mode indicator.  Setting @options.indicator to a string shows a mode indicator in the
-        # HUD.  Setting @options.indicator to 'false' forces no mode indicator.  If @options.indicator is
-        # undefined, then the request propagates to the next mode.
-        # The active indicator can also be changed with @setIndicator().
-        if @options.indicator?
-          if @options.indicator then HUD.show @options.indicator else HUD.hide true, false
-          @passEventToPage
-        else @continueBubbling
 
     # Note: This sets up a handler above the mode's own key handlers on the handler stack, so it takes
     # priority.
@@ -85,8 +76,19 @@ class Mode
     @suppressTrailingKeyEvents() if @options.suppressTrailingKeyEvents
 
     Mode.modes.push this
-    @setIndicator()
     @logModes()
+
+    @push
+      indicator: =>
+        # Update the mode indicator.  Setting @options.indicator to a string shows a mode indicator in the
+        # HUD.  Setting @options.indicator to 'false' forces no mode indicator.  If @options.indicator is
+        # undefined, then the request propagates to the next mode.
+        # The active indicator can also be changed with @setIndicator().
+        if @options.indicator?
+          if @options.indicator then HUD.show @options.indicator else HUD.hide true, false
+          @passEventToPage
+        else @continueBubbling
+    @setIndicator()
     # End of Mode constructor.
 
   # Options activators.
