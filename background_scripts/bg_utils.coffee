@@ -45,10 +45,8 @@ class TabRecency
     if tabId == @current then 0.0 else @cache[tabId] / @timestamp
 
   # Returns a list of tab Ids sorted by recency, most recent tab first.
-  getTabsByRecency: ->
-    tabIds = (tId for own tId of @cache)
-    tabIds.sort (a,b) => @cache[b] - @cache[a]
-    tabIds.map (tId) -> parseInt tId
+  sortTabsByRecency: (tabIds) ->
+    tabIds.sort (a,b) => @recencyScore(b) - @recencyScore(a)
 
 BgUtils =
   tabRecency: new TabRecency()

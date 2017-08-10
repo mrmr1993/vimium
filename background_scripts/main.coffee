@@ -212,9 +212,10 @@ BackgroundCommands =
   closeTabsOnRight: (request) -> removeTabsRelative "after", request
   closeOtherTabs: (request) -> removeTabsRelative "both", request
   visitPreviousTab: ({count, tab}) ->
-    tabIds = BgUtils.tabRecency.getTabsByRecency().filter (tabId) -> tabId != tab.id
-    if 0 < tabIds.length
-      selectSpecificTab id: tabIds[(count-1) % tabIds.length]
+    chrome.tabs.query {}, (tabs) ->
+      tabIds = BgUtils.tabRecency.sortTabsByRecency (tabs.map (tab) -> tab.id)
+      if 0 < tabIds.length
+        selectSpecificTab id: tabIds[(count-1) % tabIds.length]
 
 # Remove tabs before, after, or either side of the currently active tab
 removeTabsRelative = (direction, {tab: activeTab}) ->
