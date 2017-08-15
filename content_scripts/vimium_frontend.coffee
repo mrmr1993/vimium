@@ -372,7 +372,7 @@ extend window,
     # page to copy.
     # http://code.google.com/p/chromium/issues/detail?id=55188
     chrome.runtime.sendMessage { handler: "getCurrentTabUrl" }, (url) ->
-      chrome.runtime.sendMessage { handler: "copyToClipboard", data: url }
+      HUD.copyToClipboard url
       url = url[0..25] + "...." if 28 < url.length
       HUD.showForDuration("Yanked #{url}", 2000)
 
