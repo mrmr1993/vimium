@@ -96,11 +96,13 @@ handlers =
     focusedElement = document.activeElement
     Clipboard.copy data
     focusedElement?.focus()
+    window.parent.focus()
 
   pasteFromClipboard: ->
     focusedElement = document.activeElement
     data = Clipboard.paste()
     focusedElement?.focus()
+    window.parent.focus()
     UIComponentServer.postMessage {name: "pasteResponse", data}
 
 UIComponentServer.registerHandler ({data}) -> handlers[data.name ? data]? data
