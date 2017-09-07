@@ -84,5 +84,10 @@
     "pages/hud.html",
     "pages/help_dialog.html",
     "pages/completion_engines.html"
-  ]
+  ],
+  "applications": {
+    "gecko": {
+      "id": "{2d9c32ab-03db-47c1-9229-72c95c40e78a}"
+    }
+  }
 }
