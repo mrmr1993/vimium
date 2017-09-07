@@ -1,5 +1,9 @@
 Utils =
-  isFirefox: -> 0 <= navigator.userAgent.indexOf "Firefox"
+  isFirefox: do ->
+    isFirefox = false
+    browser?.runtime?.getBrowserInfo?()?.then? (browserInfo) ->
+      isFirefox = browserInfo?.name == "Firefox"
+    -> isFirefox
   getCurrentVersion: ->
     chrome.runtime.getManifest().version
 
