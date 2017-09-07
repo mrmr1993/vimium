@@ -132,22 +132,30 @@ task "test", "run all tests", (options) ->
 
   .then (testsPassed) ->
     console.log "Running Chrome tests..."
-    {driver: chromeDriver} = require "./tests/dom_tests/selenium_chromium_runner.js"
-    chromeDriver.then (chromeDriver) ->
-      chromeDriver.close()
+    (try
+      {driver: chromeDriver} = require "./tests/dom_tests/selenium_chromium_runner.js"
+      chromeDriver.then (chromeDriver) ->
+        chromeDriver.close()
+    catch e
+      Promise.reject e)
     .then -> testsPassed
-    .catch ->
+    .catch (e) ->
       console.log "Chrome tests failed to run."
+      console.log e
       testsPassed
 
   .then (testsPassed) ->
     console.log "Running Firefox tests..."
-    {driver: firefoxDriver} = require "./tests/dom_tests/selenium_firefox_runner.js"
-    firefoxDriver.then (firefoxDriver) ->
-      firefoxDriver.close()
+    (try
+      {driver: firefoxDriver} = require "./tests/dom_tests/selenium_firefox_runner.js"
+      firefoxDriver.then (firefoxDriver) ->
+        firefoxDriver.close()
+    catch e
+      Promise.reject e)
     .then -> testsPassed
-    .catch ->
+    .catch (e) ->
       console.log "Firefox tests failed to run."
+      console.log e
       testsPassed
 
   .then (testsPassed) ->
