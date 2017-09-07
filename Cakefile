@@ -136,6 +136,9 @@ task "test", "run all tests", (options) ->
     chromeDriver.then (chromeDriver) ->
       chromeDriver.close()
     .then -> testsPassed
+    .catch ->
+      console.log "Chrome tests failed to run."
+      testsPassed
 
   .then (testsPassed) ->
     console.log "Running Firefox tests..."
@@ -143,6 +146,9 @@ task "test", "run all tests", (options) ->
     firefoxDriver.then (firefoxDriver) ->
       firefoxDriver.close()
     .then -> testsPassed
+    .catch ->
+      console.log "Firefox tests failed to run."
+      testsPassed
 
   .then (testsPassed) ->
     if testsPassed
