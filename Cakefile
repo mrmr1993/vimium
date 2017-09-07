@@ -121,11 +121,17 @@ runUnitTests = (projectDir=".", testNameFilter) ->
 option '', '--filter-tests [string]', 'filter tests by matching string'
 task "test", "run all tests", (options) ->
   unitTestsFailed = runUnitTests('.', options['filter-tests'])
+  testsPassed = Promise.resolve (unitTestsFailed > 0)
 
-  console.log "Running DOM tests..."
-  phantom = spawn "phantomjs", ["./tests/dom_tests/phantom_runner.js"]
-  phantom.on 'exit', (returnCode) ->
-    if returnCode > 0 or unitTestsFailed > 0
+  testsPassed.then (testsPassed) ->
+    new Promise (resolve) ->
+      console.log "Running DOM tests..."
+      phantom = spawn "phantomjs", ["./tests/dom_tests/phantom_runner.js"]
+      phantom.on 'exit', (returnCode) ->
+        resolve (testsPassed and returnCode > 0)
+
+  .then (testsPassed) ->
+    if testsPassed
       process.exit 1
     else
       process.exit 0
