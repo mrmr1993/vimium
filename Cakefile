@@ -121,14 +121,28 @@ runUnitTests = (projectDir=".", testNameFilter) ->
 option '', '--filter-tests [string]', 'filter tests by matching string'
 task "test", "run all tests", (options) ->
   unitTestsFailed = runUnitTests('.', options['filter-tests'])
-  testsPassed = Promise.resolve (unitTestsFailed > 0)
+  Promise.resolve (unitTestsFailed > 0)
 
-  testsPassed.then (testsPassed) ->
+  .then (testsPassed) ->
     new Promise (resolve) ->
       console.log "Running DOM tests..."
       phantom = spawn "phantomjs", ["./tests/dom_tests/phantom_runner.js"]
       phantom.on 'exit', (returnCode) ->
         resolve (testsPassed and returnCode > 0)
+
+  .then (testsPassed) ->
+    console.log "Running Chrome tests..."
+    {driver: chromeDriver} = require "./tests/dom_tests/selenium_chromium_runner.js"
+    chromeDriver.then (chromeDriver) ->
+      chromeDriver.close()
+    .then -> testsPassed
+
+  .then (testsPassed) ->
+    console.log "Running Firefox tests..."
+    {driver: firefoxDriver} = require "./tests/dom_tests/selenium_firefox_runner.js"
+    firefoxDriver.then (firefoxDriver) ->
+      firefoxDriver.close()
+    .then -> testsPassed
 
   .then (testsPassed) ->
     if testsPassed

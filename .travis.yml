@@ -5,6 +5,9 @@ before_install:
   - "npm install path@0.11"
   - "npm install util"
   - "npm install -g phantomjs@1.9.20"
+  - "npm install selenium-webdriver"
+  - "npm install geckodriver"
+  - "npm install chromedriver"
   - "cake build"
 script: "cake test"
 notifications:
