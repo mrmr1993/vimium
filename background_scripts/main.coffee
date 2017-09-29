@@ -347,7 +347,8 @@ Frames =
     HintCoordinator.onMessage tabId, frameId, request
 
   # For debugging only. This allows content scripts to log messages to the extension's logging page.
-  log: ({frameId, sender, request: {message}}) -> BgUtils.log "#{frameId} #{message}", sender
+  log: ({tabId, frameId, sender, request: {message}}) ->
+    BgUtils.log "#{tabId}/#{frameId}:\t#{message}", sender
 
 handleFrameFocused = ({tabId, frameId}) ->
   frameIdsForTab[tabId] ?= []

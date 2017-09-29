@@ -70,8 +70,10 @@ BgUtils =
               [date.getHours(), date.getMinutes(), date.getSeconds(), date.getMilliseconds()]
             minutes = "0" + minutes if minutes < 10
             seconds = "0" + seconds if seconds < 10
-            milliseconds = "00" + milliseconds if milliseconds < 10
-            milliseconds = "0" + milliseconds if milliseconds < 100
+            if milliseconds < 10
+              milliseconds = "00" + milliseconds
+            else if milliseconds < 100
+              milliseconds = "0" + milliseconds
             dateString = "#{hours}:#{minutes}:#{seconds}.#{milliseconds}"
             logElement = viewWindow.document.getElementById "log-text"
             logElement.value += "#{dateString}: #{message}\n"

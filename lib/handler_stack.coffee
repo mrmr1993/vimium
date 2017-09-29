@@ -43,17 +43,18 @@ class HandlerStack
   # event's propagation by returning a falsy value, or stop bubbling by returning @suppressPropagation or
   # @passEventToPage.
   bubbleEvent: (type, event) ->
+    @log "Handler stack: " + @stack[..].reverse().map((handler) -> handler._name).join " "
     @eventNumber += 1
     eventNumber = @eventNumber
+    @logEvent eventNumber, type, event
     for handler in @stack[..].reverse()
       # A handler might have been removed (handler.id == null), so check; or there might just be no handler
       # for this type of event.
       unless handler?.id and handler[type]
-        @logResult eventNumber, type, event, handler, "skip [#{handler[type]?}]" if @debug
       else
         @currentId = handler.id
         result = handler[type].call this, event
-        @logResult eventNumber, type, event, handler, result if @debug
+        @logResult eventNumber, type, event, handler, result
         if result == @passEventToPage
           return true
         else if result == @suppressPropagation
@@ -95,19 +96,39 @@ class HandlerStack
   alwaysSuppressPropagation: (handler = null) ->
     if handler?() == @suppressEvent then @suppressEvent else @suppressPropagation
 
+  log: (string) ->
+    bgLog? string
+    console.log string if @debug
+
+  logEvent: (eventNumber, type, event) ->
+    if type != "indicator" # Tweak this as needed.
+      eventPrototype = event
+      proxyEvent = {}
+      while eventPrototype
+        descriptors = Object.getOwnPropertyDescriptors eventPrototype
+        for name, descriptor of descriptors
+          if descriptor.get?
+            # TODO(mrmr1993): Convert Elements to an XPath.
+            try
+              JSON.stringify event[name] # This will throw if the property cannot be JSON encoded.
+              proxyEvent[name] = event[name]
+        eventPrototype = Object.getPrototypeOf eventPrototype
+      console.log proxyEvent
+      @log "Handling #{type} event (id: #{eventNumber}) #{JSON.stringify proxyEvent, undefined, 1}"
+
   # Debugging.
   logResult: (eventNumber, type, event, handler, result) ->
-    if event?.type == "keydown" # Tweak this as needed.
+    if type != "indicator" # Tweak this as needed.
       label =
         switch result
           when @passEventToPage then "passEventToPage"
           when @suppressEvent then "suppressEvent"
           when @suppressPropagation then "suppressPropagation"
           when @restartBubbling then "restartBubbling"
-          when "skip" then "skip"
           when true then "continue"
+          else result
       label ||= if result then "continue/truthy" else "suppress"
-      console.log "#{eventNumber}", type, handler._name, label
+      @log "  #{eventNumber} #{handler._name} #{label}"
 
   show: ->
     console.log "#{@eventNumber}:"
