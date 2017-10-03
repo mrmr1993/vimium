@@ -1,10 +1,16 @@
 language: node_js
 node_js: 8
 before_install:
-  - "npm install -g coffeescript@1"
+  - "npm install -g coffeescript"
+  - "npm install coffeescript"
+  - "wget -O node_modules/coffeescript/lib/coffeescript/lexer.js https://raw.githubusercontent.com/mrmr1993/coffeescript/b93c4475991fd4a5ce31fcc50e07acde30022252/lib/coffeescript/lexer.js"
   - "npm install path@0.11"
   - "npm install util"
-  - "npm install -g phantomjs"
+  - "npm install phantomjs"
+  - "wget https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.5.0-beta-linux-ubuntu-trusty-x86_64.tar.gz"
+  - "tar -xzf phantomjs-2.5.0-beta-linux-ubuntu-trusty-x86_64.tar.gz -C ."
+  - "rm -r node_modules/phantomjs/lib/phantom"
+  - "mv phantomjs-2.5.0-beta-linux-ubuntu-trusty-x86_64.tar.gz -T node_modules/phantomjs/lib/phantom"
   - "cake build"
 script: "cake test"
 notifications:

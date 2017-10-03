@@ -123,7 +123,7 @@ task "test", "run all tests", (options) ->
   unitTestsFailed = runUnitTests('.', options['filter-tests'])
 
   console.log "Running DOM tests..."
-  phantom = spawn "phantomjs", ["./tests/dom_tests/phantom_runner.js"]
+  phantom = spawn (require "phantomjs").path, ["./tests/dom_tests/phantom_runner.js"]
   phantom.on 'exit', (returnCode) ->
     if returnCode > 0 or unitTestsFailed > 0
       process.exit 1
