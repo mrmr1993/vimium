@@ -89,7 +89,7 @@ class KeyHandlerMode extends Mode
       count = if 0 < @countPrefix then @countPrefix else 1
       bgLog "  invoke #{command.command} count=#{count} "
       @reset()
-      @commandHandler {command, count}
+      @commandHandler {command, count, lastKey: keyChar}
       @exit() if @options.count? and --@options.count <= 0
     @suppressEvent
 

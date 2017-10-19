@@ -203,6 +203,7 @@ Commands =
       "moveTabRight"]
     misc:
       ["showHelp",
+      "toggleDisabled",
       "toggleViewSource"]
 
   # Rarely used commands are not shown by default in the help dialog or in the README. The goal is to present
@@ -231,7 +232,8 @@ Commands =
     "closeOtherTabs",
     "enterVisualLineMode",
     "toggleViewSource",
-    "passNextKey"]
+    "passNextKey",
+    "toggleDisabled"]
 
 defaultKeyMappings =
   "?": "showHelp"
@@ -315,6 +317,7 @@ defaultKeyMappings =
   "m": "Marks.activateCreateMode"
   "`": "Marks.activateGotoMode"
 
+  "<c-esc>": "toggleDisabled"
 
 # This is a mapping of: commandIdentifier => [description, options].
 # If the noRepeat and repeatLimit options are both specified, then noRepeat takes precedence.
@@ -409,6 +412,7 @@ commandDescriptions =
 
   "Marks.activateCreateMode": ["Create a new mark", { noRepeat: true }]
   "Marks.activateGotoMode": ["Go to a mark", { noRepeat: true }]
+  toggleDisabled: ["Stop handling keys until this key is repeated", { noRepeat: true }]
 
 Commands.init()
 

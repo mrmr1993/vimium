@@ -111,6 +111,19 @@ handlerStack.push
         target = target.parentElement
     true
 
+class DisabledMode extends Mode
+  constructor: (lastKey) ->
+    super()
+    @push
+      _name: "disabled-mode"
+      keydown: (event) =>
+        if lastKey == KeyboardUtils.getKeyCharString event
+          @exit()
+        else
+          @passEventToPage
+      keyup: -> @passEventToPage
+      keypress: -> @passEventToPage
+
 class NormalMode extends KeyHandlerMode
   constructor: (options = {}) ->
     defaults =
@@ -127,7 +140,7 @@ class NormalMode extends KeyHandlerMode
       if area == "local" and changes.normalModeKeyStateMapping?.newValue
         @setKeyMapping changes.normalModeKeyStateMapping.newValue
 
-  commandHandler: ({command: registryEntry, count}) ->
+  commandHandler: ({command: registryEntry, count, lastKey}) ->
     count *= registryEntry.options.count ? 1
     count = 1 if registryEntry.noRepeat
 
@@ -144,7 +157,7 @@ class NormalMode extends KeyHandlerMode
     else if registryEntry.background
       chrome.runtime.sendMessage {handler: "runBackgroundCommand", registryEntry, count}
     else
-      Utils.invokeCommandString registryEntry.command, count, {registryEntry}
+      Utils.invokeCommandString registryEntry.command, count, {registryEntry, lastKey}
 
 installModes = ->
   # Install the permanent modes. The permanently-installed insert mode tracks focus/blur events, and
@@ -399,6 +412,8 @@ extend window,
       enterNormalMode count
     else
       new PassNextKeyMode count
+
+  toggleDisabled: (count, {lastKey}) -> new DisabledMode lastKey
 
   enterNormalMode: (count) ->
     new NormalMode
