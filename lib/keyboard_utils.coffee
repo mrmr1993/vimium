@@ -5,7 +5,7 @@ Utils?.monitorChromeStorage "mapKeyRegistry", (value) => mapKeyRegistry = value
 KeyboardUtils =
   # This maps event.key key names to Vimium key names.
   keyNames:
-    "ArrowLeft": "left", "ArrowUp": "up", "ArrowRight": "right", "ArrowDown": "down", " ": "space", "Backspace": "backspace"
+    "ArrowLeft": "left", "ArrowUp": "up", "ArrowRight": "right", "ArrowDown": "down", " ": "space", "Backspace": "backspace", "Escape": "esc"
 
   init: ->
     if (navigator.userAgent.indexOf("Mac") != -1)
@@ -65,8 +65,9 @@ KeyboardUtils =
     Utils.monitorChromeStorage "useVimLikeEscape", (value) -> useVimLikeEscape = value
 
     (event) ->
+      keyCharString = @getKeyCharString event
       # <c-[> is mapped to Escape in Vim by default.
-      event.key == "Escape" or (useVimLikeEscape and @getKeyCharString(event) == "<c-[>")
+      keyCharString == "<esc>" or (useVimLikeEscape and keyCharString == "<c-[>")
 
   isBackspace: (event) ->
     event.key in ["Backspace", "Delete"]
