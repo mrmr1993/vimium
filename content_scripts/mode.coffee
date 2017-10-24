@@ -98,7 +98,6 @@ class Mode
 
     @exitOnClick() if @options.exitOnClick
     @exitOnFocus() if @options.exitOnFocus
-    @exitOnScroll() if @options.exitOnScroll
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
