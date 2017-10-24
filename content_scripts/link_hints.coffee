@@ -166,12 +166,12 @@ class LinkHintsMode
       name: "hint/#{@mode.name}"
       indicator: false
       singleton: "link-hints-mode"
-      passInitialKeyupEvents: true
       suppressAllKeyboardEvents: true
       exitOnEscape: true
       exitOnClick: true
       keydown: @onKeyDownInMode.bind this
 
+    @hintMode.passInitialKeyupEvents()
     @hintMode.suppressTrailingKeyEvents()
 
     @hintMode.onExit (event) =>
