@@ -74,8 +74,8 @@ class FindMode extends Mode
       # E.g. "/" followed quickly by "i" should not leave us in insert mode.
       suppressAllKeyboardEvents: true
 
-    @exitOnClick()
     @exitOnEscape()
+    @exitOnClick()
 
     HUD.showFindMode this
 
