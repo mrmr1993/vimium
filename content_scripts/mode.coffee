@@ -69,13 +69,7 @@ class Mode
     # End of Mode constructor.
 
   registerListeners: ->
-    # If options.suppressAllKeyboardEvents is truthy, then all keyboard events are suppressed.  This avoids
-    # the need for modes which suppress all keyboard events 1) to provide handlers for all of those events,
-    # or 2) to worry about event suppression and event-handler return values.
-    if @options.suppressAllKeyboardEvents
-      for type in [ "keydown", "keypress", "keyup" ]
-        do (handler = @options[type]) =>
-          @options[type] = (event) => @alwaysSuppressPropagation => handler? event
+    @suppressAllKeyboardEvents() if @options.suppressAllKeyboardEvents
 
     @push
       keydown: @options.keydown || null
@@ -140,6 +134,12 @@ class Mode
     @modes = []
 
   # Handlers
+  suppressAllKeyboardEvents: ->
+    @push
+      _name: "mode-#{@id}/suppressAllKeyboardEvents"
+      keydown: => @suppressPropagation
+      keypress: => @suppressPropagation
+      keyup: => @suppressPropagation
 
   # Exit the mode when the escape key is pressed.
   # NOTE: This handler should be attached after the mode's own key handlers, so it takes priority.
