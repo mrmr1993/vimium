@@ -93,9 +93,6 @@ class Mode
 
     @exitOnEscape() if @options.exitOnEscape
 
-    # If @options.exitOnBlur is truthy, then it should be an element.
-    @exitOnBlur @options.exitOnBlur if @options.exitOnBlur
-
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
     Mode.setIndicator()

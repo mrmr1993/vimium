@@ -946,20 +946,12 @@ context "Mode utilities",
   should "exit on blur", ->
     element = document.getElementById("first")
     element.focus()
-    test = new Mode exitOnBlur: element
+    test = new Mode()
+    test.exitOnBlur element
 
     assert.isTrue test.modeIsActive
     element.blur()
     assert.isFalse test.modeIsActive
-
-  should "not exit on blur if not enabled", ->
-    element = document.getElementById("first")
-    element.focus()
-    test = new Mode exitOnBlur: false
-
-    assert.isTrue test.modeIsActive
-    element.blur()
-    assert.isTrue test.modeIsActive
 
 context "PostFindMode",
   setup ->

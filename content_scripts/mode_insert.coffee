@@ -112,8 +112,6 @@ class PassNextKeyMode extends Mode
     super
       name: "pass-next-key"
       indicator: "Pass next key."
-      # We exit on blur because, once we lose the focus, we can no longer track key events.
-      exitOnBlur: window
       keypress: =>
         @passEventToPage
 
@@ -128,6 +126,9 @@ class PassNextKeyMode extends Mode
             unless 0 < --count
               @exit()
         @passEventToPage
+
+    # We exit on blur because, once we lose the focus, we can no longer track key events.
+    @exitOnBlur window
 
 root = exports ? window
 root.InsertMode = InsertMode
