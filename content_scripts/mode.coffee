@@ -51,6 +51,24 @@ class Mode
     @id = "#{@name}-#{@count}"
     @log "activate:", @id
 
+    @registerListeners()
+
+    # Some modes are singletons: there may be at most one instance active at any time.  A mode is a singleton
+    # if @options.singleton is set.  The value of @options.singleton should be the key which is intended to be
+    # unique.  New instances deactivate existing instances with the same key.
+    if @options.singleton
+      singletons = Mode.singletons ||= {}
+      key = @options.singleton
+      @onExit -> delete singletons[key]
+      singletons[key]?.exit()
+      singletons[key] = this
+
+    Mode.modes.push this
+    @setIndicator()
+    @logModes()
+    # End of Mode constructor.
+
+  registerListeners: ->
     # If options.suppressAllKeyboardEvents is truthy, then all keyboard events are suppressed.  This avoids
     # the need for modes which suppress all keyboard events 1) to provide handlers for all of those events,
     # or 2) to worry about event suppression and event-handler return values.
@@ -110,16 +128,6 @@ class Mode
         _name: "mode-#{@id}/exitOnScroll"
         "scroll": (event) => @alwaysContinueBubbling => @exit event
 
-    # Some modes are singletons: there may be at most one instance active at any time.  A mode is a singleton
-    # if @options.singleton is set.  The value of @options.singleton should be the key which is intended to be
-    # unique.  New instances deactivate existing instances with the same key.
-    if @options.singleton
-      singletons = Mode.singletons ||= {}
-      key = @options.singleton
-      @onExit -> delete singletons[key]
-      singletons[key]?.exit()
-      singletons[key] = this
-
     # If @options.passInitialKeyupEvents is set, then we pass initial non-printable keyup events to the page
     # or to other extensions (because the corresponding keydown events were passed).  This is used when
     # activating link hints, see #1522.
@@ -148,11 +156,6 @@ class Mode
           keydown: handler
           keypress: handler
           keyup: -> handlerStack.suppressPropagation
-
-    Mode.modes.push this
-    @setIndicator()
-    @logModes()
-    # End of Mode constructor.
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
