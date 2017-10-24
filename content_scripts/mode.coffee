@@ -100,7 +100,6 @@ class Mode
     @exitOnFocus() if @options.exitOnFocus
     @exitOnScroll() if @options.exitOnScroll
     @passInitialKeyupEvents() if @options.passInitialKeyupEvents
-    @suppressTrailingKeyEvents() if @options.suppressTrailingKeyEvents
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
