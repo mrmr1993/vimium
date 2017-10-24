@@ -82,11 +82,6 @@ class Mode
   registerListeners: ->
     @suppressAllKeyboardEvents() if @options.suppressAllKeyboardEvents
 
-    @push
-      keydown: @options.keydown || null
-      keypress: @options.keypress || null
-      keyup: @options.keyup || null
-
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
     Mode.setIndicator()

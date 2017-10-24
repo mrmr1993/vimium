@@ -31,11 +31,13 @@ class InsertMode extends Mode
     defaults =
       name: "insert"
       indicator: if not @permanent and not Settings.get "hideHud"  then "Insert mode"
+
+    super extend defaults, options
+
+    @push
       keypress: handleKeyEvent
       keyup: handleKeyEvent
       keydown: handleKeyEvent
-
-    super extend defaults, options
 
     @insertModeLock =
       if options.targetElement and DomUtils.isEditable options.targetElement
@@ -112,8 +114,8 @@ class PassNextKeyMode extends Mode
     super
       name: "pass-next-key"
       indicator: "Pass next key."
-      keypress: =>
-        @passEventToPage
+    @push
+      keypress: => @passEventToPage
 
       keydown: =>
         seenKeyDown = true

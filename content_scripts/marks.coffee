@@ -34,6 +34,7 @@ Marks =
       name: "create-mark"
       indicator: "Create mark..."
       suppressAllKeyboardEvents: true
+    @mode.push
       keydown: (event) =>
         if KeyboardUtils.isPrintable event
           keyChar = KeyboardUtils.getKeyChar event
@@ -60,6 +61,7 @@ Marks =
       name: "goto-mark"
       indicator: "Go to mark..."
       suppressAllKeyboardEvents: true
+    @mode.push
       keydown: (event) =>
         if KeyboardUtils.isPrintable event
           @exit =>

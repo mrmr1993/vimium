@@ -52,6 +52,7 @@ class GrabBackFocus extends Mode
 
     super
       name: "grab-back-focus"
+    @push
       keydown: exitEventHandler
 
     @push
@@ -463,6 +464,7 @@ extend window,
         constructor: ->
           super
             name: "focus-selector"
+          @push
             keydown: (event) =>
               if event.key == "Tab"
                 hints[selectedInputIndex].classList.remove 'internalVimiumSelectedInputHint'

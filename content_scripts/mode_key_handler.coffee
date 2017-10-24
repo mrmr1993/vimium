@@ -25,7 +25,8 @@ class KeyHandlerMode extends Mode
     @commandHandler = options.commandHandler ? (->)
     @setKeyMapping options.keyMapping ? {}
 
-    super extend options,
+    super options
+    @push
       keydown: @onKeydown.bind this
       # We cannot track keyup events if we lose the focus.
       blur: (event) => @alwaysContinueBubbling => @keydownEvents = {} if event.target == window

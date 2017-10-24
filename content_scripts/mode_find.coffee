@@ -35,6 +35,7 @@ class PostFindMode extends SuppressPrintable
       name: "post-find"
       # PostFindMode shares a singleton with focusInput; each displaces the other.
       singleton: "post-find-mode/focus-input"
+    @push
       keydown: (event) -> InsertMode.suppressEvent event # Always truthy, so always continues bubbling.
       keypress: (event) -> InsertMode.suppressEvent event
       keyup: (event) -> InsertMode.suppressEvent event

@@ -167,8 +167,8 @@ class LinkHintsMode
       indicator: false
       singleton: "link-hints-mode"
       suppressAllKeyboardEvents: true
-      keydown: @onKeyDownInMode.bind this
 
+    @hintMode.push keydown: @onKeyDownInMode.bind this
     @hintMode.exitOnEscape()
     @hintMode.exitOnClick()
     @hintMode.passInitialKeyupEvents()
@@ -876,6 +876,7 @@ class TypingProtector extends Mode
     super
       name: "hint/typing-protector"
       suppressAllKeyboardEvents: true
+    @push
       keydown: resetExitTimer
       keypress: resetExitTimer
 
