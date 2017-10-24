@@ -461,7 +461,6 @@ extend window,
         constructor: ->
           super
             name: "focus-selector"
-            exitOnClick: true
             keydown: (event) =>
               if event.key == "Tab"
                 hints[selectedInputIndex].classList.remove 'internalVimiumSelectedInputHint'
@@ -474,6 +473,8 @@ extend window,
                 @exit()
                 # Give the new mode the opportunity to handle the event.
                 @restartBubbling
+
+          @exitOnClick()
 
           @hintContainingDiv = DomUtils.addElementList hints,
             id: "vimiumInputMarkerContainer"

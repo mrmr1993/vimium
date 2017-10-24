@@ -36,11 +36,11 @@ class PostFindMode extends SuppressPrintable
       # PostFindMode shares a singleton with focusInput; each displaces the other.
       singleton: "post-find-mode/focus-input"
       exitOnBlur: element
-      exitOnClick: true
       keydown: (event) -> InsertMode.suppressEvent event # Always truthy, so always continues bubbling.
       keypress: (event) -> InsertMode.suppressEvent event
       keyup: (event) -> InsertMode.suppressEvent event
 
+    @exitOnClick()
     # If the very-next keydown is Escape, then exit immediately, thereby passing subsequent keys to the
     # underlying insert-mode instance.
     @push
@@ -69,11 +69,12 @@ class FindMode extends Mode
     super extend options,
       name: "find"
       indicator: false
-      exitOnClick: true
       exitOnEscape: true
       # This prevents further Vimium commands launching before the find-mode HUD receives the focus.
       # E.g. "/" followed quickly by "i" should not leave us in insert mode.
       suppressAllKeyboardEvents: true
+
+    @exitOnClick()
 
     HUD.showFindMode this
 
