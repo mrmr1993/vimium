@@ -234,10 +234,12 @@ class VisualMode extends KeyHandlerMode
       name: options.name ? "visual"
       indicator: options.indicator ? "Visual mode"
       singleton: "visual-mode-group" # Visual mode, visual-line mode and caret mode each displace each other.
-      exitOnEscape: true
       suppressAllKeyboardEvents: true
       keyMapping: keyMapping
       commandHandler: @commandHandler.bind this
+
+    @exitOnEscape()
+    @resetOnEscape()
 
     # If there was a range selection when the user lanuched visual mode, then we retain the selection on exit.
     @shouldRetainSelectionOnExit = @options.userLaunchedMode and DomUtils.getSelectionType(@selection) == "Range"

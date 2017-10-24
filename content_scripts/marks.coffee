@@ -33,7 +33,6 @@ Marks =
     @mode = new Mode
       name: "create-mark"
       indicator: "Create mark..."
-      exitOnEscape: true
       suppressAllKeyboardEvents: true
       keydown: (event) =>
         if KeyboardUtils.isPrintable event
@@ -53,12 +52,13 @@ Marks =
               localStorage[@getLocationKey keyChar] = @getMarkString()
               @showMessage "Created local mark", keyChar
           DomUtils.consumeKeyup event
+    @mode.exitOnEscape()
+    @mode
 
   activateGotoMode: ->
     @mode = new Mode
       name: "goto-mark"
       indicator: "Go to mark..."
-      exitOnEscape: true
       suppressAllKeyboardEvents: true
       keydown: (event) =>
         if KeyboardUtils.isPrintable event
@@ -83,6 +83,8 @@ Marks =
               else
                 @showMessage "Local mark not set", keyChar
           DomUtils.consumeKeyup event
+    @mode.exitOnEscape()
+    @mode
 
 root = exports ? window
 root.Marks =  Marks

@@ -65,7 +65,7 @@ HintCoordinator =
       name: "link-hints/suppress-keyboard-events"
       singleton: "link-hints-mode"
       indicator: "Collecting hints..."
-      exitOnEscape: true
+    @suppressKeyboardEvents.exitOnEscape()
     # FIXME(smblott) Global link hints is currently insufficiently reliable.  If the mode above is left in
     # place, then Vimium blocks.  As a temporary measure, we install a timer to remove it.
     Utils.setTimeout 1000, -> suppressKeyboardEvents.exit() if suppressKeyboardEvents?.modeIsActive
@@ -167,12 +167,12 @@ class LinkHintsMode
       indicator: false
       singleton: "link-hints-mode"
       suppressAllKeyboardEvents: true
-      exitOnEscape: true
       keydown: @onKeyDownInMode.bind this
 
     @hintMode.passInitialKeyupEvents()
     @hintMode.suppressTrailingKeyEvents()
     @hintMode.exitOnClick()
+    @hintMode.exitOnEscape()
 
     @hintMode.onExit (event) =>
       if event?.type == "click" or (event?.type == "keydown" and

@@ -403,11 +403,13 @@ extend window,
       new PassNextKeyMode count
 
   enterNormalMode: (count) ->
-    new NormalMode
+    normalMode = new NormalMode
       indicator: "Normal mode (pass keys disabled)"
-      exitOnEscape: true
       singleton: "enterNormalMode"
       count: count
+
+    normalMode.exitOnEscape()
+    normalMode.resetOnEscape()
 
   focusInput: do ->
     # Track the most recently focused input element.

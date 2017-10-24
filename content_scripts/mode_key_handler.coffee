@@ -30,18 +30,6 @@ class KeyHandlerMode extends Mode
       # We cannot track keyup events if we lose the focus.
       blur: (event) => @alwaysContinueBubbling => @keydownEvents = {} if event.target == window
 
-    if options.exitOnEscape
-      # If we're part way through a command's key sequence, then a first Escape should reset the key state,
-      # and only a second Escape should actually exit this mode.
-      @push
-        _name: "key-handler-escape-listener"
-        keydown: (event) =>
-          if KeyboardUtils.isEscape(event) and not @isInResetState()
-            @reset()
-            DomUtils.consumeKeyup event
-          else
-            @continueBubbling
-
   onKeydown: (event) ->
     keyChar = KeyboardUtils.getKeyCharString event
     isEscape = KeyboardUtils.isEscape event
@@ -92,6 +80,17 @@ class KeyHandlerMode extends Mode
       @commandHandler {command, count}
       @exit() if @options.count? and --@options.count <= 0
     @suppressEvent
+
+  # Reset the key state if we're part way through a sequence and escape is pressed; otherwise, pass escape.
+  resetOnEscape: ->
+    @push
+      _name: "key-handler-escape-listener"
+      keydown: (event) =>
+        if KeyboardUtils.isEscape(event) and not @isInResetState()
+          @reset()
+          DomUtils.consumeKeyup event
+        else
+          @continueBubbling
 
 root = exports ? window
 root.KeyHandlerMode = KeyHandlerMode

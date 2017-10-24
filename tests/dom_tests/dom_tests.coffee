@@ -930,18 +930,12 @@ context "Mode utilities",
     assert.isTrue count == 0
 
   should "exit on escape", ->
-    test = new Mode exitOnEscape: true
+    test = new Mode
+    test.exitOnEscape()
 
     assert.isTrue test.modeIsActive
     sendKeyboardEvent "Escape", "keydown"
     assert.isFalse test.modeIsActive
-
-  should "not exit on escape if not enabled", ->
-    test = new Mode exitOnEscape: false
-
-    assert.isTrue test.modeIsActive
-    sendKeyboardEvent "Escape", "keydown"
-    assert.isTrue test.modeIsActive
 
   should "exit on blur", ->
     element = document.getElementById("first")

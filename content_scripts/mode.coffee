@@ -91,8 +91,6 @@ class Mode
           @passEventToPage
         else @continueBubbling
 
-    @exitOnEscape() if @options.exitOnEscape
-
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
     Mode.setIndicator()
