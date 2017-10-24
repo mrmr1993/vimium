@@ -97,7 +97,6 @@ class Mode
     @exitOnBlur @options.exitOnBlur if @options.exitOnBlur
 
     @exitOnClick() if @options.exitOnClick
-    @exitOnFocus() if @options.exitOnFocus
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator

@@ -386,7 +386,9 @@ extend window,
   enterInsertMode: ->
     # If a focusable element receives the focus, then we exit and leave the permanently-installed insert-mode
     # instance to take over.
-    new InsertMode global: true, exitOnFocus: true
+    insertMode = new InsertMode global: true
+    insertMode.exitOnFocus()
+    insertMode
 
   enterVisualMode: ->
     new VisualMode userLaunchedMode: true
