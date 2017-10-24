@@ -91,71 +91,16 @@ class Mode
           @passEventToPage
         else @continueBubbling
 
-    # If @options.exitOnEscape is truthy, then the mode will exit when the escape key is pressed.
-    if @options.exitOnEscape
-      # Note. This handler ends up above the mode's own key handlers on the handler stack, so it takes
-      # priority.
-      @push
-        _name: "mode-#{@id}/exitOnEscape"
-        "keydown": (event) =>
-          return @continueBubbling unless KeyboardUtils.isEscape event
-          @exit event, event.target
-          DomUtils.consumeKeyup event
+    @exitOnEscape() if @options.exitOnEscape
 
-    # If @options.exitOnBlur is truthy, then it should be an element.  The mode will exit when that element
-    # loses the focus.
-    if @options.exitOnBlur
-      @push
-        _name: "mode-#{@id}/exitOnBlur"
-        "blur": (event) => @alwaysContinueBubbling => @exit event if event.target == @options.exitOnBlur
+    # If @options.exitOnBlur is truthy, then it should be an element.
+    @exitOnBlur @options.exitOnBlur if @options.exitOnBlur
 
-    # If @options.exitOnClick is truthy, then the mode will exit on any click event.
-    if @options.exitOnClick
-      @push
-        _name: "mode-#{@id}/exitOnClick"
-        "click": (event) => @alwaysContinueBubbling => @exit event
-
-    #If @options.exitOnFocus is truthy, then the mode will exit whenever a focusable element is activated.
-    if @options.exitOnFocus
-      @push
-        _name: "mode-#{@id}/exitOnFocus"
-        "focus": (event) => @alwaysContinueBubbling =>
-          @exit event if DomUtils.isFocusable event.target
-
-    # If @options.exitOnScroll is truthy, then the mode will exit on any scroll event.
-    if @options.exitOnScroll
-      @push
-        _name: "mode-#{@id}/exitOnScroll"
-        "scroll": (event) => @alwaysContinueBubbling => @exit event
-
-    # If @options.passInitialKeyupEvents is set, then we pass initial non-printable keyup events to the page
-    # or to other extensions (because the corresponding keydown events were passed).  This is used when
-    # activating link hints, see #1522.
-    if @options.passInitialKeyupEvents
-      @push
-        _name: "mode-#{@id}/passInitialKeyupEvents"
-        keydown: => @alwaysContinueBubbling -> handlerStack.remove()
-        keyup: (event) =>
-          if KeyboardUtils.isPrintable event then @suppressPropagation else @passEventToPage
-
-    # if @options.suppressTrailingKeyEvents is set, then  -- on exit -- we suppress all key events until a
-    # subsquent (non-repeat) keydown or keypress.  In particular, the intention is to catch keyup events for
-    # keys which we have handled, but which otherwise might trigger page actions (if the page is listening for
-    # keyup events).
-    if @options.suppressTrailingKeyEvents
-      @onExit ->
-        handler = (event) ->
-          if event.repeat
-            handlerStack.suppressEvent
-          else
-            keyEventSuppressor.exit()
-            handlerStack.continueBubbling
-
-        keyEventSuppressor = new Mode
-          name: "suppress-trailing-key-events"
-          keydown: handler
-          keypress: handler
-          keyup: -> handlerStack.suppressPropagation
+    @exitOnClick() if @options.exitOnClick
+    @exitOnFocus() if @options.exitOnFocus
+    @exitOnScroll() if @options.exitOnScroll
+    @passInitialKeyupEvents() if @options.passInitialKeyupEvents
+    @suppressTrailingKeyEvents() if @options.suppressTrailingKeyEvents
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
@@ -204,6 +149,72 @@ class Mode
   @reset: ->
     mode.exit() for mode in @modes
     @modes = []
+
+  # Handlers
+
+  # Exit the mode when the escape key is pressed.
+  # NOTE: This handler should be attached after the mode's own key handlers, so it takes priority.
+  exitOnEscape: ->
+    @push
+      _name: "mode-#{@id}/exitOnEscape"
+      "keydown": (event) =>
+        return @continueBubbling unless KeyboardUtils.isEscape event
+        @exit event, event.target
+        DomUtils.consumeKeyup event
+
+  # Exit the mode when the given element is blurred.
+  exitOnBlur: (element) ->
+    @push
+      _name: "mode-#{@id}/exitOnBlur"
+      "blur": (event) => @alwaysContinueBubbling => @exit event if event.target == element
+
+  exitOnClick: ->
+    @push
+      _name: "mode-#{@id}/exitOnClick"
+      "click": (event) => @alwaysContinueBubbling => @exit event
+
+  # Exit the mode when a focusable element is activated.
+  exitOnFocus: ->
+    @push
+      _name: "mode-#{@id}/exitOnFocus"
+      "focus": (event) => @alwaysContinueBubbling =>
+        @exit event if DomUtils.isFocusable event.target
+
+  exitOnScroll: ->
+    @push
+      _name: "mode-#{@id}/exitOnScroll"
+      "scroll": (event) => @alwaysContinueBubbling => @exit event
+
+  # Pass initial non-printable keyup events to the page or to other extensions (because the corresponding
+  # keydown events were passed).
+  # This is used when activating link hints, see #1522.
+  # TODO(mrmr1993): Use DomUtils.consumeKeyup so that this becomes unnecessary.
+  passInitialKeyupEvents: ->
+    @push
+      _name: "mode-#{@id}/passInitialKeyupEvents"
+      keydown: => @alwaysContinueBubbling -> handlerStack.remove()
+      keyup: (event) =>
+        if KeyboardUtils.isPrintable event then @suppressPropagation else @passEventToPage
+
+  # On exit, suppress all key events until a subsquent (non-repeat) keydown or keypress.
+  # Note: The intention is to catch keyup events for keys which we have handled, but which otherwise
+  # might trigger page actions (if the page is listening for keyup events).
+  # TODO(mrmr1993): Use DomUtils.consumeKeyup so that this becomes unnecessary.
+  suppressTrailingKeyEvents: ->
+    @onExit ->
+      handler = (event) ->
+        if event.repeat
+          handlerStack.suppressEvent
+        else
+          keyEventSuppressor.exit()
+          handlerStack.continueBubbling
+
+      keyEventSuppressor = new Mode
+        name: "suppress-trailing-key-events"
+        keydown: handler
+        keypress: handler
+        keyup: -> handlerStack.suppressPropagation
+  # End of handlers.
 
 class SuppressAllKeyboardEvents extends Mode
   constructor: (options = {}) ->
