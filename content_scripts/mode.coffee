@@ -53,6 +53,17 @@ class Mode
 
     @registerListeners()
 
+    @push
+      indicator: =>
+        # Update the mode indicator.  Setting @options.indicator to a string shows a mode indicator in the
+        # HUD.  Setting @options.indicator to 'false' forces no mode indicator.  If @options.indicator is
+        # undefined, then the request propagates to the next mode.
+        # The active indicator can also be changed with @setIndicator().
+        if @options.indicator?
+          if @options.indicator then HUD.show @options.indicator else HUD.hide true, false
+          @passEventToPage
+        else @continueBubbling
+
     # Some modes are singletons: there may be at most one instance active at any time.  A mode is a singleton
     # if @options.singleton is set.  The value of @options.singleton should be the key which is intended to be
     # unique.  New instances deactivate existing instances with the same key.
@@ -75,15 +86,6 @@ class Mode
       keydown: @options.keydown || null
       keypress: @options.keypress || null
       keyup: @options.keyup || null
-      indicator: =>
-        # Update the mode indicator.  Setting @options.indicator to a string shows a mode indicator in the
-        # HUD.  Setting @options.indicator to 'false' forces no mode indicator.  If @options.indicator is
-        # undefined, then the request propagates to the next mode.
-        # The active indicator can also be changed with @setIndicator().
-        if @options.indicator?
-          if @options.indicator then HUD.show @options.indicator else HUD.hide true, false
-          @passEventToPage
-        else @continueBubbling
 
   setIndicator: (indicator = @options.indicator) ->
     @options.indicator = indicator
