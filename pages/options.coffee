@@ -39,9 +39,14 @@ class Option
     bgSettings.clear @field
     @fetch()
 
+  @onSaveCallbacks: []
+  @onSave: (callback) ->
+    @onSaveCallbacks.push callback
+
   # Static method.
   @saveOptions: ->
     Option.all.map (option) -> option.save()
+    callback() for callback in @onSaveCallbacks
 
   # Abstract method; only implemented in sub-classes.
   # Populate the option's DOM element (@element) with the setting's current value.
@@ -93,8 +98,10 @@ class ExclusionRulesOption extends Option
       element
 
   populateElement: (rules) ->
-    for rule in rules
-      @appendRule rule
+    # For the case of restoring a backup, we first have to remove existing rules.
+    exclusionRules = $ "exclusionRules"
+    exclusionRules.deleteRow 1 while exclusionRules.rows[1]
+    @appendRule rule for rule in rules
 
   # Append a row for a new rule.  Return the newly-added element.
   appendRule: (rule) ->
@@ -322,6 +329,52 @@ document.addEventListener "DOMContentLoaded", ->
         when "/pages/popup.html" then initPopupPage()
 
   xhr.send()
+
+#
+# Backup and restore. "?" is for the tests."
+DomUtils?.documentReady ->
+  restoreSettingsVersion = null
+
+  populateBackupLinkUrl = ->
+    backup = settingsVersion: bgSettings.get "settingsVersion"
+    for option in Option.all
+      backup[option.field] = option.readValueFromElement()
+    # Create the blob in the background page so it isn't garbage collected when the page closes in FF.
+    bgWin = chrome.extension.getBackgroundPage()
+    blob = new bgWin.Blob [ JSON.stringify backup, null, 2 ]
+    $("backupLink").href = bgWin.URL.createObjectURL blob
+
+  $("backupLink").addEventListener "mousedown", populateBackupLinkUrl, true
+
+  $("chooseFile").addEventListener "change", (event) ->
+    document.activeElement?.blur()
+    files = event.target.files
+    if files.length == 1
+      file = files[0]
+      reader = new FileReader
+      reader.readAsText file
+      reader.onload = (event) ->
+        try
+          backup = JSON.parse reader.result
+        catch
+          alert "Failed to parse Vimium backup."
+          return
+
+        restoreSettingsVersion = backup["settingsVersion"] if "settingsVersion" of backup
+        for option in Option.all
+          if option.field of backup
+            option.populateElement backup[option.field]
+            option.onUpdated()
+
+  Option.onSave ->
+    # If we're restoring a backup, then restore the backed up settingsVersion.
+    if restoreSettingsVersion?
+      bgSettings.set "settingsVersion", restoreSettingsVersion
+      restoreSettingsVersion = null
+    # Reset the restore-backup input.
+    $("chooseFile").value = ""
+    # We need to apply migrations in case we are restoring an old backup.
+    bgSettings.applyMigrations()
 
 # Exported for tests.
 root = exports ? window
