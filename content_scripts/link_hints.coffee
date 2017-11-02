@@ -111,7 +111,7 @@ HintCoordinator =
   # The following messages are exchanged between frames while link-hints mode is active.
   updateKeyState: (request) -> @linkHintsMode.updateKeyState request
   rotateHints: -> @linkHintsMode.rotateHints()
-  setOpenLinkMode: ({modeIndex}) -> @linkHintsMode.setOpenLinkMode availableModes[modeIndex], false
+  setOpenLinkMode: ({modeIndex}) -> @linkHintsMode.setOpenLinkMode availableModes[modeIndex]
   activateActiveHintMarker: -> @linkHintsMode.activateLink @linkHintsMode.markerMatcher.activeHintMarker
   getLocalHintMarker: (hint) -> if hint.frameId == frameId then @localHints[hint.localIndex] else null
 
@@ -173,7 +173,8 @@ class LinkHintsModeMode extends Mode
     return false unless event.key in ["Control", "Shift"] and @hintMode.modifiersUpdateMode
     @modifiers[modifier] = state
     newMode = @modifierMode()
-    @linkHintsMode.setOpenLinkMode newMode unless @linkHintsMode.mode == newMode
+    unless @linkHintsMode.mode == newMode
+      HintCoordinator.sendMessage "setOpenLinkMode", modeIndex: availableModes.indexOf newMode
     true
 
   # Handles all keyboard events.
@@ -264,11 +265,7 @@ class LinkHintsMode
 
     @setIndicator()
 
-  setOpenLinkMode: (@mode, shouldPropagateToOtherFrames = true) ->
-    if shouldPropagateToOtherFrames
-      HintCoordinator.sendMessage "setOpenLinkMode", modeIndex: availableModes.indexOf @mode
-    else
-      @setIndicator()
+  setOpenLinkMode: (@mode) -> @setIndicator()
 
   setIndicator: ->
     if windowIsFocused()
