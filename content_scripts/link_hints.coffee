@@ -138,16 +138,16 @@ LinkHints =
   activateModeToDownloadLink: (count) -> @activateMode count, mode: DOWNLOAD_LINK_URL
 
 class LinkHintsModeMode extends Mode
-  constructor: (linkHintsMode) ->
+  constructor: (@linkHintsMode) ->
     super
-      name: "hint/#{linkHintsMode.mode.name}"
+      name: "hint/#{@linkHintsMode.mode.name}"
       indicator: false
       singleton: "link-hints-mode"
       suppressAllKeyboardEvents: true
       suppressTrailingKeyEvents: true
       exitOnEscape: true
       exitOnClick: true
-      keydown: @onKeyDownInMode.bind linkHintsMode
+      keydown: @onKeyDownInMode.bind @linkHintsMode
 
     @onExit (event) ->
       if event?.type == "click" or (event?.type == "keydown" and
