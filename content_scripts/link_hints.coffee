@@ -321,7 +321,7 @@ class LinkHintsMode
   rotateHints: do ->
     markerOverlapsStack = (marker, stack) ->
       for otherMarker in stack
-        return true if Rect.rectsOverlap marker.markerRect, otherMarker.markerRect
+        return true if Rect.intersects marker.markerRect, otherMarker.markerRect
       false
 
     ->
@@ -658,9 +658,12 @@ LocalHints =
     isClickable ||= @checkForAngularJs element
 
     # Check for attributes that make an element clickable regardless of its tagName.
-    if (element.hasAttribute("onclick") or
-        element.getAttribute("role")?.toLowerCase() in ["button" , "tab" , "link"] or
-        element.getAttribute("contentEditable")?.toLowerCase() in ["", "contentEditable", "true"])
+    if element.hasAttribute("onclick") or
+        (role = element.getAttribute "role") and role.toLowerCase() in [
+          "button" , "tab" , "link", "checkbox", "menuitem", "menuitemcheckbox", "menuitemradio"
+        ] or
+        (contentEditable = element.getAttribute "contentEditable") and
+          contentEditable.toLowerCase() in ["", "contentEditable", "true"]
       isClickable = true
 
     # Check for jsaction event listeners on the element.
