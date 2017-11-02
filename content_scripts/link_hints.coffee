@@ -148,7 +148,7 @@ class LinkHintsModeMode extends Mode
       exitOnEscape: true
       exitOnClick: true
       keydown: @onKeyDownInMode.bind @linkHintsMode
-      keyup: @alwaysContinueBubbling @onKeyUpInMode.bind this
+      keyup: @onKeyUpInMode.bind this
 
     @onExit (event) ->
       if event?.type == "click" or (event?.type == "keydown" and
@@ -227,7 +227,7 @@ class LinkHintsModeMode extends Mode
     # We've handled the event, so suppress it and update the mode indicator.
     DomUtils.suppressEvent event
 
-  onKeyUpInMode: (event) ->
+  onKeyUpInMode: (event) -> @alwaysContinueBubbling ->
     # NOTE(smblott) The modifier behaviour here applies only to alphabet hints.
     @modifiersUpdate event.key, false
 
