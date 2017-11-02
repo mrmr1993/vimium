@@ -147,12 +147,83 @@ class LinkHintsModeMode extends Mode
       suppressTrailingKeyEvents: true
       exitOnEscape: true
       exitOnClick: true
-      keydown: linkHintsMode.onKeyDownInMode.bind linkHintsMode
+      keydown: @onKeyDownInMode.bind linkHintsMode
 
     @onExit (event) ->
       if event?.type == "click" or (event?.type == "keydown" and
         (KeyboardUtils.isEscape(event) or KeyboardUtils.isBackspace event))
           HintCoordinator.sendMessage "exit", isSuccess: false
+
+  # Handles all keyboard events.
+  onKeyDownInMode: (event) ->
+    return if event.repeat
+
+    previousTabCount = @tabCount
+    @tabCount = 0
+
+    # NOTE(smblott) The modifier behaviour here applies only to alphabet hints.
+    if event.key in ["Control", "Shift"] and not Settings.get("filterLinkHints") and
+      @mode in [ OPEN_IN_CURRENT_TAB, OPEN_WITH_QUEUE, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB ]
+        @tabCount = previousTabCount
+        # Toggle whether to open the link in a new or current tab.
+        previousMode = @mode
+        key = event.key
+
+        switch key
+          when "Shift"
+            @setOpenLinkMode(if @mode is OPEN_IN_CURRENT_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_CURRENT_TAB)
+          when "Control"
+            @setOpenLinkMode(if @mode is OPEN_IN_NEW_FG_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_NEW_FG_TAB)
+
+        handlerId = handlerStack.push
+          keyup: (event) =>
+            if event.key == key
+              handlerStack.remove()
+              @setOpenLinkMode previousMode
+            true # Continue bubbling the event.
+
+        # For some (unknown) reason, we don't always receive the keyup event needed to remove this handler.
+        # Therefore, we ensure that it's always removed when hint mode exits.  See #1911 and #1926.
+        @hintMode.onExit -> handlerStack.remove handlerId
+
+    else if KeyboardUtils.isBackspace event
+      if @markerMatcher.popKeyChar()
+        @updateVisibleMarkers()
+      else
+        # Exit via @hintMode.exit(), so that the LinkHints.activate() "onExit" callback sees the key event and
+        # knows not to restart hints mode.
+        @hintMode.exit event
+
+    else if event.key == "Enter"
+      # Activate the active hint, if there is one.  Only FilterHints uses an active hint.
+      HintCoordinator.sendMessage "activateActiveHintMarker" if @markerMatcher.activeHintMarker
+
+    else if event.key == "Tab"
+      @tabCount = previousTabCount + (if event.shiftKey then -1 else 1)
+      @updateVisibleMarkers @tabCount
+
+    else if event.key == " " and @markerMatcher.shouldRotateHints event
+      @tabCount = previousTabCount
+      HintCoordinator.sendMessage "rotateHints"
+
+    else
+      @tabCount = previousTabCount if event.ctrlKey or event.metaKey or event.altKey
+      unless event.repeat
+        keyChar =
+          if Settings.get "filterLinkHints"
+            KeyboardUtils.getKeyChar(event)
+          else
+            KeyboardUtils.getKeyChar(event).toLowerCase()
+        if keyChar
+          keyChar = " " if keyChar == "space"
+          if keyChar.length == 1
+            @markerMatcher.pushKeyChar keyChar
+            @updateVisibleMarkers()
+          handlerStack.suppressEvent
+      return
+
+    # We've handled the event, so suppress it and update the mode indicator.
+    DomUtils.suppressEvent event
 
 class LinkHintsMode
   hintMarkerContainingDiv: null
@@ -231,77 +302,6 @@ class LinkHintsMode
       isLocalMarker: desc.frameId == frameId
       linkText: desc.linkText
       stableSortCount: ++@stableSortCount
-
-  # Handles all keyboard events.
-  onKeyDownInMode: (event) ->
-    return if event.repeat
-
-    previousTabCount = @tabCount
-    @tabCount = 0
-
-    # NOTE(smblott) The modifier behaviour here applies only to alphabet hints.
-    if event.key in ["Control", "Shift"] and not Settings.get("filterLinkHints") and
-      @mode in [ OPEN_IN_CURRENT_TAB, OPEN_WITH_QUEUE, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB ]
-        @tabCount = previousTabCount
-        # Toggle whether to open the link in a new or current tab.
-        previousMode = @mode
-        key = event.key
-
-        switch key
-          when "Shift"
-            @setOpenLinkMode(if @mode is OPEN_IN_CURRENT_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_CURRENT_TAB)
-          when "Control"
-            @setOpenLinkMode(if @mode is OPEN_IN_NEW_FG_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_NEW_FG_TAB)
-
-        handlerId = handlerStack.push
-          keyup: (event) =>
-            if event.key == key
-              handlerStack.remove()
-              @setOpenLinkMode previousMode
-            true # Continue bubbling the event.
-
-        # For some (unknown) reason, we don't always receive the keyup event needed to remove this handler.
-        # Therefore, we ensure that it's always removed when hint mode exits.  See #1911 and #1926.
-        @hintMode.onExit -> handlerStack.remove handlerId
-
-    else if KeyboardUtils.isBackspace event
-      if @markerMatcher.popKeyChar()
-        @updateVisibleMarkers()
-      else
-        # Exit via @hintMode.exit(), so that the LinkHints.activate() "onExit" callback sees the key event and
-        # knows not to restart hints mode.
-        @hintMode.exit event
-
-    else if event.key == "Enter"
-      # Activate the active hint, if there is one.  Only FilterHints uses an active hint.
-      HintCoordinator.sendMessage "activateActiveHintMarker" if @markerMatcher.activeHintMarker
-
-    else if event.key == "Tab"
-      @tabCount = previousTabCount + (if event.shiftKey then -1 else 1)
-      @updateVisibleMarkers @tabCount
-
-    else if event.key == " " and @markerMatcher.shouldRotateHints event
-      @tabCount = previousTabCount
-      HintCoordinator.sendMessage "rotateHints"
-
-    else
-      @tabCount = previousTabCount if event.ctrlKey or event.metaKey or event.altKey
-      unless event.repeat
-        keyChar =
-          if Settings.get "filterLinkHints"
-            KeyboardUtils.getKeyChar(event)
-          else
-            KeyboardUtils.getKeyChar(event).toLowerCase()
-        if keyChar
-          keyChar = " " if keyChar == "space"
-          if keyChar.length == 1
-            @markerMatcher.pushKeyChar keyChar
-            @updateVisibleMarkers()
-          handlerStack.suppressEvent
-      return
-
-    # We've handled the event, so suppress it and update the mode indicator.
-    DomUtils.suppressEvent event
 
   updateVisibleMarkers: (tabCount = 0) ->
     {hintKeystrokeQueue, linkTextKeystrokeQueue} = @markerMatcher
