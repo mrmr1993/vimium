@@ -148,11 +148,33 @@ class LinkHintsModeMode extends Mode
       exitOnEscape: true
       exitOnClick: true
       keydown: @onKeyDownInMode.bind @linkHintsMode
+      keyup: @alwaysContinueBubbling @onKeyUpInMode.bind this
 
     @onExit (event) ->
       if event?.type == "click" or (event?.type == "keydown" and
         (KeyboardUtils.isEscape(event) or KeyboardUtils.isBackspace event))
           HintCoordinator.sendMessage "exit", isSuccess: false
+
+    @baseMode = @linkHintsMode.mode
+    @modifiers = {}
+    @modifiersUpdateMode = not Settings.get("filterLinkHints") and
+      @baseMode in [OPEN_IN_CURRENT_TAB, OPEN_WITH_QUEUE, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB]
+
+  modifierMode: ->
+    if @toggleModifier.Control
+      if @baseMode is OPEN_IN_NEW_FG_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_NEW_FG_TAB
+    else if @toggleModifier.Shift
+      if @baseMode is OPEN_IN_CURRENT_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_CURRENT_TAB
+    else
+      @baseMode
+
+  # Returns true if it has handled a modifier, false otherwise.
+  modifiersUpdate: (event, state) ->
+    return false unless event.key in ["Control", "Shift"] and @hintMode.modifiersUpdateMode
+    @modifiers[modifier] = state
+    newMode = @modifierMode()
+    @linkHintsMode.setOpenLinkMode newMode unless @linkHintsMode.mode == newMode
+    true
 
   # Handles all keyboard events.
   onKeyDownInMode: (event) ->
@@ -162,29 +184,8 @@ class LinkHintsModeMode extends Mode
     @tabCount = 0
 
     # NOTE(smblott) The modifier behaviour here applies only to alphabet hints.
-    if event.key in ["Control", "Shift"] and not Settings.get("filterLinkHints") and
-      @mode in [ OPEN_IN_CURRENT_TAB, OPEN_WITH_QUEUE, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB ]
-        @tabCount = previousTabCount
-        # Toggle whether to open the link in a new or current tab.
-        previousMode = @mode
-        key = event.key
-
-        switch key
-          when "Shift"
-            @setOpenLinkMode(if @mode is OPEN_IN_CURRENT_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_CURRENT_TAB)
-          when "Control"
-            @setOpenLinkMode(if @mode is OPEN_IN_NEW_FG_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_NEW_FG_TAB)
-
-        handlerId = handlerStack.push
-          keyup: (event) =>
-            if event.key == key
-              handlerStack.remove()
-              @setOpenLinkMode previousMode
-            true # Continue bubbling the event.
-
-        # For some (unknown) reason, we don't always receive the keyup event needed to remove this handler.
-        # Therefore, we ensure that it's always removed when hint mode exits.  See #1911 and #1926.
-        @hintMode.onExit -> handlerStack.remove handlerId
+    if @hintMode.modifiersUpdate event, true
+      @tabCount = previousTabCount
 
     else if KeyboardUtils.isBackspace event
       if @markerMatcher.popKeyChar()
@@ -224,6 +225,10 @@ class LinkHintsModeMode extends Mode
 
     # We've handled the event, so suppress it and update the mode indicator.
     DomUtils.suppressEvent event
+
+  onKeyUpInMode: (event) ->
+    # NOTE(smblott) The modifier behaviour here applies only to alphabet hints.
+    @modifiersUpdate event.key, false
 
 class LinkHintsMode
   hintMarkerContainingDiv: null
