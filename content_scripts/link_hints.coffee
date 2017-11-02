@@ -137,6 +137,23 @@ LinkHints =
   activateModeToOpenIncognito: (count) -> @activateMode count, mode: OPEN_INCOGNITO
   activateModeToDownloadLink: (count) -> @activateMode count, mode: DOWNLOAD_LINK_URL
 
+class LinkHintsModeMode extends Mode
+  constructor: (linkHintsMode) ->
+    super
+      name: "hint/#{linkHintsMode.mode.name}"
+      indicator: false
+      singleton: "link-hints-mode"
+      suppressAllKeyboardEvents: true
+      suppressTrailingKeyEvents: true
+      exitOnEscape: true
+      exitOnClick: true
+      keydown: linkHintsMode.onKeyDownInMode.bind linkHintsMode
+
+    @onExit (event) ->
+      if event?.type == "click" or (event?.type == "keydown" and
+        (KeyboardUtils.isEscape(event) or KeyboardUtils.isBackspace event))
+          HintCoordinator.sendMessage "exit", isSuccess: false
+
 class LinkHintsMode
   hintMarkerContainingDiv: null
   # One of the enums listed at the top of this file.
@@ -162,20 +179,7 @@ class LinkHintsMode
     @markerMatcher = new (if Settings.get "filterLinkHints" then FilterHints else AlphabetHints)
     @markerMatcher.fillInMarkers @hintMarkers, @.getNextZIndex.bind this
 
-    @hintMode = new Mode
-      name: "hint/#{@mode.name}"
-      indicator: false
-      singleton: "link-hints-mode"
-      suppressAllKeyboardEvents: true
-      suppressTrailingKeyEvents: true
-      exitOnEscape: true
-      exitOnClick: true
-      keydown: @onKeyDownInMode.bind this
-
-    @hintMode.onExit (event) =>
-      if event?.type == "click" or (event?.type == "keydown" and
-        (KeyboardUtils.isEscape(event) or KeyboardUtils.isBackspace event))
-          HintCoordinator.sendMessage "exit", isSuccess: false
+    @hintMode = new LinkHintsModeMode this
 
     # Note(philc): Append these markers as top level children instead of as child nodes to the link itself,
     # because some clickable elements cannot contain children, e.g. submit buttons.
