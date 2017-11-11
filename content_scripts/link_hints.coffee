@@ -167,7 +167,6 @@ class LinkHintsMode
       indicator: false
       singleton: "link-hints-mode"
       suppressAllKeyboardEvents: true
-      suppressTrailingKeyEvents: true
       exitOnEscape: true
       exitOnClick: true
       keydown: @onKeyDownInMode.bind this

@@ -120,24 +120,6 @@ class Mode
       singletons[key]?.exit()
       singletons[key] = this
 
-    # if @options.suppressTrailingKeyEvents is set, then  -- on exit -- we suppress all key events until a
-    # subsquent (non-repeat) keydown or keypress.  In particular, the intention is to catch keyup events for
-    # keys which we have handled, but which otherwise might trigger page actions (if the page is listening for
-    # keyup events).
-    if @options.suppressTrailingKeyEvents
-      @onExit ->
-        handler = (event) ->
-          if event.repeat
-            handlerStack.suppressEvent
-          else
-            keyEventSuppressor.exit()
-            handlerStack.continueBubbling
-
-        keyEventSuppressor = new Mode
-          name: "suppress-trailing-key-events"
-          keydown: handler
-          keypress: handler
-
     Mode.modes.push this
     @setIndicator()
     @logModes()
