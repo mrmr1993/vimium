@@ -230,6 +230,10 @@ class LinkHintsMode
 
   # Handles all keyboard events.
   onKeyDownInMode: (event) ->
+    if @exitTimer? # There is only one hint left, but the user is still typing, so don't exit yet.
+      clearTimeout @exitTimer
+      @exitTimer = null
+
     return if event.repeat
 
     previousTabCount = @tabCount
@@ -308,12 +312,18 @@ class LinkHintsMode
     {linksMatched, userMightOverType} = @markerMatcher.getMatchingHints @hintMarkers, tabCount, this.getNextZIndex.bind this
     if linksMatched.length == 0
       @deactivateMode()
-    else if linksMatched.length == 1 and
-        (not userMightOverType or not Settings.get "waitForEnterForFilteredHints")
-      @activateLink linksMatched[0], userMightOverType
     else
       @hideMarker marker for marker in @hintMarkers
       @showMarker matched, @markerMatcher.hintKeystrokeQueue.length for matched in linksMatched
+
+      if linksMatched.length == 1
+        unless userMightOverType
+          @activateLink linksMatched[0]
+        else if windowIsFocused() and not Settings.get "waitForEnterForFilteredHints"
+          # The user may keep typing when only one hint remains. We don't want to leak these key events to
+          # the page, so we delay ending the mode until we're pretty sure they've finished.
+          # The keydown handler cancels this timer, so that the mode can consume these extra keys.
+          @exitTimer = Utils.setTimeout 200, => @activateLink linksMatched[0]
 
     @setIndicator()
 
@@ -364,7 +374,7 @@ class LinkHintsMode
   # When only one hint remains, activate it in the appropriate way.  The current frame may or may not contain
   # the matched link, and may or may not have the focus.  The resulting four cases are accounted for here by
   # selectively pushing the appropriate HintCoordinator.onExit handlers.
-  activateLink: (linkMatched, userMightOverType) ->
+  activateLink: (linkMatched) ->
     @removeHintMarkers()
 
     if linkMatched.isLocalMarker
@@ -398,10 +408,7 @@ class LinkHintsMode
 
     # If we're using a keyboard blocker, then the frame with the focus sends the "exit" message, otherwise the
     # frame containing the matched link does.
-    if userMightOverType
-      if windowIsFocused()
-        new TypingProtector 200, (isSuccess) -> HintCoordinator.sendMessage "exit", {isSuccess}
-    else if linkMatched.isLocalMarker
+    if linkMatched.isLocalMarker
       HintCoordinator.sendMessage "exit", isSuccess: true
 
   #
@@ -860,23 +867,6 @@ LocalHints =
 
     {linkText: linkText.trim(), showLinkText}
 
-# Suppress all keyboard events until the user stops typing for sufficiently long.
-class TypingProtector extends Mode
-  constructor: (delay, callback) ->
-    @timer = Utils.setTimeout delay, => @exit()
-
-    resetExitTimer = (event) =>
-      clearTimeout @timer
-      @timer = Utils.setTimeout delay, => @exit()
-
-    super
-      name: "hint/typing-protector"
-      suppressAllKeyboardEvents: true
-      keydown: resetExitTimer
-      keypress: resetExitTimer
-
-    @onExit ->
-      callback true # true -> isSuccess.
 root = exports ? (window.root ?= {})
 root.LinkHints = LinkHints
 root.HintCoordinator = HintCoordinator
