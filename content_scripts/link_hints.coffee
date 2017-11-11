@@ -405,10 +405,6 @@ class LinkHintsMode
       for rect in clickEl.getClientRects()
         flashEl = DomUtils.addFlashRect Rect.translate rect, viewportLeft, viewportTop
         do (flashEl) -> HintCoordinator.onExit.push -> DomUtils.removeElement flashEl
-
-    # If we're using a keyboard blocker, then the frame with the focus sends the "exit" message, otherwise the
-    # frame containing the matched link does.
-    if linkMatched.isLocalMarker
       HintCoordinator.sendMessage "exit", isSuccess: true
 
   #
