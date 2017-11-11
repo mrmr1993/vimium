@@ -308,7 +308,8 @@ class LinkHintsMode
     {linksMatched, userMightOverType} = @markerMatcher.getMatchingHints @hintMarkers, tabCount, this.getNextZIndex.bind this
     if linksMatched.length == 0
       @deactivateMode()
-    else if linksMatched.length == 1
+    else if linksMatched.length == 1 and
+        (not userMightOverType or not Settings.get "waitForEnterForFilteredHints")
       @activateLink linksMatched[0], userMightOverType
     else
       @hideMarker marker for marker in @hintMarkers
@@ -399,11 +400,7 @@ class LinkHintsMode
     # frame containing the matched link does.
     if userMightOverType
       if windowIsFocused()
-        callback = (isSuccess) -> HintCoordinator.sendMessage "exit", {isSuccess}
-        if Settings.get "waitForEnterForFilteredHints"
-          new WaitForEnter callback
-        else
-          new TypingProtector 200, callback
+        new TypingProtector 200, (isSuccess) -> HintCoordinator.sendMessage "exit", {isSuccess}
     else if linkMatched.isLocalMarker
       HintCoordinator.sendMessage "exit", isSuccess: true
 
