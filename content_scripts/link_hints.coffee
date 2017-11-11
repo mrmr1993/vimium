@@ -403,8 +403,7 @@ class LinkHintsMode
     if linkMatched.isLocalMarker
       {top: viewportTop, left: viewportLeft} = DomUtils.getViewportTopLeft()
       for rect in clickEl.getClientRects()
-        flashEl = DomUtils.addFlashRect Rect.translate rect, viewportLeft, viewportTop
-        do (flashEl) -> HintCoordinator.onExit.push -> DomUtils.removeElement flashEl
+        DomUtils.flashRect Rect.translate rect, viewportLeft, viewportTop
       HintCoordinator.sendMessage "exit", isSuccess: true
 
   #
