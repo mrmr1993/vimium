@@ -46,8 +46,13 @@ DOWNLOAD_LINK_URL =
   indicator: "Download link URL"
   clickModifiers: altKey: true, ctrlKey: false, metaKey: false
 
-availableModes = [OPEN_IN_CURRENT_TAB, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB, OPEN_WITH_QUEUE, COPY_LINK_URL,
-  OPEN_INCOGNITO, DOWNLOAD_LINK_URL]
+LinkHintModes = {OPEN_IN_CURRENT_TAB, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB, OPEN_WITH_QUEUE, COPY_LINK_URL,
+  OPEN_INCOGNITO, DOWNLOAD_LINK_URL}
+
+availableModes = []
+for _, mode of LinkHintModes
+  mode.index = availableModes.length
+  availableModes.push mode
 
 HintCoordinator =
   onExit: []
@@ -71,7 +76,7 @@ HintCoordinator =
     Utils.setTimeout 1000, -> suppressKeyboardEvents.exit() if suppressKeyboardEvents?.modeIsActive
     @onExit = [onExit]
     @sendMessage "prepareToActivateMode",
-      modeIndex: availableModes.indexOf(mode), isVimiumHelpDialog: window.isVimiumHelpDialog
+      modeIndex: mode.index, isVimiumHelpDialog: window.isVimiumHelpDialog
 
   # Hint descriptors are global.  They include all of the information necessary for each frame to determine
   # whether and when a hint from *any* frame is selected.  They include the following properties:
@@ -120,23 +125,6 @@ HintCoordinator =
     @onExit.pop() isSuccess while 0 < @onExit.length
     @linkHintsMode = @localHints = null
 
-LinkHints =
-  activateMode: (count = 1, {mode}) ->
-    mode ?= OPEN_IN_CURRENT_TAB
-    if 0 < count or mode is OPEN_WITH_QUEUE
-      HintCoordinator.prepareToActivateMode mode, (isSuccess) ->
-        if isSuccess
-          # Wait for the next tick to allow the previous mode to exit.  It might yet generate a click event,
-          # which would cause our new mode to exit immediately.
-          Utils.nextTick -> LinkHints.activateMode count-1, {mode}
-
-  activateModeToOpenInNewTab: (count) -> @activateMode count, mode: OPEN_IN_NEW_BG_TAB
-  activateModeToOpenInNewForegroundTab: (count) -> @activateMode count, mode: OPEN_IN_NEW_FG_TAB
-  activateModeToCopyLinkUrl: (count) -> @activateMode count, mode: COPY_LINK_URL
-  activateModeWithQueue: -> @activateMode 1, mode: OPEN_WITH_QUEUE
-  activateModeToOpenIncognito: (count) -> @activateMode count, mode: OPEN_INCOGNITO
-  activateModeToDownloadLink: (count) -> @activateMode count, mode: DOWNLOAD_LINK_URL
-
 class LinkHintsMode
   hintMarkerContainingDiv: null
   # One of the enums listed at the top of this file.
@@ -167,7 +155,6 @@ class LinkHintsMode
       indicator: false
       singleton: "link-hints-mode"
       suppressAllKeyboardEvents: true
-      suppressTrailingKeyEvents: true
       exitOnEscape: true
       exitOnClick: true
       keydown: @onKeyDownInMode.bind this
@@ -186,7 +173,7 @@ class LinkHintsMode
 
   setOpenLinkMode: (@mode, shouldPropagateToOtherFrames = true) ->
     if shouldPropagateToOtherFrames
-      HintCoordinator.sendMessage "setOpenLinkMode", modeIndex: availableModes.indexOf @mode
+      HintCoordinator.sendMessage "setOpenLinkMode", modeIndex: @mode.index
     else
       @setIndicator()
 
@@ -889,8 +876,8 @@ class WaitForEnter extends Mode
           callback false # false -> isSuccess.
 
 root = exports ? (window.root ?= {})
-root.LinkHints = LinkHints
 root.HintCoordinator = HintCoordinator
+root.LinkHintModes = LinkHintModes
 # For tests:
 extend root, {LinkHintsMode, LocalHints, AlphabetHints, WaitForEnter}
 extend window, root unless exports?
