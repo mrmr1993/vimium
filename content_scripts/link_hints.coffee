@@ -125,23 +125,6 @@ HintCoordinator =
     @onExit.pop() isSuccess while 0 < @onExit.length
     @linkHintsMode = @localHints = null
 
-LinkHints =
-  activateMode: (count = 1, {mode}) ->
-    mode ?= OPEN_IN_CURRENT_TAB
-    if 0 < count or mode is OPEN_WITH_QUEUE
-      HintCoordinator.prepareToActivateMode mode, (isSuccess) ->
-        if isSuccess
-          # Wait for the next tick to allow the previous mode to exit.  It might yet generate a click event,
-          # which would cause our new mode to exit immediately.
-          Utils.nextTick -> LinkHints.activateMode count-1, {mode}
-
-  activateModeToOpenInNewTab: (count) -> @activateMode count, mode: OPEN_IN_NEW_BG_TAB
-  activateModeToOpenInNewForegroundTab: (count) -> @activateMode count, mode: OPEN_IN_NEW_FG_TAB
-  activateModeToCopyLinkUrl: (count) -> @activateMode count, mode: COPY_LINK_URL
-  activateModeWithQueue: -> @activateMode 1, mode: OPEN_WITH_QUEUE
-  activateModeToOpenIncognito: (count) -> @activateMode count, mode: OPEN_INCOGNITO
-  activateModeToDownloadLink: (count) -> @activateMode count, mode: DOWNLOAD_LINK_URL
-
 class LinkHintsMode
   hintMarkerContainingDiv: null
   # One of the enums listed at the top of this file.
@@ -906,7 +889,6 @@ class WaitForEnter extends Mode
           callback false # false -> isSuccess.
 
 root = exports ? (window.root ?= {})
-root.LinkHints = LinkHints
 root.HintCoordinator = HintCoordinator
 root.LinkHintModes = LinkHintModes
 # For tests:

@@ -177,15 +177,23 @@ NormalModeCommands =
 
     new FocusSelector hints, visibleInputs, selectedInputIndex
 
-if LinkHints?
+if HintCoordinator?
+  activateLinkHintMode = (mode) -> (count = 1) ->
+    if 0 < count or mode is OPEN_WITH_QUEUE
+      HintCoordinator.prepareToActivateMode mode, (isSuccess) ->
+        if isSuccess
+          # Wait for the next tick to allow the previous mode to exit.  It might yet generate a click event,
+          # which would cause our new mode to exit immediately.
+          Utils.nextTick -> LinkHints.activateMode count-1, {mode}
+
   extend NormalModeCommands,
-    "LinkHints.activateMode": LinkHints.activateMode.bind LinkHints
-    "LinkHints.activateModeToOpenInNewTab": LinkHints.activateModeToOpenInNewTab.bind LinkHints
-    "LinkHints.activateModeToOpenInNewForegroundTab": LinkHints.activateModeToOpenInNewForegroundTab.bind LinkHints
-    "LinkHints.activateModeWithQueue": LinkHints.activateModeWithQueue.bind LinkHints
-    "LinkHints.activateModeToOpenIncognito": LinkHints.activateModeToOpenIncognito.bind LinkHints
-    "LinkHints.activateModeToDownloadLink": LinkHints.activateModeToDownloadLink.bind LinkHints
-    "LinkHints.activateModeToCopyLinkUrl": LinkHints.activateModeToCopyLinkUrl.bind LinkHints
+    "LinkHints.activateMode": activateLinkHintMode LinkHintModes.OPEN_IN_CURRENT_TAB
+    "LinkHints.activateModeToOpenInNewTab": activateLinkHintMode LinkHintModes.OPEN_IN_NEW_BG_TAB
+    "LinkHints.activateModeToOpenInNewForegroundTab": activateLinkHintMode LinkHintModes.OPEN_IN_NEW_FG_TAB
+    "LinkHints.activateModeWithQueue": activateLinkHintMode LinkHintModes.OPEN_WITH_QUEUE
+    "LinkHints.activateModeToOpenIncognito": activateLinkHintMode LinkHintModes.OPEN_INCOGNITO
+    "LinkHints.activateModeToDownloadLink": activateLinkHintMode LinkHintModes.DOWNLOAD_LINK_URL
+    "LinkHints.activateModeToCopyLinkUrl": activateLinkHintMode LinkHintModes.COPY_LINK_URL
 
 if Vomnibar?
   extend NormalModeCommands,
