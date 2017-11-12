@@ -36,8 +36,6 @@ KeyboardUtils =
       ""
     else if key of @keyNames
       @keyNames[key]
-    else if @isModifier event
-      "" # Don't resolve modifier keys.
     else if key.length == 1
       key
     else
