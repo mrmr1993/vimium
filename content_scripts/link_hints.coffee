@@ -46,8 +46,13 @@ DOWNLOAD_LINK_URL =
   indicator: "Download link URL"
   clickModifiers: altKey: true, ctrlKey: false, metaKey: false
 
-availableModes = [OPEN_IN_CURRENT_TAB, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB, OPEN_WITH_QUEUE, COPY_LINK_URL,
-  OPEN_INCOGNITO, DOWNLOAD_LINK_URL]
+LinkHintModes = {OPEN_IN_CURRENT_TAB, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB, OPEN_WITH_QUEUE, COPY_LINK_URL,
+  OPEN_INCOGNITO, DOWNLOAD_LINK_URL}
+
+availableModes = []
+for _, mode of LinkHintModes
+  mode.index = availableModes.length
+  availableModes.push mode
 
 HintCoordinator =
   onExit: []
@@ -71,7 +76,7 @@ HintCoordinator =
     Utils.setTimeout 1000, -> suppressKeyboardEvents.exit() if suppressKeyboardEvents?.modeIsActive
     @onExit = [onExit]
     @sendMessage "prepareToActivateMode",
-      modeIndex: availableModes.indexOf(mode), isVimiumHelpDialog: window.isVimiumHelpDialog
+      modeIndex: mode.index, isVimiumHelpDialog: window.isVimiumHelpDialog
 
   # Hint descriptors are global.  They include all of the information necessary for each frame to determine
   # whether and when a hint from *any* frame is selected.  They include the following properties:
@@ -186,7 +191,7 @@ class LinkHintsMode
 
   setOpenLinkMode: (@mode, shouldPropagateToOtherFrames = true) ->
     if shouldPropagateToOtherFrames
-      HintCoordinator.sendMessage "setOpenLinkMode", modeIndex: availableModes.indexOf @mode
+      HintCoordinator.sendMessage "setOpenLinkMode", modeIndex: @mode.index
     else
       @setIndicator()
 
@@ -903,6 +908,7 @@ class WaitForEnter extends Mode
 root = exports ? (window.root ?= {})
 root.LinkHints = LinkHints
 root.HintCoordinator = HintCoordinator
+root.LinkHintModes = LinkHintModes
 # For tests:
 extend root, {LinkHintsMode, LocalHints, AlphabetHints, WaitForEnter}
 extend window, root unless exports?
