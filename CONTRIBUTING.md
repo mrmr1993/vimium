@@ -77,6 +77,10 @@ reports:
         # Yes
         return if i < 10
 
+To test code style against the style guide programatically:
+1. `npm install -g coffeelint` to install [CoffeeLint](http://www.coffeelint.org).
+1. `cake lint` to run the tests.
+
 ## Pull Requests
 
 When you're done with your changes, send us a pull request on Github. Feel free to include a change to the

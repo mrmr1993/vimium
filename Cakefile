@@ -160,3 +160,7 @@ task "coverage", "generate coverage report", ->
           source: (Utils.escapeHtml fs.readFileSync fname, 'utf-8').split '\n'
 
       fs.writeFileSync 'jscoverage.json', JSON.stringify(result)
+
+task "lint", "check code style against the style guide", (options) ->
+  linter = spawn "coffeelint", ["--color=always", "-f", "coffeelint.json", "."]
+  linter.on "exit", (returnCode) -> process.exit returnCode
