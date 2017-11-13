@@ -54,7 +54,7 @@ Use **spaces only**, with **2 spaces** per indentation level. Never mix tabs and
 <a name="maximum_line_length"/>
 ### Maximum Line Length
 
-Limit all lines to a maximum of 79 characters.
+Limit all lines to a maximum of 109 characters.
 
 <a name="blank_lines"/>
 ### Blank Lines
@@ -322,7 +322,7 @@ Use string interpolation instead of string concatenation:
 "this is an " + adjective + " string" # No
 ```
 
-Prefer single quoted strings (`''`) instead of double quoted (`""`) strings, unless features like string interpolation are being used for the given string.
+Prefer double quoted strings (`""`) instead of single quoted (`''`) strings, unless features like string interpolation are being used for the given string.
 
 <a name="conditionals"/>
 ## Conditionals
