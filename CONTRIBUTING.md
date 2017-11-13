@@ -62,7 +62,7 @@ reports:
 
 ## Coding Style
 
-  * We follow the recommendations from
+  * We follow the recommendations in [our style guide](CODE_STYLE.md), based off
     [this style guide](https://github.com/polarmobile/coffeescript-style-guide).
   * We follow two major differences from this style guide:
     * Wrap lines at 110 characters instead of 80.
