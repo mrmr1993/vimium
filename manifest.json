@@ -20,7 +20,8 @@
       "background_scripts/completion.js",
       "background_scripts/marks.js",
       "background_scripts/main.js"
-    ]
+    ],
+    "persistent": true
   },
   "options_ui": {
     "page": "pages/options.html",
