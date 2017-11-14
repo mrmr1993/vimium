@@ -86,5 +86,9 @@
     "pages/hud.html",
     "pages/help_dialog.html",
     "pages/completion_engines.html"
-  ]
+  ],
+  "-ms-preload": {
+    "backgroundScript": "lib/edge-stubs/backgroundScriptsAPIBridge.js",
+    "contentScript": "lib/edge-stubs/contentScriptsAPIBridge.js"
+  }
 }
