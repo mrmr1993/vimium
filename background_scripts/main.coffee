@@ -324,15 +324,18 @@ Frames =
     enabledState = Exclusions.isEnabledForUrl request.url
 
     if request.frameIsFocused
-      chrome.browserAction.setIcon? tabId: tabId, imageData: do ->
-        enabledStateIcon =
-          if not enabledState.isEnabledForUrl
-            DISABLED_ICON
-          else if 0 < enabledState.passKeys.length
-            PARTIAL_ICON
-          else
-            ENABLED_ICON
-        iconImageData[enabledStateIcon]
+      enabledStateIcon =
+        if not enabledState.isEnabledForUrl
+          DISABLED_ICON
+        else if 0 < enabledState.passKeys.length
+          PARTIAL_ICON
+        else
+          ENABLED_ICON
+      if Utils.isChrome()
+        iconInfo = tabId: tabId, imageData: iconImageData[enabledStateIcon]
+      else
+        iconInfo = tabId: tabId, path: enabledStateIcon
+      chrome.browserAction.setIcon? iconInfo
 
     port.postMessage extend request, enabledState
 
