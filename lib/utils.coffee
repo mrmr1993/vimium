@@ -22,6 +22,7 @@ Utils =
     browserInfo?.then? (browserInfo) ->
       ffVersion = browserInfo?.version
     -> ffVersion
+  isChrome: -> chrome.runtime.getURL("").startsWith "chrome-extension://"
   getCurrentVersion: ->
     chrome.runtime.getManifest().version
 
