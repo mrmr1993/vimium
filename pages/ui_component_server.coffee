@@ -4,7 +4,8 @@
 # malicious host page trying to register its own port can do no better than guessing.
 window.addEventListener "message", registerPort = (event) ->
   chrome.storage.local.get "vimiumSecret", ({vimiumSecret: secret}) ->
-    return unless event.source == window.parent and event.data == secret
+    # If the sender isn't the parent window (or window itself for Edge), or the secret is wrong, abort.
+    return unless event.source in [window.parent, window] and event.data == secret
     UIComponentServer.portOpen event.ports[0]
     window.removeEventListener "message", registerPort
 
