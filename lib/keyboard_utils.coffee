@@ -64,10 +64,12 @@ KeyboardUtils =
 
     (event) ->
       # <c-[> is mapped to Escape in Vim by default.
-      event.key == "Escape" or (useVimLikeEscape and @getKeyCharString(event) == "<c-[>")
+      # NOTE(mrmr1993): Edge incorrectly reports Escape as Esc.
+      event.key in ["Escape", "Esc"] or (useVimLikeEscape and @getKeyCharString(event) == "<c-[>")
 
   isBackspace: (event) ->
-    event.key in ["Backspace", "Delete"]
+    # NOTE(mrmr1993): Edge incorrectly reports Delete as Del.
+    event.key in ["Backspace", "Delete", "Del"]
 
   isPrintable: (event) ->
     @getKeyCharString(event)?.length == 1
