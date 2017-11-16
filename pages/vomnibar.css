@@ -106,6 +106,12 @@
   width: 100px;
   overflow: hidden;
 }
+#vomnibar li .relevancy.hide {
+  display: none;
+}
+#vomnibar li .relevancy.display {
+  display: inline;
+}
 
 #vomnibar li .vomnibarUrl {
   white-space: nowrap;

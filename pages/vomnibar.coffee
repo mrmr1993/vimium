@@ -194,7 +194,7 @@ class VomnibarUI
 
   generateHtml: (completion) ->
     return completion.html if completion.html
-    relevancyHtml = if completion.showRelevancy then "<span class='relevancy'>#{completion.relevancy}</span>" else ""
+    relevancyClass = if completion.showRelevancy then "display" else "hide"
     insertTextClass = if completion.insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
     insertTextIndicator = "&#8618;" # A right hooked arrow.
     # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
@@ -204,7 +204,7 @@ class VomnibarUI
         <div class="vimiumReset vomnibarTopHalf">
            <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
            <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
-           #{relevancyHtml}
+           <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
          </div>
         """
       else
@@ -215,7 +215,7 @@ class VomnibarUI
          </div>
          <div class="vimiumReset vomnibarBottomHalf">
           <span class="vimiumReset vomnibarSource vomnibarNoInsertText">#{insertTextIndicator}</span><span class="vimiumReset vomnibarUrl">#{completion.urlHtml}</span>
-          #{relevancyHtml}
+         <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
         </div>
         """
 
