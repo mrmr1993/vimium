@@ -43,19 +43,26 @@ class Suggestion
     # or @relevancyFunction.
     @relevancy ?= @relevancyFunction this
 
-  generateHtml: (request) ->
+  finalise: (request) ->
+    @isCustomSearch = request.isCustomSearch
+    @computeRelevancy()
+    @title = @insertText if @insertText and @isCustomSearch
+    @titleHtml = @highlightQueryTerms Utils.escapeHtml @title
+    unless @isCustomSearch
+      @urlHtml = @highlightUrlTerms Utils.escapeHtml @shortenUrl()
+
+  generateHtml: ->
     return @html if @html
-    relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@computeRelevancy()}</span>" else ""
+    relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@relevancy}</span>" else ""
     insertTextClass = if @insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
     insertTextIndicator = "&#8618;" # A right hooked arrow.
-    @title = @insertText if @insertText and request.isCustomSearch
     # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
     @html =
-      if request.isCustomSearch
+      if @isCustomSearch
         """
         <div class="vimiumReset vomnibarTopHalf">
            <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{@type}</span>
-           <span class="vimiumReset vomnibarTitle">#{@highlightQueryTerms Utils.escapeHtml @title}</span>
+           <span class="vimiumReset vomnibarTitle">#{@titleHtml}</span>
            #{relevancyHtml}
          </div>
         """
@@ -63,10 +70,10 @@ class Suggestion
         """
         <div class="vimiumReset vomnibarTopHalf">
            <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{@type}</span>
-           <span class="vimiumReset vomnibarTitle">#{@highlightQueryTerms Utils.escapeHtml @title}</span>
+           <span class="vimiumReset vomnibarTitle">#{@titleHtml}</span>
          </div>
          <div class="vimiumReset vomnibarBottomHalf">
-          <span class="vimiumReset vomnibarSource vomnibarNoInsertText">#{insertTextIndicator}</span><span class="vimiumReset vomnibarUrl">#{@highlightUrlTerms Utils.escapeHtml @shortenUrl()}</span>
+          <span class="vimiumReset vomnibarSource vomnibarNoInsertText">#{insertTextIndicator}</span><span class="vimiumReset vomnibarUrl">#{@urlHtml}</span>
           #{relevancyHtml}
         </div>
         """
@@ -610,7 +617,9 @@ class MultiCompleter
     completer.postProcessSuggestions? request, suggestions for completer in @completers
 
     # Generate HTML for the remaining suggestions and return them.
-    suggestion.generateHtml request for suggestion in suggestions
+    for suggestion in suggestions
+      suggestion.finalise request
+      suggestion.generateHtml()
     suggestions
 
 # Utilities which help us compute a relevancy score for a given item.

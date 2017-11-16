@@ -242,7 +242,8 @@ context "suggestions",
       url: "url"
       title: "title <span>"
       relevancyFunction: returns 1
-    assert.isTrue suggestion.generateHtml({}).indexOf("title &lt;span&gt;") >= 0
+    suggestion.finalise({})
+    assert.isTrue suggestion.titleHtml.indexOf("title &lt;span&gt;") >= 0
 
   should "highlight query words", ->
     suggestion = new Suggestion
@@ -252,7 +253,8 @@ context "suggestions",
       title: "ninjawords"
       relevancyFunction: returns 1
     expected = "<span class='vomnibarMatch'>ninj</span>a<span class='vomnibarMatch'>words</span>"
-    assert.isTrue suggestion.generateHtml({}).indexOf(expected) >= 0
+    suggestion.finalise({})
+    assert.isTrue suggestion.titleHtml.indexOf(expected) >= 0
 
   should "highlight query words correctly when whey they overlap", ->
     suggestion = new Suggestion
@@ -262,7 +264,8 @@ context "suggestions",
       title: "ninjawords"
       relevancyFunction: returns 1
     expected = "<span class='vomnibarMatch'>ninjaword</span>s"
-    assert.isTrue suggestion.generateHtml({}).indexOf(expected) >= 0
+    suggestion.finalise({})
+    assert.isTrue suggestion.titleHtml.indexOf(expected) >= 0
 
   should "shorten urls", ->
     suggestion = new Suggestion
@@ -271,7 +274,8 @@ context "suggestions",
       url: "http://ninjawords.com"
       title: "ninjawords"
       relevancyFunction: returns 1
-    assert.equal -1, suggestion.generateHtml({}).indexOf("http://ninjawords.com")
+    suggestion.finalise({})
+    assert.equal -1, suggestion.urlHtml.indexOf("http://ninjawords.com")
 
 context "RankingUtils.wordRelevancy",
   should "score higher in shorter URLs", ->
