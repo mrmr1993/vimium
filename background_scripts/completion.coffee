@@ -51,33 +51,6 @@ class Suggestion
     unless @isCustomSearch
       @urlHtml = @highlightUrlTerms Utils.escapeHtml @shortenUrl()
 
-  generateHtml: ->
-    return @html if @html
-    relevancyHtml = if @showRelevancy then "<span class='relevancy'>#{@relevancy}</span>" else ""
-    insertTextClass = if @insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
-    insertTextIndicator = "&#8618;" # A right hooked arrow.
-    # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
-    @html =
-      if @isCustomSearch
-        """
-        <div class="vimiumReset vomnibarTopHalf">
-           <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{@type}</span>
-           <span class="vimiumReset vomnibarTitle">#{@titleHtml}</span>
-           #{relevancyHtml}
-         </div>
-        """
-      else
-        """
-        <div class="vimiumReset vomnibarTopHalf">
-           <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{@type}</span>
-           <span class="vimiumReset vomnibarTitle">#{@titleHtml}</span>
-         </div>
-         <div class="vimiumReset vomnibarBottomHalf">
-          <span class="vimiumReset vomnibarSource vomnibarNoInsertText">#{insertTextIndicator}</span><span class="vimiumReset vomnibarUrl">#{@urlHtml}</span>
-          #{relevancyHtml}
-        </div>
-        """
-
   # Use neat trick to snatch a domain (http://stackoverflow.com/a/8498668).
   getUrlRoot: (url) ->
     a = document.createElement 'a'
@@ -617,9 +590,7 @@ class MultiCompleter
     completer.postProcessSuggestions? request, suggestions for completer in @completers
 
     # Generate HTML for the remaining suggestions and return them.
-    for suggestion in suggestions
-      suggestion.finalise request
-      suggestion.generateHtml()
+    suggestion.finalise request for suggestion in suggestions
     suggestions
 
 # Utilities which help us compute a relevancy score for a given item.
