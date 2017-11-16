@@ -219,6 +219,11 @@ class VomnibarUI
         </div>
         """
 
+  createCompletionElement: (completion) ->
+    listItem = document.createElement "li"
+    listItem.innerHTML = @generateHtml completion
+    listItem
+
   updateCompletions: (callback = null) ->
     @completer.filter
       query: @getInputValueAsQuery()
@@ -228,7 +233,11 @@ class VomnibarUI
         @completions = results
         @selection = if @completions[0]?.autoSelect then 0 else @initialSelectionValue
         # Update completion list with the new suggestions.
-        @completionList.innerHTML = @completions.map((completion) => "<li>#{@generateHtml completion}</li>").join("")
+        completionsFragment = document.createDocumentFragment()
+        for completion in @completions
+          completionsFragment.appendChild @createCompletionElement completion
+        @completionList.innerHTML = ""
+        @completionList.appendChild completionsFragment
         @completionList.style.display = if @completions.length > 0 then "block" else ""
         @selection = Math.min @completions.length - 1, Math.max @initialSelectionValue, @selection
         @updateSelection()
