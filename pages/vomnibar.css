@@ -79,15 +79,13 @@
 }
 
 #vomnibar li .vomnibarBottomHalf {
+  display: none;
   font-size: 15px;
   margin-top: 3px;
   padding: 2px 0;
 }
 #vomnibar li .vomnibarBottomHalf.display {
   display: block;
-}
-#vomnibar li .vomnibarBottomHalf.hide {
-  display: none;
 }
 
 #vomnibar li .vomnibarIcon {
@@ -117,12 +115,10 @@
   font-family: monospace;
   width: 100px;
   overflow: hidden;
+  display: none;
 }
 #vomnibar li.vomnibarSelected .relevancy {
   background-color: #BBCEE9;
-}
-#vomnibar li .relevancy.hide {
-  display: none;
 }
 #vomnibar li .relevancy.display {
   display: inline;

@@ -192,28 +192,25 @@ class VomnibarUI
   getInputValueAsQuery: ->
     (if @customSearchMode? then @customSearchMode + " " else "") + @input.value
 
-  generateHtml: (completion) ->
-    return completion.html if completion.html
-    relevancyClass = if completion.showRelevancy then "display" else "hide"
-    insertTextClass = if completion.insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
-    bottomHalfClass = if completion.isCustomSearch then "hide" else "display"
-    # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
-    completion.html =
-        """
-        <div class="vimiumReset vomnibarTopHalf">
-           <span class="vimiumReset vomnibarInserts #{insertTextClass}">&#8618;</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
-           <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
-          <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
-         </div>
-         <div class="vimiumReset vomnibarBottomHalf #{bottomHalfClass}">
-          <span class="vimiumReset vomnibarSource vomnibarNoInsertText">&#8618;</span><span class="vimiumReset vomnibarUrl">#{completion.urlHtml}</span>
-        </div>
-        """
-
   createCompletionElement: (completion) ->
-    listItem = document.createElement "li"
-    listItem.innerHTML = @generateHtml completion
-    listItem
+    insertTextClass = if completion.insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
+
+    template = document.getElementById("completion-template")
+    template = template.content ? template
+    template = document.importNode(template, true)
+    completionElement = template.firstElementChild
+
+    completionElement.querySelector(".vomnibarInserts").classList.add insertTextClass
+    completionElement.querySelector(".vomnibarSource").textContent = completion.type
+    completionElement.querySelector(".vomnibarTitle").innerHTML = completion.titleHtml
+    if completion.showRelevancy
+      completionElement.querySelector(".relevancy").classList.add "display"
+      completionElement.querySelector(".relevancy").textContent = completion.relevancy
+    unless completion.isCustomSearch
+      completionElement.querySelector(".vomnibarBottomHalf").classList.add "display"
+      completionElement.querySelector(".vomnibarUrl").innerHTML = completion.urlHtml
+
+    completionElement
 
   updateCompletions: (callback = null) ->
     @completer.filter

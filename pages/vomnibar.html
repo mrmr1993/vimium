@@ -13,6 +13,18 @@
     <link rel="stylesheet" type="text/css" href="vomnibar.css" />
   </head>
   <body>
+    <template id="completion-template">
+      <li>
+        <div class="vimiumReset vomnibarTopHalf">
+           <span class="vimiumReset vomnibarInserts">&#8618;</span><span class="vimiumReset vomnibarSource"></span>
+           <span class="vimiumReset vomnibarTitle"></span>
+          <span class="relevancy"></span>
+         </div>
+         <div class="vimiumReset vomnibarBottomHalf">
+          <span class="vimiumReset vomnibarInserts vomnibarNoInsertText">&#8618;</span><span class="vimiumReset vomnibarUrl"></span>
+        </div>
+      </li>
+    </template>
     <div id="vomnibar" class="vimiumReset">
       <div class="vimiumReset vomnibarSearchArea">
         <input id="vomnibarInput" type="text" class="vimiumReset">
