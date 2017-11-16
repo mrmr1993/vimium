@@ -201,7 +201,7 @@ class VomnibarUI
     completion.html =
         """
         <div class="vimiumReset vomnibarTopHalf">
-           <span class="vimiumReset vomnibarSource #{insertTextClass}">&#8618;</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
+           <span class="vimiumReset vomnibarInserts #{insertTextClass}">&#8618;</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
            <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
           <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
          </div>

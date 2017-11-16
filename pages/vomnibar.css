@@ -97,10 +97,16 @@
   padding-left: 20px;
 }
 
-#vomnibar li .vomnibarSource {
+#vomnibar li .vomnibarSource, #vomnibar li .vomnibarInserts {
   color: #777;
   margin-right: 4px;
 }
+#vomnibar li .vomnibarInsertText {
+}
+#vomnibar li .vomnibarNoInsertText {
+  visibility: hidden;
+}
+
 #vomnibar li .relevancy {
   position: absolute;
   right: 0;
@@ -157,11 +163,4 @@
   /* This is a considerably lighter blue than Vimium blue, which seems softer
    * on the eye for this purpose. */
   background-color: #E6EEFB;
-}
-
-.vomnibarInsertText {
-}
-
-.vomnibarNoInsertText {
-  visibility: hidden;
 }
