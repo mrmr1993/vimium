@@ -192,6 +192,33 @@ class VomnibarUI
   getInputValueAsQuery: ->
     (if @customSearchMode? then @customSearchMode + " " else "") + @input.value
 
+  generateHtml: (completion) ->
+    return completion.html if completion.html
+    relevancyHtml = if completion.showRelevancy then "<span class='relevancy'>#{completion.relevancy}</span>" else ""
+    insertTextClass = if completion.insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
+    insertTextIndicator = "&#8618;" # A right hooked arrow.
+    # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
+    completion.html =
+      if completion.isCustomSearch
+        """
+        <div class="vimiumReset vomnibarTopHalf">
+           <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
+           <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
+           #{relevancyHtml}
+         </div>
+        """
+      else
+        """
+        <div class="vimiumReset vomnibarTopHalf">
+           <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
+           <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
+         </div>
+         <div class="vimiumReset vomnibarBottomHalf">
+          <span class="vimiumReset vomnibarSource vomnibarNoInsertText">#{insertTextIndicator}</span><span class="vimiumReset vomnibarUrl">#{completion.urlHtml}</span>
+          #{relevancyHtml}
+        </div>
+        """
+
   updateCompletions: (callback = null) ->
     @completer.filter
       query: @getInputValueAsQuery()
