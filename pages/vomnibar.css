@@ -83,6 +83,12 @@
   margin-top: 3px;
   padding: 2px 0;
 }
+#vomnibar li .vomnibarBottomHalf.display {
+  display: block;
+}
+#vomnibar li .vomnibarBottomHalf.hide {
+  display: none;
+}
 
 #vomnibar li .vomnibarIcon {
   background-position-y: center;

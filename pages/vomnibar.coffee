@@ -196,24 +196,16 @@ class VomnibarUI
     return completion.html if completion.html
     relevancyClass = if completion.showRelevancy then "display" else "hide"
     insertTextClass = if completion.insertText then "vomnibarInsertText" else "vomnibarNoInsertText"
+    bottomHalfClass = if completion.isCustomSearch then "hide" else "display"
     # NOTE(philc): We're using these vimium-specific class names so we don't collide with the page's CSS.
     completion.html =
-      if completion.isCustomSearch
-        """
-        <div class="vimiumReset vomnibarTopHalf">
-           <span class="vimiumReset vomnibarSource #{insertTextClass}">&#8618;</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
-           <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
-           <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
-         </div>
-        """
-      else
         """
         <div class="vimiumReset vomnibarTopHalf">
            <span class="vimiumReset vomnibarSource #{insertTextClass}">&#8618;</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
            <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
           <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
          </div>
-         <div class="vimiumReset vomnibarBottomHalf">
+         <div class="vimiumReset vomnibarBottomHalf #{bottomHalfClass}">
           <span class="vimiumReset vomnibarSource vomnibarNoInsertText">&#8618;</span><span class="vimiumReset vomnibarUrl">#{completion.urlHtml}</span>
         </div>
         """
