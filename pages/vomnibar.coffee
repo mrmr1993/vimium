@@ -228,7 +228,7 @@ class VomnibarUI
         @completions = results
         @selection = if @completions[0]?.autoSelect then 0 else @initialSelectionValue
         # Update completion list with the new suggestions.
-        @completionList.innerHTML = @completions.map((completion) -> "<li>#{completion.html}</li>").join("")
+        @completionList.innerHTML = @completions.map((completion) => "<li>#{@generateHtml completion}</li>").join("")
         @completionList.style.display = if @completions.length > 0 then "block" else ""
         @selection = Math.min @completions.length - 1, Math.max @initialSelectionValue, @selection
         @updateSelection()
