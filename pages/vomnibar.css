@@ -95,7 +95,7 @@
   color: #777;
   margin-right: 4px;
 }
-#vomnibar li .vomnibarRelevancy {
+#vomnibar li .relevancy {
   position: absolute;
   right: 0;
   top: 0;
@@ -105,6 +105,9 @@
   font-family: monospace;
   width: 100px;
   overflow: hidden;
+}
+#vomnibar li.vomnibarSelected .relevancy {
+  background-color: #BBCEE9;
 }
 #vomnibar li .relevancy.hide {
   display: none;

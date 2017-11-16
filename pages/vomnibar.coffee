@@ -212,10 +212,10 @@ class VomnibarUI
         <div class="vimiumReset vomnibarTopHalf">
            <span class="vimiumReset vomnibarSource #{insertTextClass}">#{insertTextIndicator}</span><span class="vimiumReset vomnibarSource">#{completion.type}</span>
            <span class="vimiumReset vomnibarTitle">#{completion.titleHtml}</span>
+          <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
          </div>
          <div class="vimiumReset vomnibarBottomHalf">
           <span class="vimiumReset vomnibarSource vomnibarNoInsertText">#{insertTextIndicator}</span><span class="vimiumReset vomnibarUrl">#{completion.urlHtml}</span>
-         <span class="relevancy #{relevancyClass}">#{completion.relevancy}</span>
         </div>
         """
 
