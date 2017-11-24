@@ -219,13 +219,9 @@ class LinkHintsMode
   onKeyDownInMode: (event) ->
     return if event.repeat
 
-    previousTabCount = @tabCount
-    @tabCount = 0
-
     # NOTE(smblott) The modifier behaviour here applies only to alphabet hints.
     if event.key in ["Control", "Shift"] and not Settings.get("filterLinkHints") and
       @mode in [ OPEN_IN_CURRENT_TAB, OPEN_WITH_QUEUE, OPEN_IN_NEW_BG_TAB, OPEN_IN_NEW_FG_TAB ]
-        @tabCount = previousTabCount
         # Toggle whether to open the link in a new or current tab.
         previousMode = @mode
         key = event.key
@@ -236,19 +232,16 @@ class LinkHintsMode
           when "Control"
             @setOpenLinkMode(if @mode is OPEN_IN_NEW_FG_TAB then OPEN_IN_NEW_BG_TAB else OPEN_IN_NEW_FG_TAB)
 
-        handlerId = handlerStack.push
+        handlerId = @hintMode.push
           keyup: (event) =>
             if event.key == key
               handlerStack.remove()
               @setOpenLinkMode previousMode
             true # Continue bubbling the event.
 
-        # For some (unknown) reason, we don't always receive the keyup event needed to remove this handler.
-        # Therefore, we ensure that it's always removed when hint mode exits.  See #1911 and #1926.
-        @hintMode.onExit -> handlerStack.remove handlerId
-
     else if KeyboardUtils.isBackspace event
       if @markerMatcher.popKeyChar()
+        @tabCount = 0
         @updateVisibleMarkers()
       else
         # Exit via @hintMode.exit(), so that the LinkHints.activate() "onExit" callback sees the key event and
@@ -260,15 +253,13 @@ class LinkHintsMode
       HintCoordinator.sendMessage "activateActiveHintMarker" if @markerMatcher.activeHintMarker
 
     else if event.key == "Tab"
-      @tabCount = previousTabCount + (if event.shiftKey then -1 else 1)
-      @updateVisibleMarkers @tabCount
+      if event.shiftKey then @tabCount-- else @tabCount++
+      @updateVisibleMarkers()
 
     else if event.key == " " and @markerMatcher.shouldRotateHints event
-      @tabCount = previousTabCount
       HintCoordinator.sendMessage "rotateHints"
 
     else
-      @tabCount = previousTabCount if event.ctrlKey or event.metaKey or event.altKey
       unless event.repeat
         keyChar =
           if Settings.get "filterLinkHints"
@@ -278,16 +269,18 @@ class LinkHintsMode
         if keyChar
           keyChar = " " if keyChar == "space"
           if keyChar.length == 1
+            @tabCount = 0
             @markerMatcher.pushKeyChar keyChar
             @updateVisibleMarkers()
           else
-            return
+            return handlerStack.suppressPropagation
 
     handlerStack.suppressEvent
 
-  updateVisibleMarkers: (tabCount = 0) ->
+  updateVisibleMarkers: ->
     {hintKeystrokeQueue, linkTextKeystrokeQueue} = @markerMatcher
-    HintCoordinator.sendMessage "updateKeyState", {hintKeystrokeQueue, linkTextKeystrokeQueue, tabCount}
+    HintCoordinator.sendMessage "updateKeyState",
+      {hintKeystrokeQueue, linkTextKeystrokeQueue, tabCount: @tabCount}
 
   updateKeyState: ({hintKeystrokeQueue, linkTextKeystrokeQueue, tabCount}) ->
     extend @markerMatcher, {hintKeystrokeQueue, linkTextKeystrokeQueue}
@@ -296,7 +289,7 @@ class LinkHintsMode
     if linksMatched.length == 0
       @deactivateMode()
     else if linksMatched.length == 1
-      @activateLink linksMatched[0], userMightOverType ? false
+      @activateLink linksMatched[0], userMightOverType
     else
       @hideMarker marker for marker in @hintMarkers
       @showMarker matched, @markerMatcher.hintKeystrokeQueue.length for matched in linksMatched
@@ -350,7 +343,7 @@ class LinkHintsMode
   # When only one hint remains, activate it in the appropriate way.  The current frame may or may not contain
   # the matched link, and may or may not have the focus.  The resulting four cases are accounted for here by
   # selectively pushing the appropriate HintCoordinator.onExit handlers.
-  activateLink: (linkMatched, userMightOverType=false) ->
+  activateLink: (linkMatched, userMightOverType = false) ->
     @removeHintMarkers()
 
     if linkMatched.isLocalMarker
@@ -376,25 +369,26 @@ class LinkHintsMode
               clickEl.focus()
             linkActivator clickEl
 
-    installKeyboardBlocker = (startKeyboardBlocker) ->
-      if linkMatched.isLocalMarker
-        {top: viewportTop, left: viewportLeft} = DomUtils.getViewportTopLeft()
-        for rect in (Rect.copy rect for rect in clickEl.getClientRects())
-          extend rect, top: rect.top + viewportTop, left: rect.left + viewportLeft
-          flashEl = DomUtils.addFlashRect rect
-          do (flashEl) -> HintCoordinator.onExit.push -> DomUtils.removeElement flashEl
-
-      if windowIsFocused()
-        startKeyboardBlocker (isSuccess) -> HintCoordinator.sendMessage "exit", {isSuccess}
+    # If flash elements are created, then this function can be used later to remove them.
+    removeFlashElements = ->
+    if linkMatched.isLocalMarker
+      {top: viewportTop, left: viewportLeft} = DomUtils.getViewportTopLeft()
+      flashElements = for rect in clickEl.getClientRects()
+        DomUtils.addFlashRect Rect.translate rect, viewportLeft, viewportTop
+      removeFlashElements = -> DomUtils.removeElement flashEl for flashEl in flashElements
 
     # If we're using a keyboard blocker, then the frame with the focus sends the "exit" message, otherwise the
     # frame containing the matched link does.
-    if userMightOverType and Settings.get "waitForEnterForFilteredHints"
-      installKeyboardBlocker (callback) -> new WaitForEnter callback
-    else if userMightOverType
-      installKeyboardBlocker (callback) -> new TypingProtector 200, callback
+    if userMightOverType
+      HintCoordinator.onExit.push removeFlashElements
+      if windowIsFocused()
+        callback = (isSuccess) -> HintCoordinator.sendMessage "exit", {isSuccess}
+        if Settings.get "waitForEnterForFilteredHints"
+          new WaitForEnter callback
+        else
+          new TypingProtector 200, callback
     else if linkMatched.isLocalMarker
-      DomUtils.flashRect linkMatched.rect
+      Utils.setTimeout 400, removeFlashElements
       HintCoordinator.sendMessage "exit", isSuccess: true
 
   #
