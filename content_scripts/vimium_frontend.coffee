@@ -144,6 +144,8 @@ initializePreDomReady = ->
     runInTopFrame: ({sourceFrameId, registryEntry}) ->
       NormalModeCommands[registryEntry.command] sourceFrameId, registryEntry if DomUtils.isTopFrame()
     linkHintsMessage: (request) -> HintCoordinator[request.messageType] request
+    pasteFromClipboard: (request, sender, sendResponse) -> HUD.pasteFromClipboard sendResponse
+    showHUDForDuration: ({text, duration}) -> HUD.showForDuration text, duration
 
   chrome.runtime.onMessage.addListener (request, sender, sendResponse) ->
     # Some requests intended for the background page are delivered to the options page too; ignore them.

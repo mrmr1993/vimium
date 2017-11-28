@@ -95,14 +95,6 @@ NormalModeCommands =
       url = url[0..25] + "...." if 28 < url.length
       HUD.showForDuration("Yanked #{url}", 2000)
 
-  openCopiedUrlInNewTab: (count) ->
-    HUD.pasteFromClipboard (url) ->
-      chrome.runtime.sendMessage { handler: "openUrlInNewTab", url, count }
-
-  openCopiedUrlInCurrentTab: ->
-    HUD.pasteFromClipboard (url) ->
-      chrome.runtime.sendMessage { handler: "openUrlInCurrentTab", url }
-
   # Mode changes.
   enterInsertMode: ->
     # If a focusable element receives the focus, then we exit and leave the permanently-installed insert-mode

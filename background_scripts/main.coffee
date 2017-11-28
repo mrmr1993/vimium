@@ -221,6 +221,12 @@ BackgroundCommands =
       startTabIndex = Math.max 0, Math.min activeTabIndex, tabs.length - count
       chrome.tabs.remove (tab.id for tab in tabs[startTabIndex...startTabIndex + count])
   restoreTab: mkRepeatCommand (request, callback) -> chrome.sessions.restore null, callback request
+  openCopiedUrlInCurrentTab: (request) ->
+    readClipboard(request).then ((url) -> TabOperations.openUrlInCurrentTab extend request, url: url)
+    , (reason) -> showHUDForDuration request, reason, 2000
+  openCopiedUrlInNewTab: (request) ->
+    readClipboard(request).then ((url) -> @createTab extend request, url: url)
+    , (reason) -> showHUDForDuration request, reason, 2000
   togglePinTab: ({tab}) -> chrome.tabs.update tab.id, {pinned: !tab.pinned}
   toggleMuteTab: toggleMuteTab
   moveTabLeft: moveTab
@@ -235,6 +241,21 @@ BackgroundCommands =
     tabIds = BgUtils.tabRecency.getTabsByRecency().filter (tabId) -> tabId != tab.id
     if 0 < tabIds.length
       selectSpecificTab id: tabIds[(count-1) % tabIds.length]
+
+readClipboard = ({tabId, frameId}) ->
+  if Utils.isFirefox
+    hasPermissions = browser.permissions.request permissions: ["clipboardWrite"]
+  else
+    hasPermissions = Promise.resolve true
+  hasPermissions.then ((granted) ->
+    new Promise (resolve, reject) ->
+      if granted
+        chrome.tabs.sendMessage tabId, {name: "pasteFromClipboard"}, {frameId}, resolve
+      else
+        reject "Could not read from the clipboard: permission denied.")
+
+showHUDForDuration = ({tabId, frameId}, text, duration) ->
+  chrome.tabs.sendMessage tabId, {name: "showHUDForDuration", text, duration}, {frameId}
 
 # Remove tabs before, after, or either side of the currently active tab
 removeTabsRelative = (direction, {tab: activeTab}) ->
