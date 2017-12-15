@@ -62,9 +62,9 @@ reports:
 
 ## Coding Style
 
-  * We follow the recommendations from
+  * We follow the recommendations in [our style guide](CODE_STYLE.md), based off
     [this style guide](https://github.com/polarmobile/coffeescript-style-guide).
-  * We follow two major differences from this style guide:
+  * Our style guide contains two major differences from the original:
     * Wrap lines at 110 characters instead of 80.
     * Use double-quoted strings by default.
   * When writing comments, uppercase the first letter of your sentence, and put a period at the end.
@@ -76,6 +76,10 @@ reports:
 
         # Yes
         return if i < 10
+
+To test code style against the style guide programatically:
+1. `npm install -g coffeelint` to install [CoffeeLint](http://www.coffeelint.org).
+1. `cake lint` to run the tests.
 
 ## Pull Requests
 
